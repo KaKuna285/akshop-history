@@ -2,11 +2,19 @@
    Kept separate from style2.css (shared across pages) so it only affects
    this page and is easy to find/tweak. */
 
+/* Was a flat 1200px, which left big dead margins on wide screens. This
+   halves the side margin instead of using a fixed number: on any screen
+   wider than 1200px, each side's empty space becomes half of what a plain
+   1200px cap would leave (derivation: margin-per-side = (100vw - 1200px)/2
+   before; halving that and solving for the resulting width gives
+   (100vw + 1200px)/2). On narrower/mobile screens this just evaluates to
+   more than 100vw, which is harmless -- the block still only fills its
+   actual container width, so mobile layout is unaffected. */
 #topNav,
 .btnPanel,
 #chartLegend,
 #chartDiv {
-  max-width: 1200px;
+  max-width: calc((100vw + 1200px) / 2);
   margin-left: auto;
   margin-right: auto;
 }
@@ -73,7 +81,7 @@
 }
 
 #pageCredit {
-  max-width: 1200px;
+  max-width: calc((100vw + 1200px) / 2);
   margin: 16px auto 24px;
   padding: 0 20px;
   font-size: 0.75rem;
