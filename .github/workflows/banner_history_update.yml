@@ -34,3 +34,9 @@ jobs:
           default_author: github_actions
           message: "update banner history"
           add: "akgcc-extra-data/json/*.json"
+          # If origin/main moved after this job's checkout (e.g. you pushed
+          # something else while this was running, or you re-ran an old job),
+          # a plain push would get rejected as non-fast-forward. Pulling with
+          # rebase right before the push picks up whatever's new on main and
+          # replays this commit on top of it instead of failing outright.
+          pull: "--rebase --autostash"
