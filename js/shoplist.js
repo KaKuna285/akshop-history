@@ -295,16 +295,23 @@ fetch(
 							]
 						: chart.data.datasets[args.index].data[i].shop[shop_idx]
 								?.date;
-					iconHitboxes.push({
-						x: x_pos,
-						y: y_pos,
-						r: imgsize / 2,
-						op: chart.data.datasets[args.index].data[i].op,
-						charId: chart.data.datasets[args.index].data[i].charId,
-						date: pointDate,
-						first: first_apperance,
-						blue: is_blue,
-					});
+					{
+						let rowData = chart.data.datasets[args.index].data[i];
+						iconHitboxes.push({
+							x: x_pos,
+							y: y_pos,
+							r: imgsize / 2,
+							op: rowData.op,
+							charId: rowData.charId,
+							date: pointDate,
+							first: first_apperance,
+							blue: is_blue,
+							isKernel: rowData.isKernel,
+							isLimited: operatorData[rowData.charId]?.isLimited,
+							rarity: operatorData[rowData.charId]?.rarity,
+							hasShopHistory: rowData.shop.length > 0,
+						});
+					}
 				}
 			},
 		};
@@ -486,11 +493,41 @@ fetch(
 						month: "short",
 						day: "numeric",
 					});
-			const kind = hb.first
-				? "First released (not yet in shop)"
-				: hb.blue
-					? "Shop rotation · Kernel pool"
-					: "Shop rotation · Limited pool";
+			let kind;
+			if (hb.first) {
+				kind = "First released (not yet in shop)";
+			} else if (hb.blue) {
+				kind = "Shop rotation · Kernel pool";
+			} else if (hb.isLimited) {
+				kind = "Shop rotation · Limited pool";
+			} else {
+				kind = "Shop rotation · Standard pool";
+			}
+
+			// Standard-pool 5*/6* operators who have never appeared in the
+			// shop yet: predict a debut date from a fixed weekly cadence.
+			// (4* operators never get added to the shop, so no prediction.)
+			const SHOP_DEBUT_CADENCE_WEEKS = { 5: 6, 4: 5 }; // rarity(remapped): weeks
+			let predictionHtml = "";
+			if (
+				hb.first &&
+				!hb.hasShopHistory &&
+				!hb.isKernel &&
+				!hb.isLimited &&
+				SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] != null
+			) {
+				const cadenceMs =
+					SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] * 7 * 24 * 60 * 60 * 1000;
+				const predictedDate = new Date(hb.date + cadenceMs);
+				const predictedStr = predictedDate.toLocaleDateString(undefined, {
+					year: "numeric",
+					month: "short",
+					day: "numeric",
+				});
+				predictionHtml =
+					`<span style="opacity:0.8">Predicted shop debut: ~${predictedStr}</span>`;
+			}
+
 			iconTooltipEl.className = "";
 			iconTooltipEl.classList.add("xcenter", "ybottom");
 			iconTooltipEl.innerHTML =
@@ -500,6 +537,7 @@ fetch(
 				`<span><b>${hb.op}</b></span>` +
 				`<span>${kind}</span>` +
 				`<span style="opacity:0.8">${dateStr}</span>` +
+				predictionHtml +
 				"</div></div>";
 			iconTooltipEl.style.left = pageX + "px";
 			iconTooltipEl.style.top = pageY + "px";
