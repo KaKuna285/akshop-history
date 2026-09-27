@@ -1,0 +1,20 @@
+{
+  // Explicit static-site config, so Cloudflare doesn't have to guess how to
+  // serve this (its auto-detection was treating this like a single-page app
+  // and serving unstyled content at "/" while 404ing on "/shoplist/").
+  "name": "akshop-history",
+  "compatibility_date": "2024-09-23",
+  "assets": {
+    // Serve every file straight from the repo root -- this is a plain
+    // static site, no build step, root-relative paths (/css/..., /js/...)
+    // throughout.
+    "directory": "./",
+    // Not a single-page app: a path with no matching file should get a
+    // real 404, not silently fall back to some other page's content.
+    "not_found_handling": "404-page",
+    // "/shoplist" and "/shoplist/" should both resolve to
+    // "/shoplist/index.html" (the actual page), same as any static file
+    // server's default directory-index behavior.
+    "html_handling": "auto-trailing-slash"
+  }
+}
