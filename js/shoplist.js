@@ -4,10 +4,15 @@ const OP_DATA = {};
 // hit-testable regions for every portrait bubble drawn this frame, used to
 // power the hover tooltip (populated in testp.beforeDatasetsDraw / afterDatasetDraw)
 let iconHitboxes = [];
+// hit-testable rectangles for every bar segment drawn this frame (the gap
+// between an operator's release/shop appearances), used to power the
+// click-to-see-days-between-appearances feature (same populate points as
+// iconHitboxes above)
+let barHitboxes = [];
 const showntypes = {
 	Limited: false,
 	Normal: true,
-	Kernel: true,
+	Kernel: false,
 };
 function createDiagonalPattern(fillcolor) {
 	//https://stackoverflow.com/questions/28569667/fill-chart-js-bar-chart-with-diagonal-stripes-or-other-patterns
@@ -176,6 +181,7 @@ fetch(
 				// reset hitboxes at the start of every draw pass so stale
 				// entries from a previous filter/sort/server change don't linger
 				iconHitboxes = [];
+				barHitboxes = [];
 			},
 			beforeDraw(chart) {
 				// faint alternating row bands so it's easier to track a row
@@ -294,30 +300,59 @@ fetch(
 					if (!first_apperance) ctx.stroke();
 					ctx.restore();
 
+					let rowData = chart.data.datasets[args.index].data[i];
+
 					// record where this bubble landed on screen so mousemove
 					// hit-testing can find it and show a date tooltip
 					let pointDate = first_apperance
-						? chart.data.datasets[args.index].data[i][
-								args.meta._dataset.parsing.xAxisKey
-							]
-						: chart.data.datasets[args.index].data[i].shop[shop_idx]
-								?.date;
-					{
-						let rowData = chart.data.datasets[args.index].data[i];
-						iconHitboxes.push({
-							x: x_pos,
-							y: y_pos,
-							r: imgsize / 2,
-							op: rowData.op,
-							charId: rowData.charId,
-							date: pointDate,
-							first: first_apperance,
-							blue: is_blue,
-							isKernel: rowData.isKernel,
-							isLimited: operatorData[rowData.charId]?.isLimited,
-							rarity: operatorData[rowData.charId]?.rarity,
-							hasShopHistory: rowData.shop.length > 0,
-						});
+						? rowData[args.meta._dataset.parsing.xAxisKey]
+						: rowData.shop[shop_idx]?.date;
+					iconHitboxes.push({
+						x: x_pos,
+						y: y_pos,
+						r: imgsize / 2,
+						op: rowData.op,
+						charId: rowData.charId,
+						date: pointDate,
+						first: first_apperance,
+						blue: is_blue,
+						isKernel: rowData.isKernel,
+						isLimited: operatorData[rowData.charId]?.isLimited,
+						rarity: operatorData[rowData.charId]?.rarity,
+						hasShopHistory: rowData.shop.length > 0,
+					});
+
+					// record the bar segment (the gap ending at this bubble)
+					// so a click can report how many days it spans. Every
+					// non-"first" dataset column is one segment: #0 runs
+					// from the operator's release to their first shop
+					// appearance, #1 from shop appearance 0 to 1, and so on.
+					if (!first_apperance) {
+						const startDate =
+							shop_idx === 0
+								? rowData.first
+								: rowData.shop[shop_idx - 1]?.date;
+						const endDate = rowData.shop[shop_idx]?.date;
+						if (
+							startDate != null &&
+							endDate != null &&
+							!isNaN(startDate) &&
+							!isNaN(endDate)
+						) {
+							const startPx = x.getPixelForValue(startDate);
+							const barHeight = args.meta.data[i]?.height || imgsize;
+							barHitboxes.push({
+								x0: Math.min(startPx, x_pos),
+								x1: Math.max(startPx, x_pos),
+								yTop: y_pos - barHeight / 2,
+								yBottom: y_pos + barHeight / 2,
+								op: rowData.op,
+								charId: rowData.charId,
+								segIdx: shop_idx,
+								startDate,
+								endDate,
+							});
+						}
 					}
 				}
 			},
@@ -492,6 +527,17 @@ fetch(
 			}
 			return best;
 		}
+		function findHoveredBarSegment(mx, my) {
+			// last match wins (rows drawn later are on top, same convention
+			// as findHoveredIcon effectively gets via closest-distance)
+			let best = null;
+			for (const seg of barHitboxes) {
+				if (mx >= seg.x0 && mx <= seg.x1 && my >= seg.yTop && my <= seg.yBottom) {
+					best = seg;
+				}
+			}
+			return best;
+		}
 		// Standard-pool (non-Kernel, non-Limited) operators of a given
 		// remapped rarity, on the currently selected server. The anchor date
 		// is when the shop cadence last actually ticked forward -- i.e. the
@@ -620,16 +666,81 @@ fetch(
 			iconTooltipEl.classList.add("hidden");
 			opCanvas.style.cursor = "default";
 		}
+		function daysBetween(startDate, endDate) {
+			return Math.round((endDate - startDate) / (24 * 60 * 60 * 1000));
+		}
+		function showBarGapTooltip(seg, pageX, pageY) {
+			const fmt = (d) =>
+				new Date(d).toLocaleDateString(undefined, {
+					year: "numeric",
+					month: "short",
+					day: "numeric",
+				});
+			const days = daysBetween(seg.startDate, seg.endDate);
+			const label =
+				seg.segIdx === 0
+					? "First release → first shop appearance"
+					: `Shop appearance #${seg.segIdx} → #${seg.segIdx + 1}`;
+			iconTooltipEl.className = "";
+			iconTooltipEl.classList.add("xcenter", "ybottom");
+			iconTooltipEl.innerHTML =
+				'<div style="display:flex;flex-direction:column;line-height:1.35;white-space:nowrap;">' +
+				`<span><b>${seg.op}</b></span>` +
+				`<span>${label}</span>` +
+				`<span style="opacity:0.8">${fmt(seg.startDate)} → ${fmt(seg.endDate)}</span>` +
+				`<span style="opacity:0.8"><b>${days}</b> day${days === 1 ? "" : "s"}</span>` +
+				"</div>";
+			iconTooltipEl.style.left = pageX + "px";
+			iconTooltipEl.style.top = pageY + "px";
+			iconTooltipEl.style.transform = "translate(-50%, calc(-100% - 14px))";
+		}
+		// a bar segment the user clicked on, pinned in place until they click
+		// it again, click elsewhere, or change a filter/sort/server/period
+		let pinnedGap = null;
 		opCanvas.addEventListener("mousemove", (e) => {
 			const hb = findHoveredIcon(e.offsetX, e.offsetY);
+			const overSegment = findHoveredBarSegment(e.offsetX, e.offsetY);
 			if (hb) {
 				showIconTooltip(hb, e.pageX, e.pageY);
 				opCanvas.style.cursor = "pointer";
+			} else if (pinnedGap) {
+				// keep showing the pinned gap while the mouse isn't over a
+				// portrait bubble, instead of hiding it on every small move
+				showBarGapTooltip(pinnedGap.seg, pinnedGap.pageX, pinnedGap.pageY);
+				opCanvas.style.cursor = overSegment ? "pointer" : "default";
 			} else {
+				hideIconTooltip();
+				opCanvas.style.cursor = overSegment ? "pointer" : "default";
+			}
+		});
+		opCanvas.addEventListener("mouseleave", () => {
+			if (!pinnedGap) hideIconTooltip();
+		});
+		opCanvas.addEventListener("click", (e) => {
+			const seg = findHoveredBarSegment(e.offsetX, e.offsetY);
+			if (seg) {
+				if (pinnedGap && pinnedGap.seg === seg) {
+					// clicking the same segment again unpins it
+					pinnedGap = null;
+					hideIconTooltip();
+				} else {
+					pinnedGap = { seg, pageX: e.pageX, pageY: e.pageY };
+					showBarGapTooltip(seg, e.pageX, e.pageY);
+				}
+			} else if (pinnedGap) {
+				pinnedGap = null;
 				hideIconTooltip();
 			}
 		});
-		opCanvas.addEventListener("mouseleave", hideIconTooltip);
+		// a click anywhere outside the chart entirely (the canvas's own
+		// click handler above only ever sees clicks that land on it) should
+		// also dismiss a pinned gap tooltip
+		document.addEventListener("click", (e) => {
+			if (pinnedGap && !opCanvas.contains(e.target)) {
+				pinnedGap = null;
+				hideIconTooltip();
+			}
+		});
 		// -----------------------------------------------------------------------
 
 		const btns = document.createElement("div");
@@ -773,6 +884,11 @@ fetch(
 			};
 		});
 		function redrawCharts() {
+			// the rows/positions a pinned gap tooltip refers to may no
+			// longer exist (or mean something different) after a filter,
+			// sort, server or period change
+			pinnedGap = null;
+			hideIconTooltip();
 			let subset = filterOperators(SHOP_DATA[selectedServer]);
 			barGraph.data.labels = subset.sort(labelSort).map((x) => x.op);
 
