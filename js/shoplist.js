@@ -485,6 +485,22 @@ fetch(
 			}
 			return best;
 		}
+		// Latest release date among Standard-pool (non-Kernel, non-Limited)
+		// operators of a given remapped rarity, on the currently selected
+		// server. Used to anchor the shop-debut prediction: the next
+		// standard-pool op of that rarity is expected `cadence` weeks after
+		// the *most recently released* one of that rarity, not after the
+		// hovered operator's own (possibly much older) release date.
+		function getLatestStandardPoolRelease(rarity) {
+			let latest = -Infinity;
+			for (const data of Object.values(SHOP_DATA[selectedServer])) {
+				if (data.isKernel) continue;
+				if (operatorData[data.charId]?.isLimited) continue;
+				if (operatorData[data.charId]?.rarity !== rarity) continue;
+				if (data.first > latest) latest = data.first;
+			}
+			return latest;
+		}
 		function showIconTooltip(hb, pageX, pageY) {
 			const dateStr = isNaN(hb.date)
 				? "Unknown date"
@@ -518,7 +534,8 @@ fetch(
 			) {
 				const cadenceMs =
 					SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] * 7 * 24 * 60 * 60 * 1000;
-				const predictedDate = new Date(hb.date + cadenceMs);
+				const latestRelease = getLatestStandardPoolRelease(hb.rarity);
+				const predictedDate = new Date(latestRelease + cadenceMs);
 				const predictedStr = predictedDate.toLocaleDateString(undefined, {
 					year: "numeric",
 					month: "short",
