@@ -3,11 +3,38 @@
 import requests
 import re
 import json
+import time
 from pprint import pprint
 from urllib.parse import quote
 from html import unescape
 # import xml.etree.ElementTree as ET
 # from lxml import etree
+
+# Plain requests.get() has no timeout by default, so a slow or rate-limited
+# wiki can hang a run indefinitely instead of failing loudly (this is what
+# happened on a run that sat on shop_operators.py for 2+ minutes with no
+# error). http_get() always sets a timeout and retries a couple of times
+# with backoff before actually raising, so a genuinely-down wiki still fails
+# fast and with a clear error in the Action log.
+REQUEST_TIMEOUT = 30  # seconds, per attempt
+REQUEST_RETRIES = 3
+REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number
+
+
+def http_get(url, **kwargs):
+    kwargs.setdefault('timeout', REQUEST_TIMEOUT)
+    last_exc = None
+    for attempt in range(1, REQUEST_RETRIES + 1):
+        try:
+            return requests.get(url, **kwargs)
+        except requests.exceptions.RequestException as exc:
+            last_exc = exc
+            print(f'Request to {url} failed (attempt {attempt}/{REQUEST_RETRIES}): {exc}')
+            if attempt < REQUEST_RETRIES:
+                time.sleep(REQUEST_BACKOFF * attempt)
+    raise last_exc
+
+
 NA_OPS = {}
 CN_OPS = {}
 ALIAS = {
@@ -18,7 +45,7 @@ ALIAS = {
 def get_operator_lists_gp(live = True):
     # xml is malformed, so we use regex instead.
     if live:
-        r = requests.get('https://gamepress.gg/arknights/database/banner-list-gacha')
+        r = http_get('https://gamepress.gg/arknights/database/banner-list-gacha')
         r.encoding = 'utf8'
         content = r.text
         with open('i_oplist_cache','w',encoding='utf8') as f:
@@ -127,7 +154,7 @@ def get_operator_lists_wiki():
         "cmlimit": "max",
         "format": "json",
     }
-    r = requests.get(url, params=params)
+    r = http_get(url, params=params)
     pages = [p["title"] for p in r.json()["query"]["categorymembers"] if p['ns'] == 0 and 'Upcoming' not in p['title']]
     # pages.append('Headhunting/Banners')
     params = {
@@ -139,7 +166,7 @@ def get_operator_lists_wiki():
         "formatversion": "2",
         "format": "json",
     }
-    r = requests.get(url, params=params)
+    r = http_get(url, params=params)
     all_pages = r.json()["query"]["pages"]
     for page in all_pages:
     # for page in pages:
@@ -202,7 +229,7 @@ def get_operator_lists_prts():
         "formatversion": "2",
         "format": "json",
     }
-    r = requests.get(url, params=params, headers=headers)
+    r = http_get(url, params=params, headers=headers)
     pages = []
     blue = 0
     for page in r.json()['query']['pages']:
@@ -211,7 +238,7 @@ def get_operator_lists_prts():
     pages.append((banner_pages[2], False))
     blue_pages = dict(pages)
     params['titles'] = '|'.join(p[0] for p in pages)
-    r = requests.get(url, params=params, headers=headers)
+    r = http_get(url, params=params, headers=headers)
     for page in r.json()['query']['pages']:
         is_blue = blue_pages[page['title']]
         banners = []

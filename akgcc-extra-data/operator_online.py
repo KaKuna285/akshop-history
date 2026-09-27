@@ -1,9 +1,34 @@
 import requests
 import re
 import json
+import time
 from pprint import pprint
 from urllib.parse import quote
 from html import unescape
+
+# Plain requests.get() has no timeout by default, so a slow or rate-limited
+# wiki can hang a run indefinitely instead of failing loudly. http_get()
+# always sets a timeout and retries a couple of times with backoff before
+# actually raising, so a genuinely-down wiki still fails fast and with a
+# clear error in the Action log.
+REQUEST_TIMEOUT = 30  # seconds, per attempt
+REQUEST_RETRIES = 3
+REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number
+
+
+def http_get(url, **kwargs):
+    kwargs.setdefault('timeout', REQUEST_TIMEOUT)
+    last_exc = None
+    for attempt in range(1, REQUEST_RETRIES + 1):
+        try:
+            return requests.get(url, **kwargs)
+        except requests.exceptions.RequestException as exc:
+            last_exc = exc
+            print(f'Request to {url} failed (attempt {attempt}/{REQUEST_RETRIES}): {exc}')
+            if attempt < REQUEST_RETRIES:
+                time.sleep(REQUEST_BACKOFF * attempt)
+    raise last_exc
+
 
 DATA = {}
     
@@ -43,7 +68,7 @@ def scrape_PRTS():
     while 1:
         params['limit'] = limit
         params['offset'] = offset
-        r = requests.get(url, params=params, headers=headers)
+        r = http_get(url, params=params, headers=headers)
         pages = r.json()['cargoquery']
         for page in pages:
             charId = page['title']['charId']
@@ -76,7 +101,7 @@ def scrape_wiki():
     while 1:
         params['limit'] = limit
         params['offset'] = offset
-        r = requests.get(url, params=params, headers=headers)
+        r = http_get(url, params=params, headers=headers)
         pages = r.json()['cargoquery']
         for page in pages:
             charId = page['title']['charId']
