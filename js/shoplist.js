@@ -594,12 +594,14 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 				// "Limited" rather than the generic "not yet in shop" line,
 				// since Limited ops aren't expected to hit the shop on any
 				// predictable schedule the way Standard-pool ops are. A 4*
-				// op never gets added to the shop at all, so there's nothing
-				// useful to say here -- leave the line out entirely.
+				// op never gets added to the shop at all, so "not yet in
+				// shop" doesn't really apply -- just say "First released".
+				// (rarity is 0-indexed here: TIER_4 remaps to 3, not 4 --
+				// see RARITY_MAP in util.js.)
 				if (hb.isLimited) {
 					kind = "Limited";
-				} else if (hb.rarity === 4) {
-					kind = "";
+				} else if (hb.rarity === 3) {
+					kind = "First released";
 				} else {
 					kind = "First released (not yet in shop)";
 				}
