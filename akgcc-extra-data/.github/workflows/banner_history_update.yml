@@ -1,0 +1,20 @@
+name: Update banner history
+on:
+  schedule:
+    - cron: "0 0 * * 0,5"
+  workflow_dispatch:
+jobs:
+  run:
+    name: Update banner history
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - run: python shop_operators.py
+      - run: python operator_online.py
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          default_author: github_actions
+          message: "update banner history"
+          add: "*.json"

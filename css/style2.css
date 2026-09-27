@@ -1,0 +1,167 @@
+:root {
+  --nameplate-height: 20px;
+  --operator-image-size: 75px;
+}
+
+.operatorCheckbox {
+  background-color: rgb(25, 25, 25);
+}
+
+.operatorCheckbox img {
+  opacity: 1;
+}
+
+.operatorCheckbox:hover {
+  transform: none;
+  image-rendering: auto;
+}
+
+.operatorCheckbox,
+.operatorCheckbox .name {
+  cursor: default;
+  user-select: none;
+}
+
+.btnPanel,
+#info {
+  padding: 8px 8px 0 8px;
+}
+
+html {
+  /* necessary to prevent flickering scroll bar issue on chart resize */
+  /* overflow-y: scroll; */
+  /* overflow-y: auto; */
+}
+
+#pageTitle {
+  flex-grow: 1;
+}
+
+/* create caret */
+#chartjs-tooltip::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  display: inline-block;
+  border: 5px solid transparent;
+  margin: 0;
+}
+#chartjs-tooltip.xleft::after {
+  left: 7px;
+  border-color: transparent;
+  border-right-color: rgba(0, 0, 0, 0.7);
+}
+#chartjs-tooltip.ycenter.xleft::after {
+  left: -10px;
+}
+#chartjs-tooltip.xright::after {
+  left: calc(100% - 17px);
+  border-color: transparent;
+  border-left-color: rgba(0, 0, 0, 0.7);
+}
+#chartjs-tooltip.ycenter.xright::after {
+  left: 100%;
+}
+#chartjs-tooltip.xcenter::after {
+  left: calc(50% - 5px);
+}
+#chartjs-tooltip.ytop::after {
+  top: -10px;
+  border-color: transparent;
+  border-bottom-color: rgba(0, 0, 0, 0.7);
+}
+#chartjs-tooltip.ybottom::after {
+  top: 100%;
+  border-color: transparent;
+  border-top-color: rgba(0, 0, 0, 0.7);
+}
+#chartjs-tooltip.ycenter::after {
+  top: calc(50% - 5px);
+}
+#chartjs-tooltip {
+  box-sizing: border-box;
+  display: inline-flex;
+  position: absolute;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 3px;
+  /* border-radius: 3px; */
+  border-radius: 0.5em;
+  /* width: fit-content; */
+}
+#chartjs-tooltip,
+#chartjs-tooltip::after {
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  top: 50%;
+  left: 50%;
+}
+#chartjs-tooltip::after {
+  transition: opacity 0.25s ease;
+}
+#chartjs-tooltip.hidden::after,
+#chartjs-tooltip.hidden {
+  opacity: 0;
+}
+
+#chartjs-tooltip > img {
+  height: 100%;
+  float: left;
+}
+
+#chartjs-tooltip span {
+  display: block;
+  margin-left: 5px;
+}
+
+#chartjs-tooltip > div {
+  margin: auto;
+  float: right;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  height: 100%;
+}
+
+#chartjs-tooltip i {
+  margin-right: 3px;
+  text-shadow: -1px 0 #fff, 0 1px #fff, 1px 0 #fff, 0 -1px #fff;
+}
+
+.btnPanel,
+#chartDiv,
+#checkboxes {
+  user-select: none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -o-user-select: none;
+}
+#chartDiv canvas.hidden {
+  display: none !important;
+}
+.chartContainer {
+  width: 100%;
+}
+
+.btnPanel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.btnPanel * {
+  margin-right: 4px;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+/* #pieChart, */
+#pieChartContainer {
+  height: 90%;
+  padding-top: 2%;
+}

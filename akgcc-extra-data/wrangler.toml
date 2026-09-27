@@ -1,0 +1,6 @@
+name = "yostarcors"
+type = "javascript"
+main = "./cfworker.js"
+account_id = "8894b7edca08d95100f60a9a0eea624a"
+workers_dev = true
+compatibility_date = "2026-01-18"
