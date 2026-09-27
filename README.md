@@ -11,8 +11,9 @@ recruit calculator, story reader, etc.) and none of that is needed to run
 just this one page. Instead, this folder has only what the shop-history
 page actually loads, vendored from two upstream repos:
 
-- `shoplist/`, `js/`, `css/`, `webfonts/`, `images/`, `LICENSE`,
-  `UPSTREAM_README.md` — from
+- `store/` (vendored as `shoplist/` upstream — renamed here since this
+  fork is served at `/store/`), `js/`, `css/`, `webfonts/`, `images/`,
+  `LICENSE`, `UPSTREAM_README.md` — from
   [akgcc/akgcc.github.io](https://github.com/akgcc/akgcc.github.io)
   @ `e51a17c62db332f19f1b031095c3cd6d2472d5c4`
 - `akgcc-extra-data/` — from
@@ -56,7 +57,7 @@ It's a static site — no build step. From this folder:
 python3 -m http.server 8000
 ```
 
-then open <http://localhost:8000/shoplist/>. (Opening `shoplist/index.html`
+then open <http://localhost:8000/store/>. (Opening `store/index.html`
 directly as a `file://` URL won't work — the page fetches `/js/...` and
 `/css/...` as root-relative paths, which need an actual server.)
 
@@ -115,8 +116,11 @@ To get this actually
 running end to end, on your own domain, under your own Cloudflare account:
 
 1. **Create a GitHub repo for this** (e.g. `github.com/new` →
-   `akshop-history`, public or private, doesn't matter). Then, from this
-   folder: `git remote add origin <the repo's URL>` and
+   `akshop-history`) and make sure it's set to **public**. This has to be
+   public, not just "public or private, doesn't matter" — the page fetches
+   its JSON straight from `raw.githubusercontent.com` with no
+   authentication, and that endpoint 404s on a private repo. Then, from
+   this folder: `git remote add origin <the repo's URL>` and
    `git push -u origin main`.
 2. **Check `EXTRA_DATA_REPO_RAW_BASE` in `js/util.js` matches that repo.**
    It's currently set to
@@ -125,20 +129,25 @@ running end to end, on your own domain, under your own Cloudflare account:
    folder's — if either is different, update that one constant (it's the
    only place this is hardcoded) and commit.
 3. **Confirm Actions is enabled** on that new repo (Settings → Actions →
-   General) and either wait for the first scheduled run (07:00 UTC daily —
-   edit the `cron` line in the workflow file if you want a different time;
-   remember GitHub Actions cron is always UTC) or trigger it manually once
-   from the Actions tab (`workflow_dispatch`) to confirm it commits updated
-   JSON successfully.
-4. **Deploy the site itself with Cloudflare Pages**: in the Cloudflare
-   dashboard, Workers & Pages → Create → Pages → Connect to GitHub → pick
-   this repo. No build command, no build output directory changes needed
-   (this is a static site with no build step — leave the output directory
-   as the repo root, since the page's assets are all referenced as
-   root-relative paths like `/js/...`, `/css/...`). It'll deploy at
-   `<project-name>.pages.dev`, and the page itself will be at `/shoplist/`
-   off that (matching the folder structure here).
-5. **Point your domain at it**: in that same Pages project, Custom domains
+   General, and while you're there set "Workflow permissions" to "Read and
+   write permissions" — the scraper commits its own output back to the
+   repo, so it needs that) and trigger the workflow once manually from the
+   Actions tab (`workflow_dispatch`) to confirm it commits updated JSON
+   successfully. See "Hands-off forever" below for how this actually gets
+   triggered daily going forward (not GitHub's own `schedule:` — a
+   Cloudflare Worker).
+4. **Deploy the site itself via Cloudflare**: in the Cloudflare dashboard,
+   Workers & Pages → Create application → Connect GitHub → pick this repo.
+   No build command — this is a static site with no build step. This repo
+   includes a `wrangler.jsonc` at its root that tells Cloudflare exactly
+   how to serve it (assets straight from the repo root, real 404s instead
+   of single-page-app-style fallback behavior, and `/store` /`/store/`
+   both resolving to `store/index.html`) — without it, Cloudflare's
+   auto-detection can guess wrong and serve broken/unstyled pages. It'll
+   deploy at `<project-name>.workers.dev`, with the actual chart at
+   `/store/` and a landing page listing this and any future Arknights
+   projects at the root.
+5. **Point your domain at it**: in that same project, the **Domains** tab
    → add the (sub)domain you want. Since your domain's already in your
    Cloudflare account, Cloudflare sets up the DNS for you automatically.
 

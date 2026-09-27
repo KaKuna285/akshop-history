@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arknights Projects</title>
+  <style>
+    :root {
+      --bg: #262626;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #eee;
+      --text-dim: #aaa;
+      --accent: #f8d511;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      padding: 48px 20px;
+    }
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.8rem;
+    }
+    .subtitle {
+      color: var(--text-dim);
+      margin: 0 0 32px;
+      font-size: 0.95rem;
+    }
+    .projects {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .projects a {
+      display: block;
+      padding: 16px 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .projects a:hover {
+      border-color: var(--accent);
+      background: rgba(248, 213, 17, 0.06);
+    }
+    .projects .name {
+      font-weight: bold;
+      font-size: 1.05rem;
+    }
+    .projects .desc {
+      color: var(--text-dim);
+      font-size: 0.88rem;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Arknights Projects</h1>
+    <p class="subtitle">A small hub for Arknights tools running on this domain.</p>
+
+    <!--
+      To add a new project later: copy one <li>...</li> block below,
+      point the href at that project's own folder (e.g. /new-project/),
+      and update the name/desc text. That's the only change needed here.
+    -->
+    <ul class="projects">
+      <li>
+        <a href="/store/">
+          <div class="name">Shop Operator History</div>
+          <div class="desc">
+            Track which operators have rotated through the Purchase
+            Certificate (yellow certificate) shop, and when — hover a
+            portrait for the exact date, click a bar to see the days
+            between appearances.
+          </div>
+        </a>
+      </li>
+    </ul>
+  </div>
+</body>
+</html>
