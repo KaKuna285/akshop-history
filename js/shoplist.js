@@ -86,7 +86,14 @@ fetch(
 					const img = new Image();
 					img.src = uri_avatar(data.charId);
 					data.img = img;
-					data.first = Date.parse(data.banner[0].date);
+					// Use the true minimum banner date rather than trusting
+					// banner[0] after the sort above: a single malformed/
+					// unparseable date string anywhere in the array makes
+					// Array.sort's comparisons with NaN unreliable, which can
+					// silently leave a later (e.g. rerun) date in slot 0.
+					data.first = Math.min(
+						...data.banner.map((b) => Date.parse(b.date)),
+					);
 					data.shop = data.shop
 						.map((entry) => ({
 							...entry,
@@ -485,21 +492,35 @@ fetch(
 			}
 			return best;
 		}
-		// Latest release date among Standard-pool (non-Kernel, non-Limited)
-		// operators of a given remapped rarity, on the currently selected
-		// server. Used to anchor the shop-debut prediction: the next
-		// standard-pool op of that rarity is expected `cadence` weeks after
-		// the *most recently released* one of that rarity, not after the
-		// hovered operator's own (possibly much older) release date.
-		function getLatestStandardPoolRelease(rarity) {
-			let latest = -Infinity;
+		// Standard-pool (non-Kernel, non-Limited) operators of a given
+		// remapped rarity, on the currently selected server. Returns the
+		// most recent release date across ALL of them (used as the baseline
+		// for predictions) plus the "queue" of ones that have never
+		// appeared in the shop yet, oldest-released first -- those are
+		// presumably next in line, one cadence-length apart: the
+		// longest-waiting one is expected `cadence` weeks after the latest
+		// release, the next one 2x`cadence`, and so on. De-duped by charId
+		// in case the source data lists the same operator under more than
+		// one name/alias.
+		function getStandardPoolPipeline(rarity) {
+			let latestRelease = -Infinity;
+			let latestOp = null;
+			const seen = new Set();
+			const waiting = [];
 			for (const data of Object.values(SHOP_DATA[selectedServer])) {
 				if (data.isKernel) continue;
 				if (operatorData[data.charId]?.isLimited) continue;
 				if (operatorData[data.charId]?.rarity !== rarity) continue;
-				if (data.first > latest) latest = data.first;
+				if (seen.has(data.charId)) continue;
+				seen.add(data.charId);
+				if (data.first > latestRelease) {
+					latestRelease = data.first;
+					latestOp = data.op;
+				}
+				if (!data.shop.length) waiting.push(data);
 			}
-			return latest;
+			waiting.sort((a, b) => a.first - b.first);
+			return { latestRelease, latestOp, waiting };
 		}
 		function showIconTooltip(hb, pageX, pageY) {
 			const dateStr = isNaN(hb.date)
@@ -534,15 +555,28 @@ fetch(
 			) {
 				const cadenceMs =
 					SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] * 7 * 24 * 60 * 60 * 1000;
-				const latestRelease = getLatestStandardPoolRelease(hb.rarity);
-				const predictedDate = new Date(latestRelease + cadenceMs);
+				const { latestRelease, latestOp, waiting } =
+					getStandardPoolPipeline(hb.rarity);
+				// position in the queue of never-shopped ops, oldest first;
+				// 1st gets +1 cadence, 2nd gets +2 cadence, etc.
+				let position = waiting.findIndex((d) => d.charId === hb.charId) + 1;
+				if (position <= 0) position = 1; // shouldn't happen, but stay safe
+				const predictedDate = new Date(latestRelease + position * cadenceMs);
 				const predictedStr = predictedDate.toLocaleDateString(undefined, {
 					year: "numeric",
 					month: "short",
 					day: "numeric",
 				});
+				const anchorStr = isNaN(latestRelease)
+					? "unknown"
+					: new Date(latestRelease).toLocaleDateString(undefined, {
+							year: "numeric",
+							month: "short",
+							day: "numeric",
+						});
 				predictionHtml =
-					`<span style="opacity:0.8">Predicted shop debut: ~${predictedStr}</span>`;
+					`<span style="opacity:0.8">Predicted shop debut: ~${predictedStr}</span>` +
+					`<span style="opacity:0.55;font-size:0.82em;">#${position} in line · anchored to ${latestOp} (${anchorStr})</span>`;
 			}
 
 			iconTooltipEl.className = "";
