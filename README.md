@@ -104,8 +104,11 @@ Action only runs twice a week — see `akgcc-extra-data/.github/workflows/`
 upstream). Instead, `js/util.js`'s `EXTRA_DATA_REPO_RAW_BASE` constant near
 the top of the file controls where `banner_history.json` and
 `operator_release_dates.json` are fetched from, and this repo's own copy of
-the scraper workflow (`akgcc-extra-data/.github/workflows/banner_history_update.yml`)
-is already set to run daily instead of twice a week. To get this actually
+the scraper workflow (`.github/workflows/banner_history_update.yml` — at
+the repo root, since that's the only place GitHub Actions looks for
+workflow files, even though the scripts it runs live under
+`akgcc-extra-data/`) is already set to run daily instead of twice a week.
+To get this actually
 running end to end, on your own domain, under your own Cloudflare account:
 
 1. **Create a GitHub repo for this** (e.g. `github.com/new` →
