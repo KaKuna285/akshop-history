@@ -5,6 +5,7 @@
     <link type="text/css" href="/css/style.css" rel="stylesheet" />
     <link type="text/css" href="/css/style2.css" rel="stylesheet" />
     <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
+    <link type="text/css" href="/css/shoplist-extra.css" rel="stylesheet" />
     <script type="text/javascript" src="/js/chart.3.5.1.min.js"></script>
     <script
       type="text/javascript"
@@ -26,6 +27,12 @@
     <div class="btnPanel" id="raritySelect"></div>
     <div class="btnPanel" id="sortSelect"></div>
     <div class="btnPanel" id="periodSelect"></div>
+    <div id="chartLegend">
+      <span><span class="legendSwatch legendFirst"></span> First released, not yet in shop</span>
+      <span><span class="legendSwatch legendGold"></span> Shop rotation &middot; Limited pool</span>
+      <span><span class="legendSwatch legendBlue"></span> Shop rotation &middot; Kernel pool</span>
+      <span class="legendHint">Hover a portrait for the exact date</span>
+    </div>
     <div id="chartDiv" style="padding-top: 8px">
       <div class="chartContainer chartOption" id="barChartContainer">
         <canvas id="opChart"></canvas>

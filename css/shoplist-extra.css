@@ -1,0 +1,73 @@
+/* Extra styling for the shop history page: layout breathing room + legend.
+   Kept separate from style2.css (shared across pages) so it only affects
+   this page and is easy to find/tweak. */
+
+#topNav,
+.btnPanel,
+#chartLegend,
+#chartDiv {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#chartDiv {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  padding: 12px 20px 24px;
+  margin-top: 8px;
+}
+
+#chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+  padding: 4px 8px 10px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+#chartLegend .legendSwatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+#chartLegend .legendFirst {
+  background: #0008;
+  border: 2px solid #999;
+}
+
+#chartLegend .legendGold {
+  background: transparent;
+  border: 2px solid #f8d511;
+}
+
+#chartLegend .legendBlue {
+  background: transparent;
+  border: 3px solid #4784eb;
+}
+
+#chartLegend .legendHint {
+  margin-left: auto;
+  font-style: italic;
+  opacity: 0.75;
+}
+
+/* the shared #chartjs-tooltip box works fine as-is; just make sure it
+   sits above everything and never blocks the pointer */
+#chartjs-tooltip {
+  z-index: 50;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  #chartLegend .legendHint {
+    margin-left: 0;
+    width: 100%;
+  }
+}

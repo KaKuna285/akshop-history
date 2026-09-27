@@ -1,6 +1,9 @@
 var operatorData;
 const SHOP_DATA = {};
 const OP_DATA = {};
+// hit-testable regions for every portrait bubble drawn this frame, used to
+// power the hover tooltip (populated in testp.beforeDatasetsDraw / afterDatasetDraw)
+let iconHitboxes = [];
 const showntypes = {
 	Limited: false,
 	Normal: true,
@@ -118,7 +121,7 @@ fetch(
 						yAxisKey: "op",
 					},
 					stack: "1",
-					categoryPercentage: 1.0,
+					categoryPercentage: 0.9,
 					barPercentage: 0.6,
 				},
 			];
@@ -150,7 +153,7 @@ fetch(
 							yAxisKey: "op",
 						},
 						stack: "1",
-						categoryPercentage: 1.0,
+						categoryPercentage: 0.9,
 						barPercentage: 0.6,
 					});
 				}
@@ -162,6 +165,31 @@ fetch(
 		Chart.defaults.font.size = 16;
 		const testp = {
 			id: "testp",
+			beforeDatasetsDraw(chart) {
+				// reset hitboxes at the start of every draw pass so stale
+				// entries from a previous filter/sort/server change don't linger
+				iconHitboxes = [];
+			},
+			beforeDraw(chart) {
+				// faint alternating row bands so it's easier to track a row
+				// across the full width of the chart, especially on tall lists
+				const labels = chart.data.labels;
+				if (!labels || !labels.length) return;
+				const {
+					ctx,
+					chartArea: { top, bottom, left, right },
+					scales: { y },
+				} = chart;
+				const bandHeight = (bottom - top) / labels.length;
+				ctx.save();
+				ctx.fillStyle = "rgba(255,255,255,0.035)";
+				for (let idx = 0; idx < labels.length; idx++) {
+					if (idx % 2 === 0) continue;
+					const centerY = y.getPixelForTick(idx);
+					ctx.fillRect(left, centerY - bandHeight / 2, right - left, bandHeight);
+				}
+				ctx.restore();
+			},
 			afterDatasetDraw(chart, args, options) {
 				const {
 					ctx,
@@ -258,6 +286,25 @@ fetch(
 					ctx.lineWidth = is_blue ? 3 : 2;
 					if (!first_apperance) ctx.stroke();
 					ctx.restore();
+
+					// record where this bubble landed on screen so mousemove
+					// hit-testing can find it and show a date tooltip
+					let pointDate = first_apperance
+						? chart.data.datasets[args.index].data[i][
+								args.meta._dataset.parsing.xAxisKey
+							]
+						: chart.data.datasets[args.index].data[i].shop[shop_idx]
+								?.date;
+					iconHitboxes.push({
+						x: x_pos,
+						y: y_pos,
+						r: imgsize / 2,
+						op: chart.data.datasets[args.index].data[i].op,
+						charId: chart.data.datasets[args.index].data[i].charId,
+						date: pointDate,
+						first: first_apperance,
+						blue: is_blue,
+					});
 				}
 			},
 		};
@@ -410,6 +457,69 @@ fetch(
 		).then((p) => {
 			barGraph.update();
 		});
+
+		// --- hover tooltip for the portrait bubbles ---------------------------
+		// Chart.js's own tooltip/hover system is disabled for this chart
+		// (the bars are invisible; only the plugin-drawn bubbles are visible),
+		// so we hit-test the recorded bubble positions ourselves.
+		const opCanvas = document.getElementById("opChart");
+		const iconTooltipEl = document.getElementById("chartjs-tooltip");
+		function findHoveredIcon(mx, my) {
+			let best = null;
+			let bestDist = Infinity;
+			for (const hb of iconHitboxes) {
+				const dx = mx - hb.x;
+				const dy = my - hb.y;
+				const dist = Math.sqrt(dx * dx + dy * dy);
+				if (dist <= hb.r && dist < bestDist) {
+					bestDist = dist;
+					best = hb;
+				}
+			}
+			return best;
+		}
+		function showIconTooltip(hb, pageX, pageY) {
+			const dateStr = isNaN(hb.date)
+				? "Unknown date"
+				: new Date(hb.date).toLocaleDateString(undefined, {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+					});
+			const kind = hb.first
+				? "First released (not yet in shop)"
+				: hb.blue
+					? "Shop rotation · Kernel pool"
+					: "Shop rotation · Limited pool";
+			iconTooltipEl.className = "";
+			iconTooltipEl.classList.add("xcenter", "ybottom");
+			iconTooltipEl.innerHTML =
+				'<div style="display:flex;align-items:center;gap:8px;">' +
+				`<img src="${uri_avatar(hb.charId)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` +
+				'<div style="display:flex;flex-direction:column;line-height:1.35;white-space:nowrap;">' +
+				`<span><b>${hb.op}</b></span>` +
+				`<span>${kind}</span>` +
+				`<span style="opacity:0.8">${dateStr}</span>` +
+				"</div></div>";
+			iconTooltipEl.style.left = pageX + "px";
+			iconTooltipEl.style.top = pageY + "px";
+			iconTooltipEl.style.transform = "translate(-50%, calc(-100% - 14px))";
+		}
+		function hideIconTooltip() {
+			iconTooltipEl.classList.add("hidden");
+			opCanvas.style.cursor = "default";
+		}
+		opCanvas.addEventListener("mousemove", (e) => {
+			const hb = findHoveredIcon(e.offsetX, e.offsetY);
+			if (hb) {
+				showIconTooltip(hb, e.pageX, e.pageY);
+				opCanvas.style.cursor = "pointer";
+			} else {
+				hideIconTooltip();
+			}
+		});
+		opCanvas.addEventListener("mouseleave", hideIconTooltip);
+		// -----------------------------------------------------------------------
 
 		const btns = document.createElement("div");
 		btns.id = "barSort";
