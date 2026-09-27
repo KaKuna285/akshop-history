@@ -1,12 +1,13 @@
 name: Update banner history
 on:
-  schedule:
-    # Daily at 07:00 UTC. Adjust to whatever time suits you -- GitHub Actions
-    # cron is always UTC, so pick an hour relative to that, not your local
-    # time. This replaces akgcc/akgcc-extra-data's own twice-weekly schedule
-    # (0 0 * * 0,5 -- midnight UTC every Sunday and Friday) with a daily one,
-    # since this fork's whole point is to refresh more often than upstream.
-    - cron: "0 7 * * *"
+  # No `schedule:` trigger here on purpose. GitHub auto-disables a scheduled
+  # workflow after 60 days with no repo activity, so instead a Cloudflare
+  # Worker (with its own Cron Trigger, running entirely on Cloudflare) calls
+  # the GitHub API once a day to fire this via workflow_dispatch below. See
+  # cloudflare/dispatch-cron.js and the "Hands-off forever" section of the
+  # README for the Worker setup. This also means the schedule lives on
+  # Cloudflare, which is the point: one less thing tied to GitHub staying
+  # "active" on its own.
   workflow_dispatch:
 jobs:
   run:

@@ -107,7 +107,10 @@ the top of the file controls where `banner_history.json` and
 the scraper workflow (`.github/workflows/banner_history_update.yml` — at
 the repo root, since that's the only place GitHub Actions looks for
 workflow files, even though the scripts it runs live under
-`akgcc-extra-data/`) is already set to run daily instead of twice a week.
+`akgcc-extra-data/`) runs the scraper daily instead of twice a week.
+
+That workflow has no `schedule:` trigger of its own, though — see "Hands-off
+forever" below for why, and what actually fires it every day instead.
 To get this actually
 running end to end, on your own domain, under your own Cloudflare account:
 
@@ -145,3 +148,25 @@ JSON live from GitHub on every page load — no redeploy needed for new shop
 data. A Cloudflare Pages redeploy only happens (automatically, on push)
 when you change the site's own code, same as we've been doing this
 session.
+
+## Hands-off forever: why the scraper doesn't use GitHub's own schedule
+
+GitHub Actions supports a native `schedule:` cron trigger, and earlier
+versions of this workflow used one. The problem: GitHub auto-disables a
+scheduled workflow after 60 days with no activity on the repo at all. In
+practice the scraper's own daily commit resets that clock whenever the
+data actually changes, but "probably fine" isn't the same as "hands-off
+forever" — so instead, the workflow only has a `workflow_dispatch:`
+trigger (fireable via the API, with no schedule of its own), and a small
+Cloudflare Worker with its own Cron Trigger — running entirely on
+Cloudflare's infrastructure, nothing to do with GitHub's uptime or
+activity rules — calls the GitHub API once a day to fire it.
+
+That Worker's code is at `cloudflare/dispatch-cron.js`, with full setup
+instructions in the comment at the top of that file: create it in the
+Cloudflare dashboard (Quick Edit — no Wrangler or npm install needed),
+add a `GITHUB_PAT` secret (a fine-grained GitHub token scoped only to
+this repo's Actions: Read and write — nothing broader), add a
+`TRIGGER_KEY` secret (any random string, used only to gate the file's
+manual `/trigger?key=...` test route), and add a Cron Trigger under that
+Worker's Settings -> Triggers.
