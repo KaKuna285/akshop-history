@@ -493,18 +493,23 @@ fetch(
 			return best;
 		}
 		// Standard-pool (non-Kernel, non-Limited) operators of a given
-		// remapped rarity, on the currently selected server. Returns the
-		// most recent release date across ALL of them (used as the baseline
-		// for predictions) plus the "queue" of ones that have never
-		// appeared in the shop yet, oldest-released first -- those are
-		// presumably next in line, one cadence-length apart: the
-		// longest-waiting one is expected `cadence` weeks after the latest
-		// release, the next one 2x`cadence`, and so on. De-duped by charId
-		// in case the source data lists the same operator under more than
-		// one name/alias.
+		// remapped rarity, on the currently selected server. The anchor date
+		// is when the shop cadence last actually ticked forward -- i.e. the
+		// most recent FIRST shop appearance among ops that have already been
+		// shopped -- not any operator's original character-release date.
+		// (A never-shopped operator can easily have been released more
+		// recently than the last operator actually added to the shop, and
+		// using their release date as the anchor pulls the whole prediction
+		// off by however early/late that operator happens to be.)
+		// Also returns the "queue" of ops that have never appeared in the
+		// shop yet, oldest-released first -- those are presumably next in
+		// line, one cadence-length apart: the longest-waiting one is
+		// expected `cadence` weeks after the anchor, the next one
+		// 2x`cadence`, and so on. De-duped by charId in case the source data
+		// lists the same operator under more than one name/alias.
 		function getStandardPoolPipeline(rarity) {
-			let latestRelease = -Infinity;
-			let latestOp = null;
+			let anchorDate = -Infinity;
+			let anchorOp = null;
 			const seen = new Set();
 			const waiting = [];
 			for (const data of Object.values(SHOP_DATA[selectedServer])) {
@@ -513,14 +518,23 @@ fetch(
 				if (operatorData[data.charId]?.rarity !== rarity) continue;
 				if (seen.has(data.charId)) continue;
 				seen.add(data.charId);
-				if (data.first > latestRelease) {
-					latestRelease = data.first;
-					latestOp = data.op;
+				if (data.shop.length) {
+					// data.shop[].date is already a numeric timestamp by this
+					// point (converted during initial setup above), so this
+					// is a plain min over numbers -- NOT another Date.parse.
+					const firstShopDate = Math.min(
+						...data.shop.map((s) => s.date),
+					);
+					if (firstShopDate > anchorDate) {
+						anchorDate = firstShopDate;
+						anchorOp = data.op;
+					}
+				} else {
+					waiting.push(data);
 				}
-				if (!data.shop.length) waiting.push(data);
 			}
 			waiting.sort((a, b) => a.first - b.first);
-			return { latestRelease, latestOp, waiting };
+			return { latestRelease: anchorDate, latestOp: anchorOp, waiting };
 		}
 		function showIconTooltip(hb, pageX, pageY) {
 			const dateStr = isNaN(hb.date)
@@ -557,26 +571,34 @@ fetch(
 					SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] * 7 * 24 * 60 * 60 * 1000;
 				const { latestRelease, latestOp, waiting } =
 					getStandardPoolPipeline(hb.rarity);
-				// position in the queue of never-shopped ops, oldest first;
-				// 1st gets +1 cadence, 2nd gets +2 cadence, etc.
-				let position = waiting.findIndex((d) => d.charId === hb.charId) + 1;
-				if (position <= 0) position = 1; // shouldn't happen, but stay safe
-				const predictedDate = new Date(latestRelease + position * cadenceMs);
-				const predictedStr = predictedDate.toLocaleDateString(undefined, {
-					year: "numeric",
-					month: "short",
-					day: "numeric",
-				});
-				const anchorStr = isNaN(latestRelease)
-					? "unknown"
-					: new Date(latestRelease).toLocaleDateString(undefined, {
-							year: "numeric",
-							month: "short",
-							day: "numeric",
-						});
-				predictionHtml =
-					`<span style="opacity:0.8">Predicted shop debut: ~${predictedStr}</span>` +
-					`<span style="opacity:0.55;font-size:0.82em;">#${position} in line · anchored to ${latestOp} (${anchorStr})</span>`;
+				if (latestOp == null || !isFinite(latestRelease)) {
+					// No same-rarity Standard-pool operator has ever been
+					// shopped yet on this server, so there's nothing to
+					// anchor a prediction to.
+					predictionHtml =
+						'<span style="opacity:0.7">No same-rarity Standard-pool shop debut yet to predict from</span>';
+				} else {
+					// position in the queue of never-shopped ops, oldest
+					// first; 1st gets +1 cadence, 2nd gets +2 cadence, etc.
+					let position =
+						waiting.findIndex((d) => d.charId === hb.charId) + 1;
+					if (position <= 0) position = 1; // shouldn't happen, but stay safe
+					const predictedDate = new Date(
+						latestRelease + position * cadenceMs,
+					);
+					const predictedStr = predictedDate.toLocaleDateString(undefined, {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+					});
+					const anchorStr = new Date(latestRelease).toLocaleDateString(
+						undefined,
+						{ year: "numeric", month: "short", day: "numeric" },
+					);
+					predictionHtml =
+						`<span style="opacity:0.8">Predicted shop debut: ~${predictedStr}</span>` +
+						`<span style="opacity:0.55;font-size:0.82em;">#${position} in line · anchored to ${latestOp}'s shop debut (${anchorStr})</span>`;
+				}
 			}
 
 			iconTooltipEl.className = "";
