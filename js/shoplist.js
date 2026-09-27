@@ -590,7 +590,19 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 					});
 			let kind;
 			if (hb.first) {
-				kind = "First released (not yet in shop)";
+				// A Limited-pool op who hasn't hit the shop yet: label it
+				// "Limited" rather than the generic "not yet in shop" line,
+				// since Limited ops aren't expected to hit the shop on any
+				// predictable schedule the way Standard-pool ops are. A 4*
+				// op never gets added to the shop at all, so there's nothing
+				// useful to say here -- leave the line out entirely.
+				if (hb.isLimited) {
+					kind = "Limited";
+				} else if (hb.rarity === 4) {
+					kind = "";
+				} else {
+					kind = "First released (not yet in shop)";
+				}
 			} else if (hb.blue) {
 				kind = "Shop rotation · Kernel pool";
 			} else if (hb.isLimited) {
@@ -645,6 +657,8 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 				}
 			}
 
+			const kindHtml = kind ? `<span>${kind}</span>` : "";
+
 			iconTooltipEl.className = "";
 			iconTooltipEl.classList.add("xcenter", "ybottom");
 			iconTooltipEl.innerHTML =
@@ -652,7 +666,7 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 				`<img src="${uri_avatar(hb.charId)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` +
 				'<div style="display:flex;flex-direction:column;line-height:1.35;white-space:nowrap;">' +
 				`<span><b>${hb.op}</b></span>` +
-				`<span>${kind}</span>` +
+				kindHtml +
 				`<span style="opacity:0.8">${dateStr}</span>` +
 				predictionHtml +
 				"</div></div>";
