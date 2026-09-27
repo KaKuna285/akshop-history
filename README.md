@@ -92,8 +92,53 @@ which aren't vendored here.
 
 ## If you want to push this somewhere
 
-This is a plain local git repo (`git init`, two commits) — it isn't
-linked to any remote. If you want it on GitHub: fork
-`akgcc/akgcc.github.io` for real (so you keep full history and can
-realistically send a PR upstream), or just `git remote add origin
-<your-repo-url>` here and push this trimmed version as its own thing.
+This is a plain local git repo — it isn't linked to any remote. If you want
+it on GitHub: fork `akgcc/akgcc.github.io` for real (so you keep full
+history and can realistically send a PR upstream), or just `git remote add
+origin <your-repo-url>` here and push this trimmed version as its own thing.
+
+## Running your own daily-refreshed copy on your own domain (Cloudflare)
+
+This fork no longer depends on akgcc's own refresh schedule (their GitHub
+Action only runs twice a week — see `akgcc-extra-data/.github/workflows/`
+upstream). Instead, `js/util.js`'s `EXTRA_DATA_REPO_RAW_BASE` constant near
+the top of the file controls where `banner_history.json` and
+`operator_release_dates.json` are fetched from, and this repo's own copy of
+the scraper workflow (`akgcc-extra-data/.github/workflows/banner_history_update.yml`)
+is already set to run daily instead of twice a week. To get this actually
+running end to end, on your own domain, under your own Cloudflare account:
+
+1. **Create a GitHub repo for this** (e.g. `github.com/new` →
+   `akshop-history`, public or private, doesn't matter). Then, from this
+   folder: `git remote add origin <the repo's URL>` and
+   `git push -u origin main`.
+2. **Check `EXTRA_DATA_REPO_RAW_BASE` in `js/util.js` matches that repo.**
+   It's currently set to
+   `https://raw.githubusercontent.com/KaKuna285/akshop-history/main/akgcc-extra-data/json/`
+   as a guess at your GitHub username and a repo name matching this
+   folder's — if either is different, update that one constant (it's the
+   only place this is hardcoded) and commit.
+3. **Confirm Actions is enabled** on that new repo (Settings → Actions →
+   General) and either wait for the first scheduled run (07:00 UTC daily —
+   edit the `cron` line in the workflow file if you want a different time;
+   remember GitHub Actions cron is always UTC) or trigger it manually once
+   from the Actions tab (`workflow_dispatch`) to confirm it commits updated
+   JSON successfully.
+4. **Deploy the site itself with Cloudflare Pages**: in the Cloudflare
+   dashboard, Workers & Pages → Create → Pages → Connect to GitHub → pick
+   this repo. No build command, no build output directory changes needed
+   (this is a static site with no build step — leave the output directory
+   as the repo root, since the page's assets are all referenced as
+   root-relative paths like `/js/...`, `/css/...`). It'll deploy at
+   `<project-name>.pages.dev`, and the page itself will be at `/shoplist/`
+   off that (matching the folder structure here).
+5. **Point your domain at it**: in that same Pages project, Custom domains
+   → add the (sub)domain you want. Since your domain's already in your
+   Cloudflare account, Cloudflare sets up the DNS for you automatically.
+
+After that initial setup, everything is hands-off: the daily Action commits
+fresh JSON to your repo, and the site (wherever it's deployed) fetches that
+JSON live from GitHub on every page load — no redeploy needed for new shop
+data. A Cloudflare Pages redeploy only happens (automatically, on push)
+when you change the site's own code, same as we've been doing this
+session.

@@ -49,9 +49,7 @@ function createDiagonalPattern(fillcolor) {
 	// create the pattern from the shape
 	return c.createPattern(shape, "repeat");
 }
-fetch(
-	"https://raw.githubusercontent.com/akgcc/akgcc-extra-data/main/json/banner_history.json",
-)
+fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 	.then((res) => fixedJson(res))
 	.then((js) => {
 		SHOP_DATA.EN = js.NA;

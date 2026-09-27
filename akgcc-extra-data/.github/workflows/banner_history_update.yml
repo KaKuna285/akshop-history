@@ -1,15 +1,31 @@
 name: Update banner history
 on:
   schedule:
-    - cron: "0 0 * * 0,5"
+    # Daily at 07:00 UTC. Adjust to whatever time suits you -- GitHub Actions
+    # cron is always UTC, so pick an hour relative to that, not your local
+    # time. This replaces akgcc/akgcc-extra-data's own twice-weekly schedule
+    # (0 0 * * 0,5 -- midnight UTC every Sunday and Friday) with a daily one,
+    # since this fork's whole point is to refresh more often than upstream.
+    - cron: "0 7 * * *"
   workflow_dispatch:
 jobs:
   run:
     name: Update banner history
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # the scraper scripts live in this subfolder here, unlike in
+        # akgcc/akgcc-extra-data where they're at the repo root
+        working-directory: akgcc-extra-data
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install dependencies
+        run: pip install requests
       - run: python shop_operators.py
       - run: python operator_online.py
       - name: Commit changes
@@ -17,4 +33,4 @@ jobs:
         with:
           default_author: github_actions
           message: "update banner history"
-          add: "*.json"
+          add: "akgcc-extra-data/json/*.json"
