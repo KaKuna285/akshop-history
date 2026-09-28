@@ -159,6 +159,60 @@
     );
   }
 
+  // Shared hover tooltip for calendar-grid chips, showing an event's wiki
+  // banner art (when there is one) alongside its name and dates. Built
+  // once and repositioned/repopulated per chip on hover, rather than one
+  // tooltip element per chip -- the grid can have hundreds of chips on
+  // screen at once, and only ever one tooltip is visible at a time.
+  const hoverTooltipEl = document.createElement("div");
+  hoverTooltipEl.className = "eventHoverTooltip";
+  const hoverTooltipImgEl = document.createElement("img");
+  hoverTooltipImgEl.className = "eventHoverTooltipImg";
+  hoverTooltipImgEl.alt = "";
+  const hoverTooltipNameEl = document.createElement("div");
+  hoverTooltipNameEl.className = "eventHoverTooltipName";
+  const hoverTooltipDatesEl = document.createElement("div");
+  hoverTooltipDatesEl.className = "eventHoverTooltipDates";
+  hoverTooltipEl.appendChild(hoverTooltipImgEl);
+  hoverTooltipEl.appendChild(hoverTooltipNameEl);
+  hoverTooltipEl.appendChild(hoverTooltipDatesEl);
+  document.body.appendChild(hoverTooltipEl);
+
+  function showHoverTooltip(ev, anchorEl) {
+    if (ev.image) {
+      hoverTooltipImgEl.src = ev.image;
+      hoverTooltipImgEl.style.display = "";
+    } else {
+      hoverTooltipImgEl.removeAttribute("src");
+      hoverTooltipImgEl.style.display = "none";
+    }
+    hoverTooltipNameEl.textContent = ev.event;
+    hoverTooltipDatesEl.textContent = fmtRange(ev.globalStart, ev.globalEnd);
+    hoverTooltipEl.classList.add("visible");
+
+    // Anchor below the chip by default, flipping above it (or clamping
+    // sideways) if there isn't room -- the tooltip's own size depends on
+    // its content (an image makes it much taller), so this has to run
+    // after the content above is set.
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const ttRect = hoverTooltipEl.getBoundingClientRect();
+    let left = anchorRect.left;
+    let top = anchorRect.bottom + 6;
+    if (left + ttRect.width > window.innerWidth - 8) {
+      left = window.innerWidth - ttRect.width - 8;
+    }
+    if (left < 8) left = 8;
+    if (top + ttRect.height > window.innerHeight - 8) {
+      top = anchorRect.top - ttRect.height - 6;
+    }
+    hoverTooltipEl.style.left = `${left}px`;
+    hoverTooltipEl.style.top = `${top}px`;
+  }
+
+  function hideHoverTooltip() {
+    hoverTooltipEl.classList.remove("visible");
+  }
+
   function buildCard(ev, now) {
     const status = ev._status;
     const href = wikiUrl(ev.wikiPage || ev.event);
@@ -168,6 +222,15 @@
       card.href = href;
       card.target = "_blank";
       card.rel = "noopener";
+    }
+
+    if (ev.image) {
+      const thumb = document.createElement("img");
+      thumb.className = "eventThumb";
+      thumb.src = ev.image;
+      thumb.alt = "";
+      thumb.loading = "lazy";
+      card.appendChild(thumb);
     }
 
     const name = document.createElement("div");
@@ -208,7 +271,9 @@
     const chip = document.createElement(href ? "a" : "div");
     chip.className = "calEventChip " + ev._status;
     chip.textContent = ev.event;
-    chip.title = `${ev.event} – ${fmtRange(ev.globalStart, ev.globalEnd)}`;
+    chip.title = `${ev.event} - ${fmtRange(ev.globalStart, ev.globalEnd)}`;
+    chip.addEventListener("mouseenter", () => showHoverTooltip(ev, chip));
+    chip.addEventListener("mouseleave", hideHoverTooltip);
     if (href) {
       chip.href = href;
       chip.target = "_blank";
@@ -508,6 +573,7 @@
   }
 
   weekGridEl.addEventListener("scroll", () => {
+    hideHoverTooltip();
     if (!calendarInitialized || scrollTickScheduled) return;
     scrollTickScheduled = true;
     requestAnimationFrame(() => {

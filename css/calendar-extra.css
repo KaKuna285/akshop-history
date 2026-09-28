@@ -418,6 +418,60 @@
   border-left-color: #e05d5d;
 }
 
+/* Shared hover tooltip for .calEventChip, built once in calendar.js and
+   repositioned per chip rather than one tooltip element per chip. Hidden
+   by default and toggled visible via the .visible class rather than
+   display:none directly, so its size can be measured (getBoundingClientRect)
+   right after content changes, before it's actually shown. */
+.eventHoverTooltip {
+  position: fixed;
+  z-index: 50;
+  display: none;
+  pointer-events: none;
+  background: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px;
+  width: 220px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.eventHoverTooltip.visible {
+  display: block;
+}
+
+.eventHoverTooltipImg {
+  display: block;
+  width: 100%;
+  max-height: 124px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.eventHoverTooltipName {
+  font-weight: bold;
+  font-size: 0.85rem;
+  color: #eee;
+  margin-bottom: 2px;
+}
+
+.eventHoverTooltipDates {
+  font-size: 0.78rem;
+  color: #aaa;
+  line-height: 1.4;
+}
+
+@media (hover: none) {
+  /* Touch devices don't have a real hover state -- the tooltip would just
+     get stuck open after a tap, with nothing to dismiss it. The native
+     title attribute (set in calendar.js) still works as a long-press
+     fallback there. */
+  .eventHoverTooltip {
+    display: none !important;
+  }
+}
+
 /* ---- List view ---- */
 
 #calendarContent {
@@ -481,6 +535,16 @@ a.eventCard:hover {
   border-left-color: #e05d5d;
 }
 
+.eventCard .eventThumb {
+  width: 64px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex: 0 0 auto;
+  align-self: center;
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .eventCard .eventName {
   font-weight: bold;
   color: #eee;
@@ -539,6 +603,11 @@ a.eventCard:hover {
   .eventCard {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .eventCard .eventThumb {
+    width: 100%;
+    height: auto;
+    max-height: 120px;
   }
   .eventCard .eventDates {
     align-items: flex-start;

@@ -45,7 +45,9 @@ server='global'. endTime, and rows for server='CN', are new territory --
 this could not be tested directly (arknights.wiki.gg isn't reachable from
 the environment this was written in), so if this fails in the Action log,
 check the exact error: a wrong field/table name shows up immediately as a
-Cargo API error in the response body.
+Cargo API error in the response body. fetch_event_images() below is an
+even bigger guess in the same vein -- see its own docstring -- but it's
+wrapped to fail safe (no images, not a broken build) if it's wrong.
 """
 import requests
 import re
@@ -149,6 +151,64 @@ def fetch_event_server_details():
     return rows
 
 
+def fetch_event_images():
+    """Best-effort: pull each event's banner image URL from the wiki's
+    page-level `Event` table -- the parent of the per-server
+    `EventServerDetails` sub-table this script already queries for dates
+    (an event page's infobox shows both an EN and a CN banner image; this
+    assumes the page-level table exposes at least one of them as a `File`
+    field, which Cargo resolves to a full URL in query results).
+
+    This table/field name is a guess: unlike everything else in this
+    script, it couldn't be checked against the live wiki at all from the
+    environment this was written in (`Special:CargoTables` and `api.php`
+    are both blocked by the wiki's robots.txt to the tool used to research
+    this). So this is kept completely separate from
+    fetch_event_server_details() and wrapped in its own try/except --
+    if the guess is wrong, this just returns an empty dict and every
+    event goes without an image, rather than breaking date fetching too.
+    Check the Action log after this ships to see whether it actually
+    worked.
+
+    Returns {wiki page name: image URL}."""
+    images = {}
+    try:
+        offset = 0
+        limit = 500
+        while True:
+            params = {
+                "action": "cargoquery",
+                "tables": "Event",
+                "fields": "Event._pageName=page,Event.image=image",
+                "where": "Event.image IS NOT NULL",
+                "format": "json",
+                "limit": limit,
+                "offset": offset,
+            }
+            r = http_get(WIKI_API, params=params, headers=HEADERS)
+            data = r.json()
+            if "error" in data:
+                raise RuntimeError(f"Cargo API error: {data['error']}")
+            page_rows = data.get("cargoquery", [])
+            for row in page_rows:
+                title = row.get("title", {})
+                page = title.get("page")
+                image = title.get("image")
+                # Only trust this if Cargo actually resolved it to a full
+                # URL -- if the field turns out to hold a bare filename
+                # instead, we'd need a second API call (imageinfo) to
+                # resolve the real upload path, and a guessed-at filename
+                # is more likely to produce a broken image than no image.
+                if page and image and str(image).startswith("http"):
+                    images[page] = image
+            offset += limit
+            if len(page_rows) < limit:
+                break
+    except Exception as exc:
+        print(f"Could not fetch event images (non-fatal, calendar will just show no art): {exc}")
+    return images
+
+
 def backtest_lag_model(confirmed_pairs, window):
     """Simulates the trailing-window model against history: for every
     confirmed pair, rebuilds the model from only the pairs that were
@@ -184,7 +244,8 @@ def backtest_lag_model(confirmed_pairs, window):
     }
 
 
-def build_events(rows):
+def build_events(rows, images=None):
+    images = images or {}
     # Group every row by event name, then by a normalized server key.
     by_event = {}
     # The wiki's actual page name for each event, kept separately from the
@@ -286,6 +347,9 @@ def build_events(rows):
         wiki_page = wiki_page_by_event.get(event)
         if wiki_page:
             entry["wikiPage"] = wiki_page
+            image = images.get(wiki_page)
+            if image:
+                entry["image"] = image
         entry["cnStart"] = cn_start.isoformat()
         entry["cnEnd"] = cn_end.isoformat() if cn_end else None
 
@@ -318,6 +382,9 @@ def build_events(rows):
         wiki_page = wiki_page_by_event.get(event)
         if wiki_page:
             entry["wikiPage"] = wiki_page
+            image = images.get(wiki_page)
+            if image:
+                entry["image"] = image
         out.append(entry)
 
     out.sort(key=lambda e: e["globalStart"])
@@ -328,7 +395,9 @@ def build_events(rows):
 if __name__ == "__main__":
     rows = fetch_event_server_details()
     print(f"Fetched {len(rows)} EventServerDetails rows")
-    events, median_lag_days, current_lag_days, backtest = build_events(rows)
+    images = fetch_event_images()
+    print(f"Fetched {len(images)} event images")
+    events, median_lag_days, current_lag_days, backtest = build_events(rows, images)
     print(
         f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days, "
         f"current CN->Global lag = {current_lag_days} days"
