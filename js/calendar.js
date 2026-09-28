@@ -579,7 +579,7 @@
 
   (async function load() {
     try {
-      const res = await fetch(`${EXTRA_DATA_REPO_RAW_BASE}events.json`);
+      const res = await fetch(extraDataUrl("events.json"));
       if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
       const data = await res.json();
       const now = new Date();

@@ -304,9 +304,7 @@ async function get_char_table(
   let patch = await fixedJson(raw);
   updateJSON(json, patch.patchChars);
   if (extra_data) {
-    let extra_raw = await fetch(
-      `${EXTRA_DATA_REPO_RAW_BASE}operator_release_dates.json`,
-    );
+    let extra_raw = await fetch(extraDataUrl("operator_release_dates.json"));
     let extra_chardata = await extra_raw.json();
     for (const [charId, data] of Object.entries(extra_chardata)) {
       if (json[charId]) {

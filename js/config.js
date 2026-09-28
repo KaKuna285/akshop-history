@@ -8,3 +8,14 @@
 // cadence.
 const EXTRA_DATA_REPO_RAW_BASE =
   "https://raw.githubusercontent.com/KaKuna285/akshop-history/main/akgcc-extra-data/json/";
+
+// raw.githubusercontent.com sits behind a CDN, and a branch path like the
+// one above (as opposed to one pinned to a specific commit) can keep
+// serving an old cached response well after a push updates the file --
+// sometimes for hours, not just the usual few minutes. Appending a
+// cache-busting query param makes every page load a distinct URL as far
+// as that CDN is concerned, forcing a real fetch from origin instead of
+// risking a stale cached hit.
+function extraDataUrl(filename) {
+  return `${EXTRA_DATA_REPO_RAW_BASE}${filename}?_=${Date.now()}`;
+}
