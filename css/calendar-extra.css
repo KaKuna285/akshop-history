@@ -178,6 +178,12 @@
    so days are never dimmed; the weekday header row stays pinned to the
    top of the scroll area via position: sticky. */
 #weekGrid {
+  /* Without this, #weekGrid isn't a positioned element, so it never
+     becomes the offsetParent for its .calDay children -- their
+     offsetTop ends up measured against the page (or body) instead of
+     against this scroll container, which is what was sending the
+     initial "scroll to today" calculation to the wrong place. */
+  position: relative;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-auto-rows: min-content;

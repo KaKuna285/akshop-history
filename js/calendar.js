@@ -62,13 +62,18 @@
     return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
   }
 
-  function fmtWeekLabel(weekStart) {
-    const weekEnd = addDays(weekStart, 6);
-    const opts = { month: "short", day: "numeric" };
-    return `${weekStart.toLocaleDateString(undefined, opts)} – ${weekEnd.toLocaleDateString(
-      undefined,
-      opts,
-    )}, ${weekEnd.getFullYear()}`;
+  // Label for the header: not an exact date range, just which month(s) and
+  // year(s) are currently in view -- e.g. "September 2026" or, when the
+  // visible rows straddle a month (or year) boundary, "September –
+  // October 2026" / "December 2026 – January 2027".
+  function fmtMonthRangeLabel(startDate, endDate) {
+    const startMonth = startDate.toLocaleDateString(undefined, { month: "long" });
+    const endMonth = endDate.toLocaleDateString(undefined, { month: "long" });
+    const startYear = startDate.getFullYear();
+    const endYear = endDate.getFullYear();
+    if (startYear === endYear && startMonth === endMonth) return `${startMonth} ${startYear}`;
+    if (startYear === endYear) return `${startMonth} – ${endMonth} ${startYear}`;
+    return `${startMonth} ${startYear} – ${endMonth} ${endYear}`;
   }
 
   function toDayNum(d) {
@@ -334,7 +339,7 @@
     if (todayRow) {
       weekGridEl.scrollTop = Math.max(0, todayRow.el.offsetTop - headerHeight());
     }
-    weekLabelEl.textContent = fmtWeekLabel(initialWeek);
+    updateWeekLabel();
   }
 
   // Redraws every already-rendered day's chips in place (status filter
@@ -410,6 +415,37 @@
     return current.weekStart;
   }
 
+  // The first and last day currently visible anywhere in the scrolled
+  // viewport (not just the top row) -- used to label the header with
+  // whichever month(s)/year(s) are actually on screen right now.
+  function findVisibleDateRange() {
+    if (weekRows.length === 0) return null;
+    const viewTop = weekGridEl.scrollTop + headerHeight();
+    const viewBottom = weekGridEl.scrollTop + weekGridEl.clientHeight;
+    let topRow = weekRows[0];
+    for (const w of weekRows) {
+      if (w.el.offsetTop + w.el.offsetHeight > viewTop) {
+        topRow = w;
+        break;
+      }
+      topRow = w;
+    }
+    let bottomRow = weekRows[weekRows.length - 1];
+    for (let i = weekRows.length - 1; i >= 0; i--) {
+      if (weekRows[i].el.offsetTop < viewBottom) {
+        bottomRow = weekRows[i];
+        break;
+      }
+      bottomRow = weekRows[i];
+    }
+    return { start: topRow.weekStart, end: addDays(bottomRow.weekStart, 6) };
+  }
+
+  function updateWeekLabel() {
+    const range = findVisibleDateRange();
+    if (range) weekLabelEl.textContent = fmtMonthRangeLabel(range.start, range.end);
+  }
+
   // Scrolls (optionally smoothly) so the given Monday-aligned week sits
   // just below the header, extending the rendered range first if the
   // target week isn't loaded yet.
@@ -449,8 +485,7 @@
     ) {
       appendWeeks(LOAD_BATCH_WEEKS);
     }
-    const top = findTopWeekStart();
-    if (top) weekLabelEl.textContent = fmtWeekLabel(top);
+    updateWeekLabel();
   }
 
   weekGridEl.addEventListener("scroll", () => {
@@ -527,11 +562,12 @@
       const now = new Date();
       allEvents = (data.events || []).map((ev) => ({ ...ev, _status: getStatus(ev, now) }));
 
-      const lagDays = data.currentLagDays != null ? data.currentLagDays : data.medianLagDays;
+      const hasCurrentLag = data.currentLagDays != null;
+      const lagDays = hasCurrentLag ? data.currentLagDays : data.medianLagDays;
       if (lagDays != null) {
-        lagHintEl.textContent = `Current CN→Global lag used for estimates: ~${Math.round(
-          lagDays,
-        )} days (from the most recent confirmed date)`;
+        lagHintEl.textContent = hasCurrentLag
+          ? `Current CN→Global lag used for estimates: ~${Math.round(lagDays)} days (from the most recent confirmed date)`
+          : `Historical CN→Global lag: ~${Math.round(lagDays)} days (dataset average -- switches to the current lag after the next data refresh)`;
       }
 
       render();
