@@ -55,34 +55,45 @@
 
       <h2 class="calendarSectionHeading">How estimates are calculated</h2>
       <p>
-        An unconfirmed event doesn't just get its own CN date plus a flat average lag. The real
-        CN&rarr;Global lag varies enough between events that a flat number tends to leave a gap
-        (or overlap) right where a confirmed date meets an estimated one. Instead:
+        An unconfirmed event's Global date is just its own CN date plus a lag, but the lag used
+        isn't a flat dataset-wide average - Gryphline's localization pace has sped up and slowed
+        down before, and a lag averaged over years of history would react to that far too slowly.
+        Instead:
       </p>
       <ol>
-        <li>Events are sorted by CN date.</li>
         <li>
-          Each unconfirmed event's Global date = the nearest earlier event's Global date + the
-          CN-side gap between the two.
+          Every event with both a CN and a Global date gives one CN&rarr;Global lag
+          observation, in days.
         </li>
-        <li>That "nearest earlier event" can be a confirmed date, or an earlier estimate in the same chain.</li>
-        <li>Every time a date actually gets confirmed, the chain resets from there.</li>
+        <li>
+          A lag of zero days (or negative) is dropped - that's the wiki recording the same, or
+          an inverted, date for both servers, not a same-day release.
+        </li>
+        <li>
+          The lag applied to every current estimate is the median of just the observations from
+          confirmed events in roughly the last year, recalculated fresh on every update.
+        </li>
+        <li>
+          Each unconfirmed event's Global date = its own CN date + that lag, independently of
+          any other event.
+        </li>
       </ol>
       <p>
-        In short: each estimate carries forward whatever lag was most recently observed, instead
-        of a dataset-wide average.
+        A median over the last year smooths out any single unusually fast or slow event without
+        averaging in outdated history, so it tracks a real change in pace much faster than an
+        all-time average would.
       </p>
 
       <h2 class="calendarSectionHeading">The CN&rarr;Global lag</h2>
       <ul>
         <li>
-          <strong>Current lag</strong> - the gap between the most recent confirmed event's
-          CN and Global dates. This is what every estimate on the page is using right now.
+          <strong>Current lag</strong> - the median CN&rarr;Global lag across confirmed events
+          from roughly the last year. This is what every estimate on the page is using right now.
         </li>
         <li>
-          <strong>Historical lag</strong> - the median lag across every event with both
-          dates known. Only used to bootstrap the very first estimate, before any confirmed
-          CN/Global pair exists to chain from.
+          <strong>Historical lag</strong> - the median lag across every event with both dates
+          known, going back further. Only used as a fallback when there isn't enough recent
+          history to compute the current lag from.
         </li>
       </ul>
 

@@ -7,22 +7,25 @@ EN dates months out" because that information doesn't exist yet -- so
 tracks it, and once Gryphline has confirmed its Global date that's tracked
 too, but for the (usually many-months) gap in between, we estimate it.
 
-The estimate is *not* "this event's own CN date plus the historical
-median lag" applied independently per event -- that undersells how close
-together Global events actually run. The real Global lag varies a fair
-bit per event (anywhere from ~5 to ~7 months in practice), so applying one
-flat number to every event individually can open up an artificial gap (or
-overlap) right where a confirmed date meets the next estimated one, since
-that confirmed event's own real lag is very likely *not* exactly the
-median. Instead, estimates are chained: walk every event in CN-date
-order, and estimate an unconfirmed event's Global start as (the nearest
-earlier event's Global date) + (the CN gap between the two events) -- so
-it inherits whatever lag was most recently actually observed (confirmed,
-or itself estimated the same way) instead of the dataset-wide average.
-Each newly confirmed date "snaps" the chain back onto Gryphline's real
-schedule from that point on. The historical median lag is kept only as a
-bootstrap, for the very first estimate before any anchor exists yet, and
-is still reported in the output for reference.
+The estimate is "this event's own CN date plus a lag" -- but which lag
+matters a lot. The real Global lag drifts over time (Gryphline has sped
+up localization before and can again), so a flat lag averaged over the
+*entire* dataset reacts to that far too slowly: months of schedule
+changes get diluted by years of older history sitting in the same
+average. Instead, the lag applied to every current estimate is the
+median CN->Global lag from just the last RECENT_LAG_WINDOW_DAYS days of
+confirmed events -- a rolling window recomputed fresh on every run.
+That's still a median over a couple dozen events rather than one single
+data point, so one unusually fast or slow event doesn't swing every
+estimate on the page, but it tracks a real shift in pace (the schedule
+speeding up or slowing down) far faster than the all-time average would.
+A CN/Global pair with a non-positive lag is dropped before either median
+is computed -- that's not a real observation, just the wiki having the
+same (or an inverted) date recorded for both servers. If there isn't
+enough recent history to compute the rolling median from (early on, or
+a quiet stretch with nothing confirmed in the window), estimates fall
+back to the all-time median instead, which is still reported in the
+output for reference.
 
 NOTE: this script's exact field names (EventServerDetails.event/
 startTime/endTime/server) are based on the query already proven to work
@@ -43,6 +46,12 @@ from datetime import datetime, timedelta, timezone
 REQUEST_TIMEOUT = 30  # seconds, per attempt
 REQUEST_RETRIES = 3
 REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number
+
+# How far back to look for the rolling "current lag" median (see the
+# module docstring). A year covers roughly two dozen events -- enough to
+# smooth out one noisy data point without being so long a real change in
+# pace takes forever to show up.
+RECENT_LAG_WINDOW_DAYS = 365
 
 
 def http_get(url, **kwargs):
@@ -147,22 +156,59 @@ def build_events(rows):
             end = None
         return start, end
 
-    # Historical CN -> Global lag, from every event where both are known.
-    # Only used to bootstrap the very first estimate below (see the module
-    # docstring) -- kept as its own pass since it needs to look at every
-    # event regardless of CN-date order.
+    def lag_days(cn_start, gl_start):
+        """CN->Global lag in days, or None if it's not a usable
+        observation. A non-positive lag isn't real data -- it means the
+        wiki has the same (or an inverted) date recorded for both
+        servers, not that Global actually shipped same-day as CN."""
+        d = (gl_start - cn_start).days
+        return d if d > 0 else None
+
+    # All-time CN -> Global lag, from every event where both are known.
+    # Used only as a fallback when there isn't enough recent history to
+    # compute the rolling median below (see the module docstring) -- kept
+    # as its own pass since it needs to look at every event regardless of
+    # date.
     lags_days = []
     for event, servers in by_event.items():
         cn_start, _ = clean_window(servers.get("cn"))
         gl_start, _ = clean_window(servers.get("global"))
         if cn_start and gl_start:
-            lags_days.append((gl_start - cn_start).days)
+            d = lag_days(cn_start, gl_start)
+            if d is not None:
+                lags_days.append(d)
     median_lag_days = statistics.median(lags_days) if lags_days else None
 
-    # Split into events with a CN date (which can participate in the
-    # CN-ordered chain below) and events with only a Global date (rare --
-    # e.g. Global-exclusive content -- these skip the chain entirely and
-    # are just included as-is, since they're already fully known).
+    # Recent CN -> Global lag: the same thing, but only from confirmed
+    # pairs whose CN date falls within the last RECENT_LAG_WINDOW_DAYS
+    # days. This is the number that actually drives every estimate below.
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    recent_cutoff = now_naive - timedelta(days=RECENT_LAG_WINDOW_DAYS)
+    recent_lags_days = []
+    for event, servers in by_event.items():
+        cn_start, _ = clean_window(servers.get("cn"))
+        gl_start, _ = clean_window(servers.get("global"))
+        if cn_start and gl_start and cn_start >= recent_cutoff:
+            d = lag_days(cn_start, gl_start)
+            if d is not None:
+                recent_lags_days.append(d)
+    recent_median_lag_days = (
+        statistics.median(recent_lags_days) if recent_lags_days else None
+    )
+
+    # The lag actually applied to every estimate below: the rolling
+    # recent median when there's enough recent history to compute one,
+    # otherwise the all-time median as a fallback.
+    estimate_lag_days = (
+        recent_median_lag_days
+        if recent_median_lag_days is not None
+        else median_lag_days
+    )
+
+    # Split into events with a CN date (which can be estimated below) and
+    # events with only a Global date (rare -- e.g. Global-exclusive
+    # content -- these are just included as-is, since they're already
+    # fully known).
     with_cn = []
     without_cn = []
     for event, servers in by_event.items():
@@ -177,8 +223,6 @@ def build_events(rows):
     with_cn.sort(key=lambda t: t[0])
 
     out = []
-    anchor_cn_start = None
-    anchor_global_start = None
     for cn_start, event, cn_end, gl_start, gl_end in with_cn:
         entry = {"event": event}
         wiki_page = wiki_page_by_event.get(event)
@@ -188,33 +232,18 @@ def build_events(rows):
         entry["cnEnd"] = cn_end.isoformat() if cn_end else None
 
         if gl_start:
-            # Confirmed: Gryphline has actually set/run this date. This
-            # becomes the chain's anchor going forward, so the next
-            # unconfirmed event snaps to this real lag instead of the
-            # dataset-wide median.
+            # Confirmed: Gryphline has actually set/run this date.
             entry["globalStart"] = gl_start.isoformat()
             entry["globalEnd"] = gl_end.isoformat() if gl_end else None
             entry["globalConfirmed"] = True
-            anchor_cn_start, anchor_global_start = cn_start, gl_start
-        elif anchor_cn_start is not None:
-            # Not yet confirmed: carry forward the actual CN gap from the
-            # nearest earlier known anchor (confirmed, or itself estimated
-            # this same way), instead of reapplying the historical median.
-            est_start = anchor_global_start + (cn_start - anchor_cn_start)
+        elif estimate_lag_days is not None:
+            # Not yet confirmed: this event's own CN date plus the
+            # currently-applicable lag (see above).
+            est_start = cn_start + timedelta(days=estimate_lag_days)
             duration = (cn_end - cn_start) if cn_end else timedelta(days=0)
             entry["globalStart"] = est_start.isoformat()
             entry["globalEnd"] = (est_start + duration).isoformat()
             entry["globalConfirmed"] = False
-            anchor_cn_start, anchor_global_start = cn_start, est_start
-        elif median_lag_days is not None:
-            # No anchor yet (this is CN-earlier than any known Global date)
-            # -- bootstrap from the historical median just this once.
-            est_start = cn_start + timedelta(days=median_lag_days)
-            duration = (cn_end - cn_start) if cn_end else timedelta(days=0)
-            entry["globalStart"] = est_start.isoformat()
-            entry["globalEnd"] = (est_start + duration).isoformat()
-            entry["globalConfirmed"] = False
-            anchor_cn_start, anchor_global_start = cn_start, est_start
         else:
             # No lag data at all to estimate from yet -- nothing usable.
             continue
@@ -235,19 +264,7 @@ def build_events(rows):
 
     out.sort(key=lambda e: e["globalStart"])
 
-    # The lag actually driving today's estimates: since the chain above is
-    # a pure translation (an estimate's own effective lag always equals its
-    # anchor's lag -- carrying forward unchanged until the next confirmed
-    # date resets it), the final anchor's lag is exactly the number being
-    # applied to every current/upcoming estimated event, as opposed to
-    # medianLagDays, which is the dataset-wide average and is now only used
-    # as a one-time bootstrap (see the module docstring).
-    if anchor_cn_start is not None:
-        current_lag_days = (anchor_global_start - anchor_cn_start).days
-    else:
-        current_lag_days = median_lag_days
-
-    return out, median_lag_days, current_lag_days
+    return out, median_lag_days, estimate_lag_days
 
 
 if __name__ == "__main__":
