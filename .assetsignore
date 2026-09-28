@@ -1,0 +1,37 @@
+# Wrangler-specific (gitignore-style) file: excludes paths from the static
+# assets it uploads for this Worker, even though wrangler.jsonc's
+# assets.directory is the whole repo root ("./"). Without this, Wrangler
+# scans literally everything under the repo root as a candidate asset --
+# including .git's own internal object packs, which is what actually broke
+# a deploy once akgcc-extra-data/images/ (see below) pushed one of those
+# packs over Workers' 25 MiB-per-asset limit. None of the paths below are
+# ever served by this site's own domain to begin with, so excluding them
+# isn't just a workaround for that failure -- it's also the correct scope
+# for what "the site" actually is.
+
+# Version control internals -- never meant to be served, and the actual
+# trigger for the Asset too large deploy failure.
+.git/
+
+# GitHub Actions workflow definitions, not site content.
+.github/
+
+# The scraper scripts, generated JSON, and mirrored event-art images (see
+# akgcc-extra-data/events.py) all live here, but this site's own JS fetches
+# them straight from raw.githubusercontent.com (see js/config.js's
+# EXTRA_DATA_REPO_RAW_BASE) rather than through this Cloudflare-hosted
+# domain -- so none of it needs to be (or should be) uploaded as a Worker
+# asset. This is also the single biggest thing in the repo by far, growing
+# over time as more event art gets mirrored in.
+akgcc-extra-data/
+
+# Source for a separate Cloudflare Worker (the daily cron dispatcher), not
+# an asset of this one.
+cloudflare/
+
+# Repo/project bookkeeping, not site content.
+LICENSE
+README.md
+UPSTREAM_README.md
+.gitignore
+wrangler.jsonc
