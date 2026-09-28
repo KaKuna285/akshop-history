@@ -299,6 +299,35 @@
       eventPreviewBodyEl.appendChild(sourceLine);
     }
 
+    if (ev.operators && ev.operators.length) {
+      const opsSection = document.createElement("div");
+      opsSection.className = "eventPreviewOperators";
+      const opsHeading = document.createElement("div");
+      opsHeading.className = "eventPreviewOperatorsHeading";
+      opsHeading.textContent = "New operators";
+      opsSection.appendChild(opsHeading);
+      const opsList = document.createElement("div");
+      opsList.className = "eventPreviewOperatorsList";
+      ev.operators.forEach((op) => {
+        const chip = document.createElement("div");
+        chip.className = "eventPreviewOperatorChip";
+        if (op.icon) {
+          const icon = document.createElement("img");
+          icon.className = "eventPreviewOperatorIcon";
+          icon.src = op.icon;
+          icon.alt = "";
+          chip.appendChild(icon);
+        }
+        const name = document.createElement("span");
+        name.className = "eventPreviewOperatorName";
+        name.textContent = op.name;
+        chip.appendChild(name);
+        opsList.appendChild(chip);
+      });
+      opsSection.appendChild(opsList);
+      eventPreviewBodyEl.appendChild(opsSection);
+    }
+
     const wikiHref = wikiUrl(ev.wikiPage || ev.event);
     if (wikiHref) {
       const link = document.createElement("a");

@@ -71,6 +71,21 @@ with an HTML body (a bot-protection page) even though api.php's
 cargoquery calls from that same run succeeded normally, which lines up
 with robots.txt singling out the Special: namespace specifically. See
 resolve_image_urls()'s own docstring.
+
+New operators (fetch_event_operators()/group_operators_by_event()) come
+from the wiki's own Operators table, via the `event` field it already
+maintains linking an operator to the event that introduced (or
+granted) them -- the same link operator_online.py's scrape_wiki()
+already joins against to get each operator's Global release date, so
+this isn't a new guess, just the same trusted linkage reused here. A
+rerun event's own page is a separate event name from the original on
+this wiki (see e.g. "X" vs "X - Rerun" in EventServerDetails), and
+operators are only ever linked to the original, so a rerun naturally
+ends up with no operators listed -- which is correct, since a rerun by
+definition doesn't introduce anyone new. Operator portrait icons are
+mirrored into the repo exactly like event banner art (see above),
+resolved in the same batched imageinfo call as the banners rather than
+a separate one.
 """
 import requests
 import re
@@ -239,6 +254,76 @@ def pick_image(servers):
     return None
 
 
+def fetch_event_operators():
+    """Pull every Operators row that's tied to an event via the table's
+    own `event` field (see the module docstring) -- rarity, class, and
+    portrait icon filename included so the calendar's preview panel can
+    show more than just a name. `class` is aliased to `opClass` in the
+    query since it's a reserved word in some SQL dialects Cargo's query
+    layer sits on top of; safer to just not use it as an output key."""
+    rows = []
+    offset = 0
+    limit = 500
+    while True:
+        params = {
+            "action": "cargoquery",
+            "tables": "Operators",
+            "fields": (
+                "Operators.event=event,"
+                "Operators.operator=operator,"
+                "Operators.rarity=rarity,"
+                "Operators.class=opClass,"
+                "Operators.icon=icon"
+            ),
+            "where": "Operators.event IS NOT NULL AND Operators.event != ''",
+            "format": "json",
+            "limit": limit,
+            "offset": offset,
+        }
+        r = http_get(WIKI_API, params=params, headers=HEADERS)
+        data = r.json()
+        if "error" in data:
+            raise RuntimeError(f"Cargo API error: {data['error']}")
+        page_rows = data.get("cargoquery", [])
+        for row in page_rows:
+            rows.append(row["title"])
+        offset += limit
+        if len(page_rows) < limit:
+            break
+    return rows
+
+
+def group_operators_by_event(rows):
+    """{event name: [operator dicts]} from fetch_event_operators()'s raw
+    rows, sorted highest-rarity-first (then name) within each event so
+    the flagship 6-star of a banner shows up first in the preview panel.
+    A row missing an event or operator name is dropped -- not enough to
+    show anything useful."""
+    by_event = {}
+    for row in rows:
+        event = row.get("event")
+        name = row.get("operator")
+        if not event or not name:
+            continue
+        op = {"name": name}
+        try:
+            rarity = int(row.get("rarity"))
+        except (TypeError, ValueError):
+            rarity = None
+        if rarity is not None:
+            op["rarity"] = rarity
+        op_class = row.get("opClass")
+        if op_class:
+            op["class"] = op_class
+        icon = row.get("icon")
+        if icon and str(icon).strip():
+            op["icon"] = str(icon).strip()
+        by_event.setdefault(event, []).append(op)
+    for op_list in by_event.values():
+        op_list.sort(key=lambda o: (-(o.get("rarity") or 0), o["name"]))
+    return by_event
+
+
 IMAGES_DIR = "./images"
 
 # Where a locally-mirrored image is served from once committed -- mirrors
@@ -341,36 +426,62 @@ def download_image(wiki_filename, resolved_url):
         return None
 
 
-def localize_images(events):
+def localize_images(events, operators_by_event=None):
     """Replace each event's raw wiki filename (see pick_image()) with
-    its locally-mirrored URL, resolving and downloading it first if
-    needed (see resolve_image_urls()/download_image()). An event whose
-    image fails to download loses its image entirely, rather than
+    its locally-mirrored URL, and do the same for every new operator's
+    portrait icon (see fetch_event_operators()) -- resolving and
+    downloading each not-yet-mirrored file first (see
+    resolve_image_urls()/download_image()). An event whose banner fails
+    to download loses its image entirely, and an operator whose icon
+    fails loses just its icon (the name/rarity/class stay), rather than
     linking to something broken or (as with the wiki directly) blocked.
 
     Only filenames not already mirrored locally are resolved at all --
-    a single batched imageinfo call up front for everything new, rather
-    than one API round-trip per image, on top of the same skip-if-
+    a single batched imageinfo call covering both event banners and
+    operator icons together, rather than one API round-trip per image
+    (or a second call just for icons), on top of the same skip-if-
     already-downloaded caching download_image() does."""
+    operators_by_event = operators_by_event or {}
     needed = set()
     for entry in events:
         filename = entry.get("image")
         if filename and not os.path.exists(os.path.join(IMAGES_DIR, local_image_name(filename))):
             needed.add(filename)
+    for op_list in operators_by_event.values():
+        for op in op_list:
+            filename = op.get("icon")
+            if filename and not os.path.exists(os.path.join(IMAGES_DIR, local_image_name(filename))):
+                needed.add(filename)
     resolved_urls = resolve_image_urls(needed) if needed else {}
 
     cache = {}
+
+    def mirror(filename):
+        if filename not in cache:
+            cache[filename] = download_image(filename, resolved_urls.get(filename))
+        return cache[filename]
+
     for entry in events:
         filename = entry.get("image")
         if not filename:
             continue
-        if filename not in cache:
-            cache[filename] = download_image(filename, resolved_urls.get(filename))
-        local_name = cache[filename]
+        local_name = mirror(filename)
         if local_name:
             entry["image"] = PUBLIC_IMAGE_BASE + quote(local_name)
         else:
             del entry["image"]
+
+    for op_list in operators_by_event.values():
+        for op in op_list:
+            filename = op.get("icon")
+            if not filename:
+                continue
+            local_name = mirror(filename)
+            if local_name:
+                op["icon"] = PUBLIC_IMAGE_BASE + quote(local_name)
+            else:
+                del op["icon"]
+
     return events
 
 
@@ -409,8 +520,9 @@ def backtest_lag_model(confirmed_pairs, window):
     }
 
 
-def build_events(rows, overrides=None):
+def build_events(rows, overrides=None, operators_by_event=None):
     overrides = overrides or {}
+    operators_by_event = operators_by_event or {}
     # Group every row by event name, then by a normalized server key.
     by_event = {}
     # The wiki's actual page name for each event, kept separately from the
@@ -516,6 +628,9 @@ def build_events(rows, overrides=None):
         image = pick_image(by_event[event])
         if image:
             entry["image"] = image
+        operators = operators_by_event.get(event)
+        if operators:
+            entry["operators"] = operators
         entry["cnStart"] = cn_start.isoformat()
         entry["cnEnd"] = cn_end.isoformat() if cn_end else None
 
@@ -570,6 +685,9 @@ def build_events(rows, overrides=None):
         image = pick_image(by_event[event])
         if image:
             entry["image"] = image
+        operators = operators_by_event.get(event)
+        if operators:
+            entry["operators"] = operators
         out.append(entry)
 
     out.sort(key=lambda e: e["globalStart"])
@@ -582,10 +700,19 @@ if __name__ == "__main__":
     print(f"Fetched {len(rows)} EventServerDetails rows")
     overrides = load_overrides()
     print(f"Loaded {len(overrides)} manual overrides")
-    events, median_lag_days, current_lag_days, backtest = build_events(rows, overrides)
-    events = localize_images(events)
+    operator_rows = fetch_event_operators()
+    operators_by_event = group_operators_by_event(operator_rows)
+    print(
+        f"Fetched {len(operator_rows)} Operators rows tied to an event, "
+        f"across {len(operators_by_event)} events"
+    )
+    events, median_lag_days, current_lag_days, backtest = build_events(
+        rows, overrides, operators_by_event
+    )
+    events = localize_images(events, operators_by_event)
     with_image = sum(1 for e in events if e.get("image"))
-    print(f"{with_image}/{len(events)} events have art")
+    with_operators = sum(1 for e in events if e.get("operators"))
+    print(f"{with_image}/{len(events)} events have art, {with_operators}/{len(events)} list new operators")
     print(
         f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days, "
         f"current CN->Global lag = {current_lag_days} days"

@@ -230,6 +230,49 @@
   font-size: 0.8rem;
 }
 
+.eventPreviewOperators {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.eventPreviewOperatorsHeading {
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #999;
+}
+
+.eventPreviewOperatorsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.eventPreviewOperatorChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 3px 10px 3px 3px;
+}
+
+.eventPreviewOperatorIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.eventPreviewOperatorName {
+  font-size: 0.78rem;
+  color: #eee;
+}
+
 .eventPreviewLink {
   margin-top: auto;
   font-size: 0.8rem;

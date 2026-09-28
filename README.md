@@ -154,9 +154,9 @@ nothing to anchor an end date to otherwise), and never overrides an
 actual wiki-confirmed date once the wiki catches up - confirmed always
 wins.
 
-`events.py` also pulls each event's banner art for the calendar's hover
-tooltip and list view - the wiki filename comes from `image`, just
-another field on the same `EventServerDetails` Cargo table already
+`events.py` also pulls each event's banner art, shown when you click an
+event to open its preview panel - the wiki filename comes from `image`,
+just another field on the same `EventServerDetails` Cargo table already
 queried for dates, so finding it costs no extra request. Each event can
 have a different banner per server (CN vs Global often use different key
 art for the same event), so `pick_image()` prefers the Global server's
@@ -172,21 +172,45 @@ refuse to embed it from another site at all, so a direct link to the
 image works fine but an `<img>` on this site doesn't load at all
 (`NS_ERROR_DOM_CORP_FAILED` in Firefox's network log; other browsers show
 the same failure differently). `download_image()` fetches each banner
-server-side instead, via `Special:FilePath` (a standard MediaWiki redirect
-that turns a bare filename into the real file with no extra API call),
-since CORP only restricts a *browser* embedding a cross-origin resource,
-not a plain server-side request - then `localize_images()` rewrites the
-event's `image` field to point at this repo's own copy. A file is only
-downloaded the first time its exact wiki filename is seen (a changed
-banner gets a new filename upstream, e.g. " Rerun" appended), so
+server-side instead, resolving its real CDN URL via MediaWiki's
+`imageinfo` API on `api.php` rather than `Special:FilePath` - confirmed
+live, every `Special:FilePath` request from a GitHub Actions IP came back
+a 403 with an HTML bot-protection page, even though `api.php` calls from
+that same run succeeded normally (`robots.txt` singles out the `Special:`
+namespace specifically). CORP only restricts a *browser* embedding a
+cross-origin resource in the first place, not a plain server-side
+request, so none of this is affected by it - `localize_images()` then
+rewrites the event's `image` field to point at this repo's own copy. A
+file is only downloaded the first time its exact wiki filename is seen (a
+changed banner gets a new filename upstream, e.g. " Rerun" appended), so
 `images/` only grows by what's new or changed on any given run, and the
 workflow's commit step picks it up alongside `json/*.json`.
 
+The same preview panel also lists any new operators introduced by that
+event, each with a small portrait icon, rarity, and class. This comes
+from the wiki's `Operators` Cargo table (`fetch_event_operators()`),
+which maintains its own `event` field linking an operator to whichever
+event introduced (or granted) them - the same link
+`operator_online.py`'s `scrape_wiki()` already relies on to get each
+operator's Global release date, so it's a trusted, wiki-maintained
+association rather than a guess based on matching up dates. A rerun's
+event page is a separate name on this wiki from the original event (e.g.
+"X" vs "X - Rerun"), and operators are only ever linked to the original,
+so a rerun naturally lists no operators - which is correct, since a rerun
+doesn't introduce anyone new. Operator portrait icons are mirrored into
+`akgcc-extra-data/images/` exactly like event banners, resolved in the
+same batched `imageinfo` call as the banners rather than a separate one.
+
 `events.py`'s Cargo queries (against the same `arknights.wiki.gg` API the
-other scripts use) target the `EventServerDetails` table, whose exact
-field names were confirmed by hand against `Special:CargoTables` on the
-wiki (that page, like `api.php` itself, is blocked by the wiki's
-robots.txt to this project's own research tooling). If `json/events.json`
+other scripts use) target the `EventServerDetails` and `Operators`
+tables, whose exact field names were confirmed against each table's own
+`Template:<TableName>/CargoDeclare` page (`Special:CargoTables` itself,
+like `api.php` directly, is blocked by the wiki's robots.txt to this
+project's own research tooling, but a plain `Template:` page isn't). This
+project's own tooling still can't reach `api.php` directly to test a
+query before it ships, though - so a new or changed query here is
+verified with a mocked-request test harness first, then confirmed for
+real once it runs in the workflow's own Action log. If `json/events.json`
 isn't showing up after a workflow run, or the calendar page shows
 nothing, check that step's own log in the Actions tab first; the daily
 workflow runs this step with `continue-on-error: true` specifically so a
