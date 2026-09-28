@@ -135,6 +135,35 @@
   margin-bottom: 0;
 }
 
+#aboutContent ul,
+#aboutContent ol {
+  color: #bbb;
+  line-height: 1.6;
+  font-size: 0.9rem;
+  margin: 0 0 14px;
+  padding-left: 1.4em;
+}
+
+#aboutContent ul {
+  list-style: disc;
+}
+
+#aboutContent ol {
+  list-style: decimal;
+}
+
+#aboutContent li {
+  margin-bottom: 4px;
+}
+
+#aboutContent li:last-child {
+  margin-bottom: 0;
+}
+
+#aboutContent li > p {
+  margin: 0;
+}
+
 #aboutContent code {
   background: rgba(255, 255, 255, 0.07);
   padding: 1px 5px;

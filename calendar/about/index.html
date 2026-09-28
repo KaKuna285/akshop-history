@@ -29,8 +29,7 @@
     </div>
     <div id="aboutContent">
       <p class="aboutIntro">
-        Quick rundown of where these dates actually come from, how the guessed ones get worked
-        out, and how often any of this changes.
+        How this calendar figures out its dates, and how often it updates.
       </p>
 
       <div class="aboutLegendRecap">
@@ -39,60 +38,70 @@
         <span><span class="legendSwatch legendCnExclusive"></span> CN exclusive</span>
       </div>
 
-      <h2 class="calendarSectionHeading">Where this data comes from</h2>
+      <h2 class="calendarSectionHeading">Where the dates come from</h2>
       <p>
-        Everything on this page comes from <a href="https://arknights.wiki.gg/wiki/Event" target="_blank" rel="noopener">arknights.wiki.gg</a>. For every event, it tracks when it ran on
-        CN and when it ran (or is running) on Global. The second the wiki has a Global date for
-        something, it counts as <strong>confirmed</strong> here - doesn't matter if that's
-        from an actual Gryphline announcement or from someone datamining it out of the client
-        early. Either way, the wiki has it, so this page just uses it instead of guessing.
+        Every event's dates come from
+        <a href="https://arknights.wiki.gg/wiki/Event" target="_blank" rel="noopener">arknights.wiki.gg</a>, which tracks two dates per event:
+      </p>
+      <ul>
+        <li><strong>CN date</strong> - when the event ran (or is running) on the CN server.</li>
+        <li><strong>Global date</strong> - the same, for the Global/EN server.</li>
+      </ul>
+      <p>
+        An event is marked <code>confirmed</code> as soon as the wiki has a Global date for it,
+        whether that came from an official Gryphline announcement or from something datamined out
+        of the client ahead of one. Either source counts the same here.
       </p>
 
-      <h2 class="calendarSectionHeading">How the guesses work</h2>
+      <h2 class="calendarSectionHeading">How estimates are calculated</h2>
       <p>
-        For anything without a confirmed Global date yet, we have to guess. The lazy way would be
-        "take the CN date and add the average lag" - but the real lag jumps around a lot
-        event to event, so that tends to leave a weird gap (or overlap) right where a real date
-        meets a guessed one.
+        An unconfirmed event doesn't just get its own CN date plus a flat average lag. The real
+        CN&rarr;Global lag varies enough between events that a flat number tends to leave a gap
+        (or overlap) right where a confirmed date meets an estimated one. Instead:
       </p>
+      <ol>
+        <li>Events are sorted by CN date.</li>
+        <li>
+          Each unconfirmed event's Global date = the nearest earlier event's Global date + the
+          CN-side gap between the two.
+        </li>
+        <li>That "nearest earlier event" can be a confirmed date, or an earlier estimate in the same chain.</li>
+        <li>Every time a date actually gets confirmed, the chain resets from there.</li>
+      </ol>
       <p>
-        So instead, events get walked in CN-date order, and each unconfirmed one just borrows
-        whatever lag the closest earlier event actually had - confirmed, or itself a guess
-        made the same way - and applies that instead of some dataset-wide average.
-        Basically every guess rides on the last real data point rather than a flat number. And the
-        moment an event actually gets confirmed, everything guessed after it snaps back in line
-        with Gryphline's real schedule.
+        In short: each estimate carries forward whatever lag was most recently observed, instead
+        of a dataset-wide average.
       </p>
 
       <h2 class="calendarSectionHeading">The CN&rarr;Global lag</h2>
-      <p>
-        That "Current CN&rarr;Global lag" number near the top of the calendar is just the gap
-        between the most recent confirmed event's CN date and its Global date. That's the exact
-        number every current guess is riding on, since the chaining trick above just carries it
-        forward unchanged until the next confirmed date comes along and resets it.
-      </p>
-      <p>
-        On the rare chance there's no confirmed pair at all to work from yet, the very first guess
-        falls back to the median lag across every event where we do have both dates. You'll see
-        that labeled "Historical CN&rarr;Global lag" instead, just so it's clear it isn't the real
-        current number.
-      </p>
+      <ul>
+        <li>
+          <strong>Current lag</strong> - the gap between the most recent confirmed event's
+          CN and Global dates. This is what every estimate on the page is using right now.
+        </li>
+        <li>
+          <strong>Historical lag</strong> - the median lag across every event with both
+          dates known. Only used to bootstrap the very first estimate, before any confirmed
+          CN/Global pair exists to chain from.
+        </li>
+      </ul>
 
       <h2 class="calendarSectionHeading">CN exclusive</h2>
+      <p>An event is marked <code>cnExclusive</code> once both of these are true:</p>
+      <ul>
+        <li>It has never had a confirmed Global date.</li>
+        <li>Its estimated window closed more than 30 days ago.</li>
+      </ul>
       <p>
-        If an event's estimated window closed more than 30 days ago and it still hasn't gotten a
-        real Global date, it gets marked <strong>CN exclusive</strong> instead of sitting there
-        labeled "upcoming" forever. Usually that just means it's not coming to Global at all,
-        though sometimes it's simply running late - the 30-day buffer exists so a
-        slightly-delayed event doesn't get flagged red too soon.
+        This usually means the event isn't coming to Global at all - the 30-day buffer just
+        keeps a slightly delayed event from getting flagged red too early.
       </p>
 
-      <h2 class="calendarSectionHeading">How fresh this is</h2>
+      <h2 class="calendarSectionHeading">How often this updates</h2>
       <p>
-        This page refreshes itself once a day - a scheduled job pulls the latest from the
-        wiki, redoes all the confirmed/estimated/CN-exclusive math above, and republishes it. So
-        whatever you're looking at is only as fresh as the last run: if something changed on the
-        wiki an hour ago, it might not show up here until tomorrow.
+        This page rebuilds once a day: a scheduled job re-fetches the wiki data, recalculates
+        every date using the rules above, and republishes the result. Data on this page can be up
+        to a day old.
       </p>
     </div>
   </body>
