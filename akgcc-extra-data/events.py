@@ -99,6 +99,18 @@ REQUEST_TIMEOUT = 30  # seconds, per attempt
 REQUEST_RETRIES = 3
 REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number
 
+# Pause between individual image-resolve batches and image downloads (see
+# resolve_image_urls()/download_image()). Mirroring event banners alone
+# only ever needed a handful of these calls per run, but the first run that
+# also mirrors every operator's icon can send hundreds of consecutive
+# requests -- far more api.php/CDN traffic in one run than this project had
+# ever sent before, and confirmed live to trip something (every single
+# resolve batch came back with an empty, non-JSON body) that a low-volume
+# run never hit. A short pause between requests is cheap insurance against
+# that; once every icon is mirrored once, later runs only fetch a handful
+# of new ones per month and this barely adds any time.
+REQUEST_PACING = 1  # seconds
+
 # How many of the most recently Global-released confirmed events to take
 # the "current lag" median from (see the module docstring). Matches the
 # default window size myrtle.moe's own release-lag model uses.
@@ -301,7 +313,13 @@ def group_operators_by_event(rows):
     show anything useful."""
     by_event = {}
     for row in rows:
-        event = row.get("event")
+        # Stripped defensively -- this is matched below against
+        # EventServerDetails' own `event` value (see build_events()),
+        # which comes from a different Cargo table maintained somewhat
+        # independently on the wiki, so incidental leading/trailing
+        # whitespace on one side (but not the other) would otherwise be
+        # an easy way for an operator to silently fail to match up.
+        event = (row.get("event") or "").strip()
         name = row.get("operator")
         if not event or not name:
             continue
@@ -357,15 +375,21 @@ def resolve_image_urls(filenames):
     steps it entirely.
 
     Batches up to 50 titles per request (MediaWiki's default limit for
-    non-bot API access). Returns {filename: resolved URL}, omitting any
-    filename MediaWiki can't resolve (e.g. renamed/deleted/never
-    existed) -- never raises, since one bad batch shouldn't take down
-    the whole run."""
+    non-bot API access), with a short REQUEST_PACING pause between
+    batches -- confirmed live, a run resolving hundreds of batches back
+    to back (every operator icon's first-ever mirror, on top of any new
+    event banners) got an empty, non-JSON body back from every single
+    one, something a low-volume run never hit; the pause is cheap
+    insurance against whatever rate-limiting or bot-protection that was.
+    Returns {filename: resolved URL}, omitting any filename MediaWiki
+    can't resolve (e.g. renamed/deleted/never existed) -- never raises,
+    since one bad batch shouldn't take down the whole run."""
     resolved = {}
     filenames = list(filenames)
     batch_size = 50
     for i in range(0, len(filenames), batch_size):
         batch = filenames[i : i + batch_size]
+        r = None
         try:
             params = {
                 "action": "query",
@@ -384,7 +408,18 @@ def resolve_image_urls(filenames):
                 if imageinfo and imageinfo[0].get("url"):
                     resolved[filename] = imageinfo[0]["url"]
         except Exception as exc:
-            print(f"Could not resolve image batch starting at {batch[0]!r}: {exc}")
+            # r.text (not just the parse exception) is the useful part --
+            # "Expecting value: line 1 column 1" alone just means "the body
+            # wasn't JSON," not why; the status code and a body snippet is
+            # what actually says whether that was rate-limiting, a bot-
+            # protection page, or something else entirely.
+            if r is not None:
+                detail = f"status={r.status_code} body={r.text[:200]!r}"
+            else:
+                detail = str(exc)
+            print(f"Could not resolve image batch starting at {batch[0]!r}: {detail}")
+        if i + batch_size < len(filenames):
+            time.sleep(REQUEST_PACING)
     return resolved
 
 
@@ -400,7 +435,11 @@ def download_image(wiki_filename, resolved_url):
     Returns the local filename on success, None on any failure (no
     resolved URL, bad status, wrong content type, network error) --
     never raises, since one bad image shouldn't take down the whole
-    run."""
+    run. Paces itself with REQUEST_PACING after every real network
+    request (see resolve_image_urls()'s docstring for why) -- but only
+    when it actually made one; the early returns above (already
+    mirrored, or no resolved URL to try) don't touch the network at
+    all, so there's nothing to pace there."""
     local_name = local_image_name(wiki_filename)
     local_path = os.path.join(IMAGES_DIR, local_name)
     if os.path.exists(local_path):
@@ -424,6 +463,8 @@ def download_image(wiki_filename, resolved_url):
     except Exception as exc:
         print(f"Could not download image {wiki_filename!r}: {exc}")
         return None
+    finally:
+        time.sleep(REQUEST_PACING)
 
 
 def localize_images(events, operators_by_event=None):
@@ -531,7 +572,10 @@ def build_events(rows, overrides=None, operators_by_event=None):
     # already-fetched `page` field rather than guessed from `event`.
     wiki_page_by_event = {}
     for row in rows:
-        event = row.get("event") or row.get("page")
+        # Stripped for the same reason as group_operators_by_event()'s own
+        # event name -- this is the key looked up in operators_by_event
+        # below, from a separately-maintained Cargo table.
+        event = (row.get("event") or row.get("page") or "").strip()
         if not event:
             continue
         page = row.get("page")
