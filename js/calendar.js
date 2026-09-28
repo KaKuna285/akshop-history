@@ -50,6 +50,16 @@
   let weekRows = []; // [{weekStart, el}], ascending, el = that week's Monday .calDay
   const dayCellsByDayNum = new Map(); // dayNum -> that day's .calChips element
   let scrollTickScheduled = false;
+  // The very first render happens before events.json has loaded (see the
+  // bottom of this file), so the initial scroll-to-today position is
+  // computed against an empty grid -- every .calDay is still just its
+  // min-height, with no event chips yet. Once real data lands, chip
+  // content changes row heights (a day with two or three chips is taller
+  // than an empty one), which shifts every later row's offsetTop -- so
+  // the scroll position has to be recomputed once, against the real
+  // layout, or the page opens a few rows off from today. This flag marks
+  // "real data has loaded but that recompute hasn't happened yet".
+  let needsInitialScrollFix = false;
 
   function startOfWeek(d) {
     const c = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -300,6 +310,19 @@
     return head ? head.offsetHeight : 0;
   }
 
+  // Scrolls so the current week sits right under the sticky weekday
+  // header, using whatever the grid's layout actually is right now (see
+  // needsInitialScrollFix above for why this needs to be callable more
+  // than once against the same rendered rows).
+  function positionOnToday() {
+    const initialWeek = startOfWeek(new Date());
+    const todayRow = weekRows.find((w) => w.weekStart.getTime() === initialWeek.getTime());
+    if (todayRow) {
+      weekGridEl.scrollTop = Math.max(0, todayRow.el.offsetTop - headerHeight());
+    }
+    updateWeekLabel();
+  }
+
   // The very first calendar render: builds WEEKS_BEFORE + 1 + WEEKS_AFTER
   // weeks centered on the current week, and scrolls so the current week
   // sits right under the sticky weekday header. Only ever called once --
@@ -335,11 +358,7 @@
     renderedStart = gridStart;
     renderedEnd = addDays(gridStart, totalDays);
 
-    const todayRow = weekRows.find((w) => w.weekStart.getTime() === initialWeek.getTime());
-    if (todayRow) {
-      weekGridEl.scrollTop = Math.max(0, todayRow.el.offsetTop - headerHeight());
-    }
-    updateWeekLabel();
+    positionOnToday();
   }
 
   // Redraws every already-rendered day's chips in place (status filter
@@ -507,6 +526,10 @@
         calendarInitialized = true;
       } else {
         refreshCalendarChips();
+        if (needsInitialScrollFix) {
+          needsInitialScrollFix = false;
+          positionOnToday();
+        }
       }
     } else {
       calendarViewRoot.style.display = "none";
@@ -561,6 +584,11 @@
       const data = await res.json();
       const now = new Date();
       allEvents = (data.events || []).map((ev) => ({ ...ev, _status: getStatus(ev, now) }));
+      // Real chip content is about to exist for the first time -- the
+      // scroll-to-today position computed on the empty grid no longer
+      // reflects the real row heights, so it needs to be redone once
+      // render() below reaches the calendar view with this data in place.
+      needsInitialScrollFix = true;
 
       const hasCurrentLag = data.currentLagDays != null;
       const lagDays = hasCurrentLag ? data.currentLagDays : data.medianLagDays;
