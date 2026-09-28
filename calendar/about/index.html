@@ -1,0 +1,103 @@
+<html>
+  <head>
+    <title>About &middot; EN Event Calendar</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link type="text/css" href="/css/reset.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style2.css" rel="stylesheet" />
+    <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
+    <link type="text/css" href="/css/calendar-extra.css" rel="stylesheet" />
+    <script type="text/javascript" src="/js/config.js"></script>
+    <meta charset="UTF-8" />
+  </head>
+  <body ontouchstart>
+    <div id="topNav">
+      <div class="nav-left">
+        <a id="pageTitle">About &middot; EN Event Calendar</a>
+      </div>
+      <div class="nav-right">
+        <a
+          class="rightButton button iconButton"
+          href="/calendar/"
+          id="backButton"
+          aria-label="Back to the calendar"
+        ></a>
+        <a class="rightButton button iconButton" href="/" id="homeButton" aria-label="Home"></a>
+      </div>
+    </div>
+    <div id="aboutContent">
+      <p class="aboutIntro">
+        Where these dates come from, how the estimated ones are worked out, and how often any of
+        it changes.
+      </p>
+
+      <div class="aboutLegendRecap">
+        <span><span class="legendSwatch legendConfirmed"></span> Confirmed</span>
+        <span><span class="legendSwatch legendEstimated"></span> Estimated</span>
+        <span><span class="legendSwatch legendCnExclusive"></span> CN exclusive</span>
+      </div>
+
+      <h2 class="calendarSectionHeading">Where the dates come from</h2>
+      <p>
+        Every event's dates come from <a href="https://arknights.wiki.gg/wiki/Event" target="_blank" rel="noopener">arknights.wiki.gg</a>, which tracks two things per event: when it ran (or is
+        set to run) on the CN server, and the same for the Global/EN server. A date counts as
+        <strong>confirmed</strong> the moment the wiki has a Global-server date for that event &mdash;
+        it makes no difference whether that came from an official Gryphline announcement or from
+        something wiki editors datamined out of the client ahead of one. Either way, once the
+        wiki has it, this page treats it as settled and stops estimating it.
+      </p>
+
+      <h2 class="calendarSectionHeading">Estimated dates</h2>
+      <p>
+        For an event with no confirmed Global date yet, the estimate isn't just "this event's own
+        CN date plus a fixed number of days." The real CN&rarr;Global lag varies noticeably from
+        event to event, so applying one flat number everywhere tends to open up an artificial gap
+        (or overlap) right where a confirmed date meets the next estimated one.
+      </p>
+      <p>
+        Instead, every event is walked in CN-date order, and each unconfirmed event's Global date
+        is set to <em>the nearest earlier event's Global date, plus the CN-side gap between the
+        two</em>. In other words, an estimate inherits whatever lag was most recently actually
+        observed &mdash; from a confirmed date, or from an earlier estimate chained the same way
+        &mdash; rather than a dataset-wide average. Every newly confirmed date resets the chain,
+        snapping everything estimated after it back onto Gryphline's real schedule from that point
+        on.
+      </p>
+
+      <h2 class="calendarSectionHeading">The CN&rarr;Global lag</h2>
+      <p>
+        The number in the calendar's legend ("Current CN&rarr;Global lag used for estimates: ~X
+        days") is the gap between the most recent confirmed event's CN date and its Global date
+        &mdash; exactly the lag being applied to every estimate right now, since the chaining
+        above just carries that same gap forward unchanged until the next confirmed date resets
+        it.
+      </p>
+      <p>
+        Before any confirmed CN/Global pair exists yet to chain from at all, the very first
+        estimate instead falls back to the historical median lag across every event where both
+        dates are already known &mdash; shown as "Historical CN&rarr;Global lag" instead, on the
+        rare occasion that's the only number available.
+      </p>
+
+      <h2 class="calendarSectionHeading">CN exclusive</h2>
+      <p>
+        An event that's only ever had an <em>estimated</em> Global date, and whose estimated
+        window closed more than 30 days ago with still no confirmation, is marked
+        <strong>CN exclusive</strong> instead of sitting there as "upcoming" forever. It usually
+        means the event either isn't coming to Global at all, or is running unusually late &mdash;
+        the 30-day grace period exists so an event that's simply a bit delayed doesn't get flagged
+        red too early.
+      </p>
+
+      <h2 class="calendarSectionHeading">How often this updates</h2>
+      <p>
+        This page rebuilds itself once a day: a scheduled job re-queries the wiki, recomputes
+        every confirmed/estimated/CN-exclusive date using the logic above, and republishes the
+        underlying data. Between runs, what you're looking at is only as fresh as the last run
+        &mdash; if the wiki changed very recently, it may take until the next run to show up here.
+      </p>
+    </div>
+  </body>
+</html>

@@ -8,7 +8,8 @@
 #calendarControls,
 #calendarViewRoot,
 #calendarContent,
-#pageCredit {
+#pageCredit,
+#aboutContent {
   /* min() clamps this to 100% on any screen narrower than 1200px, where
      (100vw + 1200px) / 2 otherwise evaluates to *more* than 100vw. */
   max-width: min(100%, calc((100vw + 1200px) / 2));
@@ -69,6 +70,76 @@
 
 #pageCredit a:hover {
   color: #ccc;
+}
+
+/* ---- Nav icon buttons (info / back), matching #homeButton's pattern of
+   a Font Awesome glyph via ::before rather than an <img> ---- */
+
+#aboutButton::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  content: "\f05a";
+
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+
+#backButton::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  content: "\f060";
+
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+
+/* ---- About page ---- */
+
+#aboutContent {
+  padding: 8px 20px 48px;
+}
+
+#aboutContent .aboutIntro {
+  font-size: 0.95rem;
+  color: #ccc;
+  line-height: 1.6;
+  margin: 4px 0 18px;
+}
+
+#aboutContent .aboutLegendRecap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 20px;
+  margin: 0 0 28px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+#aboutContent p {
+  color: #bbb;
+  line-height: 1.6;
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+}
+
+#aboutContent p:last-child {
+  margin-bottom: 0;
+}
+
+#aboutContent code {
+  background: rgba(255, 255, 255, 0.07);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
 }
 
 /* ---- Controls bar: view toggle, status filters, sort ---- */
