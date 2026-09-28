@@ -334,8 +334,24 @@ def group_operators_by_event(rows):
         if op_class:
             op["class"] = op_class
         icon = row.get("icon")
-        if icon and str(icon).strip():
-            op["icon"] = str(icon).strip()
+        if icon:
+            icon = str(icon).strip()
+            # Operators.icon is a Cargo `File`-type field, unlike
+            # EventServerDetails.image (a plain `String` field, and
+            # already confirmed to come back as a bare filename with no
+            # prefix). Confirmed live via Special:CargoQuery: a File-type
+            # field comes back already carrying its namespace prefix
+            # (e.g. "File:Qiubai icon.png"), so stripping it here keeps
+            # `icon` on the same bare-filename convention the rest of
+            # this pipeline (local_image_name/resolve_image_urls/
+            # download_image) already assumes for `image` -- otherwise
+            # every icon would get requested as the doubly-prefixed,
+            # nonexistent title "File:File:Qiubai icon.png" and never
+            # resolve.
+            if icon.lower().startswith("file:"):
+                icon = icon[len("file:") :].strip()
+            if icon:
+                op["icon"] = icon
         by_event.setdefault(event, []).append(op)
     for op_list in by_event.values():
         op_list.sort(key=lambda o: (-(o.get("rarity") or 0), o["name"]))
