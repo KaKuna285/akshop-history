@@ -27,7 +27,12 @@
   color: #ccc;
 }
 
-#calendarLegend .legendSwatch {
+/* Shared between the calendar page's own legend and the about page's
+   recap of it (#aboutContent .aboutLegendRecap) -- previously these rules
+   were scoped to #calendarLegend only, which meant the about page's swatch
+   dots had no shape or color at all. */
+#calendarLegend .legendSwatch,
+#aboutContent .aboutLegendRecap .legendSwatch {
   display: inline-block;
   width: 12px;
   height: 12px;
@@ -36,16 +41,25 @@
   margin-right: 4px;
 }
 
-#calendarLegend .legendConfirmed {
+#calendarLegend .legendConfirmed,
+#aboutContent .aboutLegendRecap .legendConfirmed {
   background: #6dd47e;
 }
 
-#calendarLegend .legendEstimated {
+#calendarLegend .legendAnnounced,
+#aboutContent .aboutLegendRecap .legendAnnounced {
+  background: transparent;
+  border: 2px solid #4784eb;
+}
+
+#calendarLegend .legendEstimated,
+#aboutContent .aboutLegendRecap .legendEstimated {
   background: transparent;
   border: 2px dashed #f8d511;
 }
 
-#calendarLegend .legendCnExclusive {
+#calendarLegend .legendCnExclusive,
+#aboutContent .aboutLegendRecap .legendCnExclusive {
   background: transparent;
   border: 2px solid #e05d5d;
 }
@@ -410,6 +424,10 @@
   border-left-color: #6dd47e;
 }
 
+.calEventChip.announced {
+  border-left-color: #4784eb;
+}
+
 .calEventChip.estimated {
   border-left-color: #f8d511;
 }
@@ -527,6 +545,10 @@ a.eventCard:hover {
   border-left-color: #6dd47e;
 }
 
+.eventCard.announced {
+  border-left-color: #4784eb;
+}
+
 .eventCard.estimated {
   border-left-color: #f8d511;
 }
@@ -569,6 +591,11 @@ a.eventCard:hover {
   color: #ddd;
 }
 
+.eventCard .eventDates .announcedSource {
+  color: #4784eb;
+  font-size: 0.76rem;
+}
+
 .eventCard .badge {
   display: inline-block;
   font-size: 0.7rem;
@@ -582,6 +609,11 @@ a.eventCard:hover {
 .eventCard.confirmed .badge {
   background: rgba(109, 212, 126, 0.15);
   color: #6dd47e;
+}
+
+.eventCard.announced .badge {
+  background: rgba(71, 132, 235, 0.15);
+  color: #4784eb;
 }
 
 .eventCard.estimated .badge {

@@ -35,6 +35,7 @@
 
       <div class="aboutLegendRecap">
         <span><span class="legendSwatch legendConfirmed"></span> Confirmed</span>
+        <span><span class="legendSwatch legendAnnounced"></span> Announced</span>
         <span><span class="legendSwatch legendEstimated"></span> Estimated</span>
         <span><span class="legendSwatch legendCnExclusive"></span> CN exclusive</span>
       </div>
@@ -54,12 +55,22 @@
         of the client ahead of one. Either source counts the same here.
       </p>
 
+      <h2 class="calendarSectionHeading">Announced</h2>
+      <p>
+        Sometimes Yostar announces or teases a Global date before arknights.wiki.gg has picked it
+        up. Rather than wait, an event can be marked <code>announced</code> by hand instead - a
+        manually pinned date with a source noted alongside it, kept in a small file in this
+        site's own repository (not sourced from the wiki). It takes priority over a computed
+        estimate for that event, but never overrides an actual wiki-confirmed date once the wiki
+        catches up.
+      </p>
+
       <h2 class="calendarSectionHeading">How estimates are calculated</h2>
       <p>
-        An unconfirmed event's Global date is just its own CN date plus a lag, but the lag used
-        isn't a flat dataset-wide average - Yostar's localization pace has sped up and slowed
-        down before, and a lag averaged over years of history would react to that far too slowly.
-        Instead:
+        For an event that's neither confirmed nor announced, the Global date is just its own CN
+        date plus a lag, but the lag used isn't a flat dataset-wide average - Yostar's
+        localization pace has sped up and slowed down before, and a lag averaged over years of
+        history would react to that far too slowly. Instead:
       </p>
       <ol>
         <li>
@@ -112,7 +123,7 @@
       <h2 class="calendarSectionHeading">CN exclusive</h2>
       <p>An event is marked <code>cnExclusive</code> once both of these are true:</p>
       <ul>
-        <li>It has never had a confirmed Global date.</li>
+        <li>It has never had a confirmed <em>or</em> announced Global date.</li>
         <li>Its estimated window closed more than 30 days ago.</li>
       </ul>
       <p>

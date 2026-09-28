@@ -122,6 +122,47 @@ def parse_date(s):
     return None
 
 
+OVERRIDES_PATH = "./overrides.json"
+
+
+def load_overrides(path=OVERRIDES_PATH):
+    """Manually-pinned Global dates for events Yostar/Hypergryph has
+    announced or teased ahead of arknights.wiki.gg tracking a confirmed
+    Global date for them -- or to correct a wiki data error without
+    waiting on the wiki itself. This is the third tier alongside
+    "confirmed" (from the wiki) and "estimated" (computed): it takes
+    priority over an estimate, but never over an actual wiki-confirmed
+    date, and only applies to an event that already has a CN date
+    tracked (there's nothing to anchor an end date/duration to
+    otherwise). See README.md for the exact file format.
+
+    Hand-edited, and optional -- a missing or unreadable file just means
+    no overrides today, not a crash. `overrides.json` starts out empty
+    ({}) and is meant to be edited directly in the repo when needed."""
+    try:
+        with open(path) as f:
+            raw = json.load(f)
+    except FileNotFoundError:
+        return {}
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Could not read {path} (ignoring overrides): {exc}")
+        return {}
+
+    overrides = {}
+    for event, ov in raw.items():
+        start = parse_date(ov.get("globalStart"))
+        if not start:
+            print(f"Skipping override for {event!r}: no usable globalStart")
+            continue
+        overrides[event] = {
+            "globalStart": start,
+            "globalEnd": parse_date(ov.get("globalEnd")),
+            "source": ov.get("source") or None,
+            "note": ov.get("note") or None,
+        }
+    return overrides
+
+
 def fetch_event_server_details():
     """Pull every (event, server, startTime, endTime) row. No `where`
     filter -- we don't know every server-name spelling in use (CN/global/
@@ -244,8 +285,9 @@ def backtest_lag_model(confirmed_pairs, window):
     }
 
 
-def build_events(rows, images=None):
+def build_events(rows, images=None, overrides=None):
     images = images or {}
+    overrides = overrides or {}
     # Group every row by event name, then by a normalized server key.
     by_event = {}
     # The wiki's actual page name for each event, kept separately from the
@@ -358,6 +400,25 @@ def build_events(rows, images=None):
             entry["globalStart"] = gl_start.isoformat()
             entry["globalEnd"] = gl_end.isoformat() if gl_end else None
             entry["globalConfirmed"] = True
+        elif event in overrides:
+            # Announced: not yet in the wiki's own confirmed data, but
+            # manually pinned -- see load_overrides(). Takes priority
+            # over the computed estimate, but is still not "confirmed"
+            # (that's reserved for what the wiki itself has tracked).
+            ov = overrides[event]
+            ov_start = ov["globalStart"]
+            ov_end = ov["globalEnd"]
+            if not ov_end:
+                duration = (cn_end - cn_start) if cn_end else timedelta(days=0)
+                ov_end = ov_start + duration
+            entry["globalStart"] = ov_start.isoformat()
+            entry["globalEnd"] = ov_end.isoformat()
+            entry["globalConfirmed"] = False
+            entry["announced"] = True
+            if ov["source"]:
+                entry["source"] = ov["source"]
+            if ov["note"]:
+                entry["note"] = ov["note"]
         elif estimate_lag_days is not None:
             # Not yet confirmed: this event's own CN date plus the
             # currently-applicable lag (see above).
@@ -397,7 +458,9 @@ if __name__ == "__main__":
     print(f"Fetched {len(rows)} EventServerDetails rows")
     images = fetch_event_images()
     print(f"Fetched {len(images)} event images")
-    events, median_lag_days, current_lag_days, backtest = build_events(rows, images)
+    overrides = load_overrides()
+    print(f"Loaded {len(overrides)} manual overrides")
+    events, median_lag_days, current_lag_days, backtest = build_events(rows, images, overrides)
     print(
         f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days, "
         f"current CN->Global lag = {current_lag_days} days"

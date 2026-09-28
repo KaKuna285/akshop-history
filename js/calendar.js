@@ -30,6 +30,7 @@
 
   const STATUS_LABEL = {
     confirmed: "CONFIRMED",
+    announced: "ANNOUNCED",
     estimated: "ESTIMATED",
     cnExclusive: "CN EXCLUSIVE",
   };
@@ -37,7 +38,7 @@
   let allEvents = [];
   let currentView = "calendar"; // "calendar" | "list"
   let sortMode = "date"; // "date" | "name"
-  let activeStatuses = new Set(["confirmed", "estimated", "cnExclusive"]);
+  let activeStatuses = new Set(["confirmed", "announced", "estimated", "cnExclusive"]);
 
   // Calendar-view-only state. The grid is built once (renderCalendarInitial)
   // and then only ever grown (prependWeeks/appendWeeks) or has its chip
@@ -139,6 +140,10 @@
   // there so an event that's simply a bit delayed doesn't flip red early.
   function getStatus(ev, now) {
     if (ev.globalConfirmed) return "confirmed";
+    // Manually pinned via overrides.json -- treated as its own tier,
+    // never falls through to "CN exclusive" no matter how old its window
+    // gets, since it's officially known to be coming rather than guessed.
+    if (ev.announced) return "announced";
     const end = effectiveEnd(ev.globalStart, ev.globalEnd);
     if (now.getTime() - end.getTime() > GRACE_DAYS * DAY_MS) return "cnExclusive";
     return "estimated";
@@ -255,6 +260,14 @@
     globalLine.className = "globalDate";
     globalLine.textContent = `Global: ${fmtRange(ev.globalStart, ev.globalEnd)}`;
     dates.appendChild(globalLine);
+
+    if (ev.announced && ev.source) {
+      const sourceLine = document.createElement("span");
+      sourceLine.className = "announcedSource";
+      sourceLine.textContent = `Announced via ${ev.source}`;
+      if (ev.note) sourceLine.title = ev.note;
+      dates.appendChild(sourceLine);
+    }
 
     const countdown = document.createElement("span");
     countdown.className = "countdown";

@@ -120,16 +120,50 @@ rebuilding the same 10-event model at each past confirmed event using
 only what would've been known at the time, and comparing that estimate
 to what actually happened, to report how accurate this approach has
 been historically (median/p75/p90/max absolute error in days). Each
-event in the output carries a `globalConfirmed: true/false` flag so the
-page can visibly distinguish "this actually is the date" from "this is
-an estimate" - a green "CONFIRMED" badge vs. a yellow "ESTIMATED" one,
-plus a red "CN EXCLUSIVE" one for an event whose estimated window closed
-30+ days ago with still no Global confirmation (likely not coming to
-Global at all, or running unusually late).
+event in the output carries a `globalConfirmed: true/false` flag (plus
+`announced: true` for the tier described next) so the page can visibly
+distinguish "this actually is the date" from "this is an estimate" - a
+green "CONFIRMED" badge, a blue "ANNOUNCED" one, a yellow "ESTIMATED"
+one, or a red "CN EXCLUSIVE" one for an event whose estimated window
+closed 30+ days ago with still no Global confirmation or announcement
+(likely not coming to Global at all, or running unusually late).
 
-`events.py`'s Cargo query (against the same `arknights.wiki.gg` API the
+Sometimes Yostar announces or teases a Global date before the wiki has
+picked it up. `akgcc-extra-data/overrides.json` is a small hand-edited
+file (starts out as just `{}`) for exactly that case - a manually
+pinned date that `events.py` uses in place of a computed estimate,
+without needing to wait on the wiki. It's keyed by event name, matching
+the `event` field elsewhere in the pipeline:
+
+```json
+{
+  "Some Upcoming Event": {
+    "globalStart": "2026-11-01",
+    "globalEnd": "2026-11-15",
+    "source": "Official Yostar Twitter announcement",
+    "note": "Optional extra detail, shown as a tooltip on the list view"
+  }
+}
+```
+
+`globalEnd` and `note` are optional (`globalEnd` falls back to the CN
+run's own duration if omitted); `source` is shown directly on the page
+so readers know why a date is pinned instead of computed. An override
+only ever applies to an event that already has a CN date tracked (there's
+nothing to anchor an end date to otherwise), and never overrides an
+actual wiki-confirmed date once the wiki catches up - confirmed always
+wins.
+
+`events.py` also makes a best-effort attempt (`fetch_event_images()`) to
+pull each event's banner art from the wiki for the calendar's hover
+tooltip and list view. Unlike everything else in this script, that query
+couldn't be verified against the live wiki at all while writing it (see
+the note below) - it's kept fully separate from date fetching and fails
+silently (no images, not a broken build) if the guess turns out wrong.
+
+`events.py`'s Cargo queries (against the same `arknights.wiki.gg` API the
 other scripts use) couldn't be tested against the live wiki from the
-environment this was written in — if `json/events.json` isn't showing up
+environment this was written in - if `json/events.json` isn't showing up
 after a workflow run, or the calendar page shows nothing, check that
 step's own log in the Actions tab first; the daily workflow runs this
 step with `continue-on-error: true` specifically so a problem here
