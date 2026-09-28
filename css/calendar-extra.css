@@ -5,6 +5,8 @@
 
 #topNav,
 #calendarLegend,
+#calendarControls,
+#calendarViewRoot,
 #calendarContent,
 #pageCredit {
   max-width: calc((100vw + 1200px) / 2);
@@ -40,11 +42,208 @@
   border: 2px dashed #f8d511;
 }
 
+#calendarLegend .legendCnExclusive {
+  background: transparent;
+  border: 2px solid #e05d5d;
+}
+
 #calendarLegend .legendHint {
   margin-left: auto;
   font-style: italic;
   opacity: 0.75;
 }
+
+/* ---- Controls bar: view toggle, status filters, sort ---- */
+
+#calendarControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+  padding: 4px 20px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.viewToggle {
+  gap: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.viewToggleBtn {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.viewToggleBtn + .viewToggleBtn {
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.viewToggleBtn.active {
+  background: rgba(248, 213, 17, 0.15);
+  color: #f8d511;
+}
+
+.statusFilters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.statusFilters input {
+  accent-color: #f8d511;
+}
+
+.sortGroup select {
+  background: #333;
+  color: #eee;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+/* ---- Calendar (month grid) view ---- */
+
+#calendarViewRoot {
+  padding: 8px 20px 32px;
+}
+
+#monthNav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+#monthNav button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #eee;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+#monthNav button:hover {
+  border-color: #f8d511;
+}
+
+#monthLabel {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #eee;
+  min-width: 160px;
+}
+
+#todayBtn {
+  margin-left: auto;
+}
+
+#monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.calWeekday {
+  background: rgba(255, 255, 255, 0.05);
+  color: #999;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.calDay {
+  background: #262626;
+  min-height: 84px;
+  padding: 4px 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.calDay.otherMonth {
+  background: #202020;
+  opacity: 0.45;
+}
+
+.calDay.today .calDayNum {
+  background: #f8d511;
+  color: #262626;
+  border-radius: 50%;
+}
+
+.calDayNum {
+  font-size: 0.75rem;
+  color: #bbb;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calChips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.calEventChip {
+  display: block;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border-left: 2px solid #444;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+
+.calEventChip:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.calEventChip.confirmed {
+  border-left-color: #6dd47e;
+}
+
+.calEventChip.estimated {
+  border-left-color: #f8d511;
+}
+
+.calEventChip.cnExclusive {
+  border-left-color: #e05d5d;
+}
+
+/* ---- List view ---- */
 
 #calendarContent {
   padding: 8px 20px 32px;
@@ -86,6 +285,13 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 4px 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+a.eventCard:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .eventCard.confirmed {
@@ -94,6 +300,10 @@
 
 .eventCard.estimated {
   border-left-color: #f8d511;
+}
+
+.eventCard.cnExclusive {
+  border-left-color: #e05d5d;
 }
 
 .eventCard .eventName {
@@ -140,6 +350,11 @@
   color: #f8d511;
 }
 
+.eventCard.cnExclusive .badge {
+  background: rgba(224, 93, 93, 0.15);
+  color: #e05d5d;
+}
+
 .eventCard .countdown {
   font-size: 0.75rem;
   opacity: 0.6;
@@ -153,5 +368,25 @@
   .eventCard .eventDates {
     align-items: flex-start;
     text-align: left;
+  }
+
+  #calendarControls {
+    gap: 8px 16px;
+  }
+
+  .calDay {
+    min-height: 64px;
+  }
+
+  .calDayNum {
+    font-size: 0.68rem;
+  }
+
+  .calEventChip {
+    font-size: 0.6rem;
+  }
+
+  #monthLabel {
+    min-width: 0;
   }
 }

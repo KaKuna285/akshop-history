@@ -22,15 +22,40 @@
       </div>
     </div>
     <div id="calendarLegend">
+      <span><span class="legendSwatch legendConfirmed"></span> Confirmed by Gryphline</span>
+      <span><span class="legendSwatch legendEstimated"></span> Estimated from historical CN&rarr;Global lag</span>
       <span
-        ><span class="legendSwatch legendConfirmed"></span> Confirmed by
-        Gryphline</span
-      >
-      <span
-        ><span class="legendSwatch legendEstimated"></span> Estimated from
-        historical CN&rarr;Global lag</span
+        ><span class="legendSwatch legendCnExclusive"></span> CN exclusive (no Global date 30+
+        days after the estimated window)</span
       >
       <span class="legendHint" id="lagHint"></span>
+    </div>
+    <div id="calendarControls">
+      <div class="controlGroup viewToggle" id="viewToggle">
+        <button type="button" class="viewToggleBtn active" data-view="calendar">Calendar</button>
+        <button type="button" class="viewToggleBtn" data-view="list">List</button>
+      </div>
+      <div class="controlGroup statusFilters" id="statusFilters">
+        <label><input type="checkbox" value="confirmed" checked /> Confirmed</label>
+        <label><input type="checkbox" value="estimated" checked /> Estimated</label>
+        <label><input type="checkbox" value="cnExclusive" checked /> CN exclusive</label>
+      </div>
+      <div class="controlGroup sortGroup" id="sortGroup">
+        <label for="sortSelect">Sort</label>
+        <select id="sortSelect">
+          <option value="date">Date</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+    </div>
+    <div id="calendarViewRoot">
+      <div id="monthNav">
+        <button type="button" id="prevMonthBtn" aria-label="Previous month">&lsaquo;</button>
+        <span id="monthLabel"></span>
+        <button type="button" id="nextMonthBtn" aria-label="Next month">&rsaquo;</button>
+        <button type="button" id="todayBtn">Today</button>
+      </div>
+      <div id="monthGrid"></div>
     </div>
     <div id="calendarContent">
       <h2 class="calendarSectionHeading">Upcoming</h2>
@@ -42,11 +67,8 @@
     </div>
     <div id="pageCredit">
       Part of the
-      <a href="/store/">Shop Operator History</a> fork &middot; event data
-      from
-      <a href="https://arknights.wiki.gg/wiki/Event" target="_blank" rel="noopener"
-        >Arknights Terra Wiki</a
-      >
+      <a href="/store/">Shop Operator History</a> fork &middot; event data from
+      <a href="https://arknights.wiki.gg/wiki/Event" target="_blank" rel="noopener">Arknights Terra Wiki</a>
     </div>
     <script type="text/javascript" src="/js/calendar.js"></script>
   </body>

@@ -100,10 +100,18 @@ def fetch_event_server_details():
 def build_events(rows):
     # Group every row by event name, then by a normalized server key.
     by_event = {}
+    # The wiki's actual page name for each event, kept separately from the
+    # display name (`event`) -- they're usually the same, but the page name
+    # is what a /wiki/<page> link actually needs, so it's tracked from the
+    # already-fetched `page` field rather than guessed from `event`.
+    wiki_page_by_event = {}
     for row in rows:
         event = row.get("event") or row.get("page")
         if not event:
             continue
+        page = row.get("page")
+        if page and event not in wiki_page_by_event:
+            wiki_page_by_event[event] = page
         server_raw = (row.get("server") or "").strip()
         server_key = server_raw.lower()
         entry = by_event.setdefault(event, {})
@@ -128,6 +136,9 @@ def build_events(rows):
         cn = servers.get("cn")
         gl = servers.get("global")
         entry = {"event": event}
+        wiki_page = wiki_page_by_event.get(event)
+        if wiki_page:
+            entry["wikiPage"] = wiki_page
 
         if cn and cn.get("start"):
             entry["cnStart"] = cn["start"].isoformat()
