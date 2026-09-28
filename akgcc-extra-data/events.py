@@ -54,6 +54,7 @@ import re
 import json
 import time
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 REQUEST_TIMEOUT = 30  # seconds, per attempt
 REQUEST_RETRIES = 3
@@ -192,24 +193,43 @@ def fetch_event_server_details():
     return rows
 
 
+def resolve_image_url(filename):
+    """EventServerDetails.image holds a bare wiki filename (confirmed by
+    hand via Special:CargoQuery -- e.g. "EN A Death in Chunfen
+    banner.png"), not a resolved URL. Rather than a second API call
+    (imageinfo) to look up each file's real (hashed) upload path,
+    Special:FilePath is a standard MediaWiki feature that redirects a
+    bare filename straight to the actual file -- stable, needs no extra
+    request, and works from a plain <img src> in the browser (this is a
+    normal page a person's browser loads directly, unrelated to the
+    robots.txt block on api.php/Special:CargoTables that affects this
+    project's own fetch tooling)."""
+    if not filename:
+        return None
+    filename = str(filename).strip()
+    if not filename:
+        return None
+    if filename.startswith("http"):
+        # Already a full URL, in case this ever changes upstream.
+        return filename
+    return "https://arknights.wiki.gg/wiki/Special:FilePath/" + quote(filename.replace(" ", "_"))
+
+
 def pick_image(servers):
     """Choose one banner image for an event out of its per-server rows.
     Prefers the Global server's own art, but falls back to another
     server's (usually CN) -- an event with no Global row yet (estimated
     or announced) is exactly the case where showing *some* preview art
     is most useful, and CN's banner is normally a close preview of what
-    Global's will look like. Only trusts a value Cargo actually resolved
-    to a full URL -- a bare filename would need a second API call to
-    resolve to a real upload path, and a guessed-at URL is worse than no
-    image at all."""
+    Global's will look like."""
     for key in ("global", "cn"):
-        image = (servers.get(key) or {}).get("image")
-        if image and str(image).startswith("http"):
-            return image
+        resolved = resolve_image_url((servers.get(key) or {}).get("image"))
+        if resolved:
+            return resolved
     for server_entry in servers.values():
-        image = server_entry.get("image")
-        if image and str(image).startswith("http"):
-            return image
+        resolved = resolve_image_url(server_entry.get("image"))
+        if resolved:
+            return resolved
     return None
 
 
