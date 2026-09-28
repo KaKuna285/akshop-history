@@ -1,0 +1,157 @@
+/* Styling for the EN event calendar page. Mirrors css/shoplist-extra.css's
+   approach (max-width + centering, dark translucent cards) so the two
+   pages feel like the same site, kept in its own file so it only affects
+   this page. */
+
+#topNav,
+#calendarLegend,
+#calendarContent,
+#pageCredit {
+  max-width: calc((100vw + 1200px) / 2);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#calendarLegend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+  padding: 10px 20px 4px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+#calendarLegend .legendSwatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+#calendarLegend .legendConfirmed {
+  background: #6dd47e;
+}
+
+#calendarLegend .legendEstimated {
+  background: transparent;
+  border: 2px dashed #f8d511;
+}
+
+#calendarLegend .legendHint {
+  margin-left: auto;
+  font-style: italic;
+  opacity: 0.75;
+}
+
+#calendarContent {
+  padding: 8px 20px 32px;
+}
+
+.calendarSectionHeading {
+  font-size: 1.1rem;
+  color: #ddd;
+  margin: 24px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.calendarSectionHeading:first-child {
+  margin-top: 8px;
+}
+
+.eventList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eventListLoading,
+.eventListEmpty {
+  color: #888;
+  font-style: italic;
+  padding: 8px 4px;
+}
+
+.eventCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid #444;
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.eventCard.confirmed {
+  border-left-color: #6dd47e;
+}
+
+.eventCard.estimated {
+  border-left-color: #f8d511;
+}
+
+.eventCard .eventName {
+  font-weight: bold;
+  color: #eee;
+  flex: 1 1 240px;
+}
+
+.eventCard .eventDates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.82rem;
+  color: #aaa;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.eventCard .eventDates .cnDate {
+  opacity: 0.75;
+}
+
+.eventCard .eventDates .globalDate {
+  color: #ddd;
+}
+
+.eventCard .badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.eventCard.confirmed .badge {
+  background: rgba(109, 212, 126, 0.15);
+  color: #6dd47e;
+}
+
+.eventCard.estimated .badge {
+  background: rgba(248, 213, 17, 0.15);
+  color: #f8d511;
+}
+
+.eventCard .countdown {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+@media (max-width: 600px) {
+  .eventCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .eventCard .eventDates {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

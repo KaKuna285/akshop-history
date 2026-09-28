@@ -1,10 +1,5 @@
-// Where banner_history.json / operator_release_dates.json are fetched from.
-// Point this at YOUR OWN fork's raw JSON once you have one set up with its
-// own scraper schedule (see akgcc-extra-data/.github/workflows/), instead of
-// depending on akgcc/akgcc-extra-data's own (twice-weekly) refresh cadence.
-// Used by both this file (get_char_table's extra_data fetch) and shoplist.js.
-const EXTRA_DATA_REPO_RAW_BASE =
-  "https://raw.githubusercontent.com/KaKuna285/akshop-history/main/akgcc-extra-data/json/"; // TODO: confirm this is your actual repo path
+// EXTRA_DATA_REPO_RAW_BASE now lives in js/config.js (loaded before this
+// file) -- shared across util.js, shoplist.js, and calendar.js.
 const DATA_SOURCE =
   "https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData/master/";
 const DATA_SOURCE_YOSTAR =

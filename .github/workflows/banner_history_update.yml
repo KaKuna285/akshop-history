@@ -29,6 +29,13 @@ jobs:
         run: pip install requests
       - run: python shop_operators.py
       - run: python operator_online.py
+      - name: Update EN event dates (past + estimated upcoming)
+        # This is newer/less proven than the two scrapers above -- if its
+        # Cargo query turns out to need a field/table name fix, it
+        # shouldn't take the whole daily update down with it. Check this
+        # step's own log for the actual error if it goes red.
+        continue-on-error: true
+        run: python events.py
       - name: Commit changes
         uses: EndBug/add-and-commit@v9
         with:
