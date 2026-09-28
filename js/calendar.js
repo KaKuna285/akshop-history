@@ -181,41 +181,30 @@
     );
   }
 
-  // Shared hover tooltip for calendar-grid chips, showing an event's wiki
-  // banner art (when there is one) alongside its name and dates. Built
-  // once and repositioned/repopulated per chip on hover, rather than one
-  // tooltip element per chip -- the grid can have hundreds of chips on
-  // screen at once, and only ever one tooltip is visible at a time.
+  // Shared hover tooltip for calendar-grid chips, showing an event's name
+  // and dates. Built once and repositioned/repopulated per chip on hover,
+  // rather than one tooltip element per chip -- the grid can have hundreds
+  // of chips on screen at once, and only ever one tooltip is visible at a
+  // time. No banner art here (that lives in the click-to-open preview
+  // panel instead -- see showEventPreview) so hovering stays lightweight.
   const hoverTooltipEl = document.createElement("div");
   hoverTooltipEl.className = "eventHoverTooltip";
-  const hoverTooltipImgEl = document.createElement("img");
-  hoverTooltipImgEl.className = "eventHoverTooltipImg";
-  hoverTooltipImgEl.alt = "";
   const hoverTooltipNameEl = document.createElement("div");
   hoverTooltipNameEl.className = "eventHoverTooltipName";
   const hoverTooltipDatesEl = document.createElement("div");
   hoverTooltipDatesEl.className = "eventHoverTooltipDates";
-  hoverTooltipEl.appendChild(hoverTooltipImgEl);
   hoverTooltipEl.appendChild(hoverTooltipNameEl);
   hoverTooltipEl.appendChild(hoverTooltipDatesEl);
   document.body.appendChild(hoverTooltipEl);
 
   function showHoverTooltip(ev, anchorEl) {
-    if (ev.image) {
-      hoverTooltipImgEl.src = ev.image;
-      hoverTooltipImgEl.style.display = "";
-    } else {
-      hoverTooltipImgEl.removeAttribute("src");
-      hoverTooltipImgEl.style.display = "none";
-    }
     hoverTooltipNameEl.textContent = ev.event;
     hoverTooltipDatesEl.textContent = fmtRange(ev.globalStart, ev.globalEnd);
     hoverTooltipEl.classList.add("visible");
 
     // Anchor below the chip by default, flipping above it (or clamping
     // sideways) if there isn't room -- the tooltip's own size depends on
-    // its content (an image makes it much taller), so this has to run
-    // after the content above is set.
+    // its content, so this has to run after the content above is set.
     const anchorRect = anchorEl.getBoundingClientRect();
     const ttRect = hoverTooltipEl.getBoundingClientRect();
     let left = anchorRect.left;

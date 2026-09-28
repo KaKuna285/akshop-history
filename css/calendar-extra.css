@@ -639,15 +639,6 @@
   display: block;
 }
 
-.eventHoverTooltipImg {
-  display: block;
-  width: 100%;
-  max-height: 124px;
-  object-fit: cover;
-  border-radius: 4px;
-  margin-bottom: 6px;
-}
-
 .eventHoverTooltipName {
   font-weight: bold;
   font-size: 0.85rem;
