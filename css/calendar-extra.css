@@ -5,6 +5,7 @@
 
 #topNav,
 #calendarLegend,
+#eventPreview,
 #calendarControls,
 #calendarViewRoot,
 #calendarContent,
@@ -21,10 +22,20 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 18px;
+  gap: 8px 18px;
   padding: 10px 20px 4px;
   font-size: 0.85rem;
   color: #ccc;
+}
+
+/* The read-only color key and the two functional controls (view toggle,
+   status filters) share this one row now, to leave room for the event
+   preview panel below without needing its own separate bar. */
+.legendSwatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
 }
 
 /* Shared between the calendar page's own legend and the about page's
@@ -68,6 +79,169 @@
   margin-left: auto;
   font-style: italic;
   opacity: 0.75;
+}
+
+/* ---- Event preview panel: opened by clicking any chip or card (see
+   showEventPreview() in calendar.js), sitting between the legend/controls
+   row and the calendar/list content itself. Hidden by default and toggled
+   via the .visible class (rather than display:none directly) so its
+   layout can be measured/scrolled-to right after content changes. Status
+   border color and badge colors reuse .calEventChip/.eventCard's own
+   palette for consistency. ---- */
+.eventPreview {
+  display: none;
+  position: relative;
+  margin: 10px auto 4px;
+  padding: 16px 40px 16px 16px;
+  max-width: 640px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid #444;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.eventPreview.visible {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.eventPreview.confirmed {
+  border-left-color: #6dd47e;
+}
+
+.eventPreview.announced {
+  border-left-color: #4784eb;
+}
+
+.eventPreview.estimated {
+  border-left-color: #f8d511;
+}
+
+.eventPreview.cnExclusive {
+  border-left-color: #e05d5d;
+}
+
+.eventPreviewClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #999;
+  cursor: pointer;
+}
+
+.eventPreviewClose:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eee;
+}
+
+.eventPreviewClose::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  content: "\f00d";
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+
+.eventPreviewImg {
+  width: 220px;
+  height: 124px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.eventPreviewBody {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.eventPreviewName {
+  font-size: 1.15rem;
+  font-weight: bold;
+  color: #eee;
+}
+
+.eventPreviewBadge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.eventPreviewBadge.confirmed {
+  background: rgba(109, 212, 126, 0.15);
+  color: #6dd47e;
+}
+
+.eventPreviewBadge.announced {
+  background: rgba(71, 132, 235, 0.15);
+  color: #4784eb;
+}
+
+.eventPreviewBadge.estimated {
+  background: rgba(248, 213, 17, 0.15);
+  color: #f8d511;
+}
+
+.eventPreviewBadge.cnExclusive {
+  background: rgba(224, 93, 93, 0.15);
+  color: #e05d5d;
+}
+
+.eventPreviewDates {
+  font-size: 0.85rem;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+.eventPreviewDates .cnDate {
+  opacity: 0.75;
+}
+
+.eventPreviewDates .globalDate {
+  color: #eee;
+}
+
+.eventPreviewDates .countdown {
+  opacity: 0.6;
+}
+
+.eventPreviewSource {
+  color: #4784eb;
+  font-size: 0.8rem;
+}
+
+.eventPreviewLink {
+  margin-top: auto;
+  font-size: 0.8rem;
+  color: #f8d511;
+  text-decoration: none;
+  border: 1px solid rgba(248, 213, 17, 0.4);
+  padding: 5px 12px;
+  border-radius: 6px;
+}
+
+.eventPreviewLink:hover {
+  background: rgba(248, 213, 17, 0.1);
 }
 
 #pageCredit {
@@ -414,6 +588,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   text-decoration: none;
+  cursor: pointer;
+}
+
+.calEventChip:focus-visible,
+.eventCard:focus-visible {
+  outline: 2px solid #f8d511;
+  outline-offset: 1px;
 }
 
 .calEventChip:hover {
@@ -534,10 +715,11 @@
   gap: 4px 16px;
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-a.eventCard:hover {
+.eventCard:hover {
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -644,6 +826,16 @@ a.eventCard:hover {
   .eventCard .eventDates {
     align-items: flex-start;
     text-align: left;
+  }
+
+  .eventPreview {
+    padding: 16px 40px 16px 16px;
+  }
+
+  .eventPreviewImg {
+    width: 100%;
+    height: auto;
+    max-height: 160px;
   }
 
   #calendarControls {

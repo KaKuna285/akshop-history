@@ -8,6 +8,10 @@
   const sortGroup = document.getElementById("sortGroup");
   const calendarViewRoot = document.getElementById("calendarViewRoot");
   const calendarContent = document.getElementById("calendarContent");
+  const eventPreviewEl = document.getElementById("eventPreview");
+  const eventPreviewCloseBtn = document.getElementById("eventPreviewClose");
+  const eventPreviewImgEl = document.getElementById("eventPreviewImg");
+  const eventPreviewBodyEl = document.getElementById("eventPreviewBody");
   const weekGridEl = document.getElementById("weekGrid");
   const weekLabelEl = document.getElementById("weekLabel");
   const prevWeekBtn = document.getElementById("prevWeekBtn");
@@ -218,16 +222,123 @@
     hoverTooltipEl.classList.remove("visible");
   }
 
+  // Wires up a chip or card (a plain, non-<a> element -- see buildChip()/
+  // buildCard()) to behave like a button: clickable and keyboard-activable
+  // (Enter/Space), calling onActivate() either way. stopPropagation() on
+  // the click matters here -- the preview panel's own "click outside to
+  // close" listener is on document, and without this, opening the preview
+  // would immediately close it again as that same click bubbles up.
+  function makeClickable(el, onActivate) {
+    el.setAttribute("role", "button");
+    el.tabIndex = 0;
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onActivate();
+    });
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onActivate();
+      }
+    });
+  }
+
+  // The bigger event preview panel: opened by clicking any chip or card,
+  // sitting between the legend/controls row and the calendar/list content
+  // (see calendar/index.html). Its image/close-button/body wrapper are
+  // fixed markup; only eventPreviewBodyEl's contents are rebuilt per event,
+  // the same pattern buildCard() already uses for the list view.
+  function showEventPreview(ev) {
+    eventPreviewEl.className = "eventPreview visible " + ev._status;
+
+    if (ev.image) {
+      eventPreviewImgEl.src = ev.image;
+      eventPreviewImgEl.style.display = "";
+    } else {
+      eventPreviewImgEl.removeAttribute("src");
+      eventPreviewImgEl.style.display = "none";
+    }
+
+    eventPreviewBodyEl.innerHTML = "";
+
+    const name = document.createElement("div");
+    name.className = "eventPreviewName";
+    name.textContent = ev.event;
+    const badge = document.createElement("span");
+    badge.className = "eventPreviewBadge " + ev._status;
+    badge.textContent = STATUS_LABEL[ev._status];
+    name.appendChild(badge);
+    eventPreviewBodyEl.appendChild(name);
+
+    const dates = document.createElement("div");
+    dates.className = "eventPreviewDates";
+    if (ev.cnStart) {
+      const cnLine = document.createElement("div");
+      cnLine.className = "cnDate";
+      cnLine.textContent = `CN: ${fmtRange(ev.cnStart, ev.cnEnd)}`;
+      dates.appendChild(cnLine);
+    }
+    const globalLine = document.createElement("div");
+    globalLine.className = "globalDate";
+    globalLine.textContent = `Global: ${fmtRange(ev.globalStart, ev.globalEnd)}`;
+    dates.appendChild(globalLine);
+    const countdown = document.createElement("div");
+    countdown.className = "countdown";
+    countdown.textContent = countdownLabel(ev.globalStart, new Date());
+    dates.appendChild(countdown);
+    eventPreviewBodyEl.appendChild(dates);
+
+    if (ev.announced && ev.source) {
+      const sourceLine = document.createElement("div");
+      sourceLine.className = "eventPreviewSource";
+      sourceLine.textContent = `Announced via ${ev.source}`;
+      if (ev.note) sourceLine.title = ev.note;
+      eventPreviewBodyEl.appendChild(sourceLine);
+    }
+
+    const wikiHref = wikiUrl(ev.wikiPage || ev.event);
+    if (wikiHref) {
+      const link = document.createElement("a");
+      link.className = "eventPreviewLink";
+      link.href = wikiHref;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "View on wiki ↗";
+      eventPreviewBodyEl.appendChild(link);
+    }
+
+    // Clicking a chip deep in the grid (or a card near the bottom of a
+    // long list) can open the panel off-screen above the current scroll
+    // position -- bring it into view rather than leaving the person to
+    // notice and scroll up themselves.
+    eventPreviewEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function hideEventPreview() {
+    eventPreviewEl.classList.remove("visible");
+  }
+
+  eventPreviewCloseBtn.addEventListener("click", hideEventPreview);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideEventPreview();
+  });
+
+  // Closes the preview on a click anywhere outside it. Safe from
+  // immediately closing a panel that was just opened -- see
+  // makeClickable()'s stopPropagation().
+  document.addEventListener("click", (e) => {
+    if (!eventPreviewEl.classList.contains("visible")) return;
+    if (eventPreviewEl.contains(e.target)) return;
+    hideEventPreview();
+  });
+
   function buildCard(ev, now) {
     const status = ev._status;
-    const href = wikiUrl(ev.wikiPage || ev.event);
-    const card = document.createElement(href ? "a" : "div");
+    const card = document.createElement("div");
     card.className = "eventCard " + status;
-    if (href) {
-      card.href = href;
-      card.target = "_blank";
-      card.rel = "noopener";
-    }
+    makeClickable(card, () => showEventPreview(ev));
 
     if (ev.image) {
       const thumb = document.createElement("img");
@@ -280,8 +391,7 @@
   }
 
   function buildChip(ev) {
-    const href = wikiUrl(ev.wikiPage || ev.event);
-    const chip = document.createElement(href ? "a" : "div");
+    const chip = document.createElement("div");
     chip.className = "calEventChip " + ev._status;
     chip.textContent = ev.event;
     // No native title attribute here -- the custom hover tooltip below
@@ -289,11 +399,7 @@
     // native tooltip on top of it just doubles up visually.
     chip.addEventListener("mouseenter", () => showHoverTooltip(ev, chip));
     chip.addEventListener("mouseleave", hideHoverTooltip);
-    if (href) {
-      chip.href = href;
-      chip.target = "_blank";
-      chip.rel = "noopener";
-    }
+    makeClickable(chip, () => showEventPreview(ev));
     return chip;
   }
 
@@ -598,6 +704,11 @@
   });
 
   function render() {
+    // Whatever's currently previewed may no longer be visible (a filter
+    // change hid its status, or the view just switched) -- closing it
+    // here rather than trying to track whether it's still valid keeps
+    // this simple, and re-opening it is one click away either way.
+    hideEventPreview();
     if (currentView === "calendar") {
       calendarViewRoot.style.display = "";
       calendarContent.style.display = "none";
