@@ -49,20 +49,28 @@ often use different key art for the same event), so the same query
 already used for dates also gives us art for free; see pick_image()
 below for how a per-event image is chosen from those rows.
 
-Event art is mirrored into this repo (see download_image()/
-localize_images()) rather than linked straight to arknights.wiki.gg.
-That's not optional: confirmed live, the wiki's image host sends a
-Cross-Origin-Resource-Policy header that makes a browser refuse to
-embed it from another site at all (NS_ERROR_DOM_CORP_FAILED in
-Firefox) -- a direct link to the same image loads fine, only
-*embedding* it cross-site is blocked, so hotlinking was never going to
-work no matter how the URL was built. A plain server-side download
-isn't affected by CORP (that's a browser embedding restriction, not a
-fetch restriction), so this downloads each banner once into
-akgcc-extra-data/images/ and serves it from there from then on --
-skipping the download whenever a same-named file already exists
-locally, so only a new or changed banner costs a request on any given
-run.
+Event art is mirrored into this repo (see resolve_image_urls()/
+download_image()/localize_images()) rather than linked straight to
+arknights.wiki.gg. That's not optional: confirmed live, the wiki's
+image host sends a Cross-Origin-Resource-Policy header that makes a
+browser refuse to embed it from another site at all
+(NS_ERROR_DOM_CORP_FAILED in Firefox) -- a direct link to the same
+image loads fine, only *embedding* it cross-site is blocked, so
+hotlinking was never going to work no matter how the URL was built. A
+plain server-side download isn't affected by CORP (that's a browser
+embedding restriction, not a fetch restriction), so this downloads
+each banner once into akgcc-extra-data/images/ and serves it from
+there from then on -- skipping the download whenever a same-named
+file already exists locally, so only a new or changed banner costs a
+request on any given run.
+
+The actual bytes are fetched via MediaWiki's imageinfo API (api.php),
+not Special:FilePath -- also confirmed live, every single
+Special:FilePath request from a GitHub Actions run came back a 403
+with an HTML body (a bot-protection page) even though api.php's
+cargoquery calls from that same run succeeded normally, which lines up
+with robots.txt singling out the Special: namespace specifically. See
+resolve_image_urls()'s own docstring.
 """
 import requests
 import re
@@ -248,32 +256,75 @@ def local_image_name(wiki_filename):
     return re.sub(r"[^A-Za-z0-9_.\-]", "_", name)
 
 
-def download_image(wiki_filename):
-    """Mirror one wiki banner into IMAGES_DIR. Skips the download
-    entirely if a file with this name already exists locally -- the
-    wiki filename itself changes whenever the actual art changes (a
-    rerun gets " Rerun" appended to the filename, for example), so an
-    unchanged filename means an unchanged image, and only a new or
-    changed banner costs a request on any given run.
+def resolve_image_urls(filenames):
+    """Resolve a batch of bare wiki filenames to their real (CDN) upload
+    URLs via MediaWiki's imageinfo API on api.php.
 
-    Resolves the actual bytes via Special:FilePath, a standard
-    MediaWiki feature that redirects a bare filename straight to the
-    real file with no extra API call needed -- fetched here with a
-    plain server-side GET, which Cross-Origin-Resource-Policy doesn't
-    apply to at all (see the module docstring).
+    This replaced an earlier version that fetched Special:FilePath
+    directly: confirmed live in a workflow run, every single one of
+    those requests came back a 403 with an HTML body (a bot-protection
+    page, not the image), even though api.php's cargoquery calls from
+    the very same run succeeded normally. That lines up with
+    robots.txt also singling out the Special: namespace specifically
+    (see the module docstring) -- the block is scoped to Special:
+    pages, not to this project's requests in general, so routing
+    through api.php (proven to work) instead of Special:FilePath sides
+    steps it entirely.
 
-    Returns the local filename on success, None on any failure (bad
-    status, wrong content type, network error) -- never raises, since
-    one bad image shouldn't take down the whole run."""
+    Batches up to 50 titles per request (MediaWiki's default limit for
+    non-bot API access). Returns {filename: resolved URL}, omitting any
+    filename MediaWiki can't resolve (e.g. renamed/deleted/never
+    existed) -- never raises, since one bad batch shouldn't take down
+    the whole run."""
+    resolved = {}
+    filenames = list(filenames)
+    batch_size = 50
+    for i in range(0, len(filenames), batch_size):
+        batch = filenames[i : i + batch_size]
+        try:
+            params = {
+                "action": "query",
+                "titles": "|".join(f"File:{f}" for f in batch),
+                "prop": "imageinfo",
+                "iiprop": "url",
+                "format": "json",
+            }
+            r = http_get(WIKI_API, params=params, headers=HEADERS)
+            data = r.json()
+            pages = data.get("query", {}).get("pages", {})
+            for page in pages.values():
+                title = page.get("title", "")
+                filename = title[len("File:") :] if title.startswith("File:") else title
+                imageinfo = page.get("imageinfo")
+                if imageinfo and imageinfo[0].get("url"):
+                    resolved[filename] = imageinfo[0]["url"]
+        except Exception as exc:
+            print(f"Could not resolve image batch starting at {batch[0]!r}: {exc}")
+    return resolved
+
+
+def download_image(wiki_filename, resolved_url):
+    """Mirror one wiki banner into IMAGES_DIR from its already-resolved
+    URL (see resolve_image_urls()). Skips the download entirely if a
+    file with this name already exists locally -- the wiki filename
+    itself changes whenever the actual art changes (a rerun gets
+    " Rerun" appended to the filename, for example), so an unchanged
+    filename means an unchanged image, and only a new or changed banner
+    costs a request on any given run.
+
+    Returns the local filename on success, None on any failure (no
+    resolved URL, bad status, wrong content type, network error) --
+    never raises, since one bad image shouldn't take down the whole
+    run."""
     local_name = local_image_name(wiki_filename)
     local_path = os.path.join(IMAGES_DIR, local_name)
     if os.path.exists(local_path):
         return local_name
+    if not resolved_url:
+        print(f"Skipping image {wiki_filename!r}: could not resolve a real URL for it")
+        return None
     try:
-        url = "https://arknights.wiki.gg/wiki/Special:FilePath/" + quote(
-            wiki_filename.replace(" ", "_")
-        )
-        r = http_get(url, headers=HEADERS, allow_redirects=True)
+        r = http_get(resolved_url, headers=HEADERS)
         content_type = r.headers.get("Content-Type", "")
         if r.status_code != 200 or not content_type.startswith("image/"):
             print(
@@ -292,19 +343,29 @@ def download_image(wiki_filename):
 
 def localize_images(events):
     """Replace each event's raw wiki filename (see pick_image()) with
-    its locally-mirrored URL, downloading it first if needed (see
-    download_image()). An event whose image fails to download loses
-    its image entirely, rather than linking to something broken or
-    (as with the wiki directly) blocked. A small in-run cache means a
-    filename shared by more than one event -- rare, but possible -- is
-    only ever downloaded once."""
+    its locally-mirrored URL, resolving and downloading it first if
+    needed (see resolve_image_urls()/download_image()). An event whose
+    image fails to download loses its image entirely, rather than
+    linking to something broken or (as with the wiki directly) blocked.
+
+    Only filenames not already mirrored locally are resolved at all --
+    a single batched imageinfo call up front for everything new, rather
+    than one API round-trip per image, on top of the same skip-if-
+    already-downloaded caching download_image() does."""
+    needed = set()
+    for entry in events:
+        filename = entry.get("image")
+        if filename and not os.path.exists(os.path.join(IMAGES_DIR, local_image_name(filename))):
+            needed.add(filename)
+    resolved_urls = resolve_image_urls(needed) if needed else {}
+
     cache = {}
     for entry in events:
         filename = entry.get("image")
         if not filename:
             continue
         if filename not in cache:
-            cache[filename] = download_image(filename)
+            cache[filename] = download_image(filename, resolved_urls.get(filename))
         local_name = cache[filename]
         if local_name:
             entry["image"] = PUBLIC_IMAGE_BASE + quote(local_name)
