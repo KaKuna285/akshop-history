@@ -140,24 +140,32 @@ def build_events(rows):
         if wiki_page:
             entry["wikiPage"] = wiki_page
 
+        # A handful of wiki rows have an endTime that's actually *before*
+        # startTime (a mistyped year, most likely) -- treat that as "no end
+        # date" rather than let a negative duration through, which would
+        # otherwise silently produce an estimated globalEnd earlier than
+        # globalStart further down.
+        cn_end = cn.get("end") if cn else None
+        if cn_end and cn.get("start") and cn_end < cn["start"]:
+            cn_end = None
+
         if cn and cn.get("start"):
             entry["cnStart"] = cn["start"].isoformat()
-            entry["cnEnd"] = cn["end"].isoformat() if cn.get("end") else None
+            entry["cnEnd"] = cn_end.isoformat() if cn_end else None
 
         if gl and gl.get("start"):
             # Confirmed: Gryphline has actually set/run this date.
+            gl_end = gl.get("end")
+            if gl_end and gl_end < gl["start"]:
+                gl_end = None
             entry["globalStart"] = gl["start"].isoformat()
-            entry["globalEnd"] = gl["end"].isoformat() if gl.get("end") else None
+            entry["globalEnd"] = gl_end.isoformat() if gl_end else None
             entry["globalConfirmed"] = True
         elif cn and cn.get("start") and median_lag_days is not None:
             # Not yet confirmed on Global: estimate from the historical
             # CN -> Global lag, preserving the event's own CN duration.
             est_start = cn["start"] + timedelta(days=median_lag_days)
-            duration = (
-                (cn["end"] - cn["start"])
-                if cn.get("end")
-                else timedelta(days=0)
-            )
+            duration = (cn_end - cn["start"]) if cn_end else timedelta(days=0)
             entry["globalStart"] = est_start.isoformat()
             entry["globalEnd"] = (est_start + duration).isoformat()
             entry["globalConfirmed"] = False

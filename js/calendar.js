@@ -48,9 +48,23 @@
     });
   }
 
+  // A few source rows have an end date earlier than their start date (a
+  // mistyped year on the wiki, most likely -- events.py now guards against
+  // this for newly-estimated dates, but already-cached JSON, or a
+  // *confirmed* Global end straight off the wiki, can still have it). Rather
+  // than trust it, every place that needs "the end of this window" goes
+  // through this helper instead of reading globalEnd/cnEnd directly.
+  function effectiveEnd(startIso, endIso) {
+    const start = new Date(startIso);
+    if (!endIso) return start;
+    const end = new Date(endIso);
+    return end < start ? start : end;
+  }
+
   function fmtRange(startIso, endIso) {
     if (!startIso) return "Unknown";
     if (!endIso) return fmtDate(startIso);
+    if (new Date(endIso) < new Date(startIso)) return fmtDate(startIso);
     return `${fmtDate(startIso)} – ${fmtDate(endIso)}`;
   }
 
@@ -73,8 +87,7 @@
   // there so an event that's simply a bit delayed doesn't flip red early.
   function getStatus(ev, now) {
     if (ev.globalConfirmed) return "confirmed";
-    const endIso = ev.globalEnd || ev.globalStart;
-    const end = new Date(endIso);
+    const end = effectiveEnd(ev.globalStart, ev.globalEnd);
     if (now.getTime() - end.getTime() > GRACE_DAYS * DAY_MS) return "cnExclusive";
     return "estimated";
   }
@@ -183,7 +196,7 @@
     const filtered = applyFilter(allEvents).map((ev) => ({
       ev,
       startDay: toDayNum(new Date(ev.globalStart)),
-      endDay: toDayNum(new Date(ev.globalEnd || ev.globalStart)),
+      endDay: toDayNum(effectiveEnd(ev.globalStart, ev.globalEnd)),
     }));
 
     const year = visibleMonth.getFullYear();
