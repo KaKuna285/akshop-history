@@ -25,7 +25,7 @@ import re
 import json
 import time
 import statistics
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 REQUEST_TIMEOUT = 30  # seconds, per attempt
 REQUEST_RETRIES = 3
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     with open("./json/events.json", "w") as f:
         json.dump(
             {
-                "generatedAt": datetime.utcnow().isoformat() + "Z",
+                "generatedAt": datetime.now(timezone.utc).isoformat(),
                 "medianLagDays": median_lag_days,
                 "events": events,
             },
