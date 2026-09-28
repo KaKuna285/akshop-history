@@ -594,7 +594,7 @@
       const lagDays = hasCurrentLag ? data.currentLagDays : data.medianLagDays;
       if (lagDays != null) {
         lagHintEl.textContent = hasCurrentLag
-          ? `Current CN→Global lag used for estimates: ~${Math.round(lagDays)} days (from the most recent confirmed date)`
+          ? `Current CN→Global lag used for estimates: ~${Math.round(lagDays)} days`
           : `Historical CN→Global lag: ~${Math.round(lagDays)} days (dataset average -- switches to the current lag after the next data refresh)`;
       }
 
