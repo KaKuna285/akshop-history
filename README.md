@@ -155,13 +155,32 @@ actual wiki-confirmed date once the wiki catches up - confirmed always
 wins.
 
 `events.py` also pulls each event's banner art for the calendar's hover
-tooltip and list view - it's just another field (`image`) on the same
-`EventServerDetails` Cargo table already queried for dates, so it comes
-along for free with no extra request. Each event can have a different
-banner per server (CN vs Global often use different key art for the same
-event), so `pick_image()` prefers the Global server's own art but falls
-back to CN's when Global's isn't known yet - which is exactly the case
-(an estimated or announced event) where a preview image is most useful.
+tooltip and list view - the wiki filename comes from `image`, just
+another field on the same `EventServerDetails` Cargo table already
+queried for dates, so finding it costs no extra request. Each event can
+have a different banner per server (CN vs Global often use different key
+art for the same event), so `pick_image()` prefers the Global server's
+own art but falls back to CN's when Global's isn't known yet - which is
+exactly the case (an estimated or announced event) where a preview image
+is most useful.
+
+That art is *mirrored into this repo* (`akgcc-extra-data/images/`, a
+separate folder from the site's own top-level `images/`) rather than
+linked straight to `arknights.wiki.gg` - confirmed live, the wiki's image
+host sends a `Cross-Origin-Resource-Policy` header that makes a browser
+refuse to embed it from another site at all, so a direct link to the
+image works fine but an `<img>` on this site doesn't load at all
+(`NS_ERROR_DOM_CORP_FAILED` in Firefox's network log; other browsers show
+the same failure differently). `download_image()` fetches each banner
+server-side instead, via `Special:FilePath` (a standard MediaWiki redirect
+that turns a bare filename into the real file with no extra API call),
+since CORP only restricts a *browser* embedding a cross-origin resource,
+not a plain server-side request - then `localize_images()` rewrites the
+event's `image` field to point at this repo's own copy. A file is only
+downloaded the first time its exact wiki filename is seen (a changed
+banner gets a new filename upstream, e.g. " Rerun" appended), so
+`images/` only grows by what's new or changed on any given run, and the
+workflow's commit step picks it up alongside `json/*.json`.
 
 `events.py`'s Cargo queries (against the same `arknights.wiki.gg` API the
 other scripts use) target the `EventServerDetails` table, whose exact

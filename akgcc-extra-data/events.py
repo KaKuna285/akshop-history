@@ -48,9 +48,25 @@ its own `image` (the page's per-language banner art -- CN and Global
 often use different key art for the same event), so the same query
 already used for dates also gives us art for free; see pick_image()
 below for how a per-event image is chosen from those rows.
+
+Event art is mirrored into this repo (see download_image()/
+localize_images()) rather than linked straight to arknights.wiki.gg.
+That's not optional: confirmed live, the wiki's image host sends a
+Cross-Origin-Resource-Policy header that makes a browser refuse to
+embed it from another site at all (NS_ERROR_DOM_CORP_FAILED in
+Firefox) -- a direct link to the same image loads fine, only
+*embedding* it cross-site is blocked, so hotlinking was never going to
+work no matter how the URL was built. A plain server-side download
+isn't affected by CORP (that's a browser embedding restriction, not a
+fetch restriction), so this downloads each banner once into
+akgcc-extra-data/images/ and serves it from there from then on --
+skipping the download whenever a same-named file already exists
+locally, so only a new or changed banner costs a request on any given
+run.
 """
 import requests
 import re
+import os
 import json
 import time
 from datetime import datetime, timedelta, timezone
@@ -193,44 +209,108 @@ def fetch_event_server_details():
     return rows
 
 
-def resolve_image_url(filename):
-    """EventServerDetails.image holds a bare wiki filename (confirmed by
-    hand via Special:CargoQuery -- e.g. "EN A Death in Chunfen
-    banner.png"), not a resolved URL. Rather than a second API call
-    (imageinfo) to look up each file's real (hashed) upload path,
-    Special:FilePath is a standard MediaWiki feature that redirects a
-    bare filename straight to the actual file -- stable, needs no extra
-    request, and works from a plain <img src> in the browser (this is a
-    normal page a person's browser loads directly, unrelated to the
-    robots.txt block on api.php/Special:CargoTables that affects this
-    project's own fetch tooling)."""
-    if not filename:
-        return None
-    filename = str(filename).strip()
-    if not filename:
-        return None
-    if filename.startswith("http"):
-        # Already a full URL, in case this ever changes upstream.
-        return filename
-    return "https://arknights.wiki.gg/wiki/Special:FilePath/" + quote(filename.replace(" ", "_"))
-
-
 def pick_image(servers):
-    """Choose one banner image for an event out of its per-server rows.
-    Prefers the Global server's own art, but falls back to another
-    server's (usually CN) -- an event with no Global row yet (estimated
-    or announced) is exactly the case where showing *some* preview art
-    is most useful, and CN's banner is normally a close preview of what
-    Global's will look like."""
+    """Choose one banner image *filename* for an event out of its
+    per-server rows -- EventServerDetails.image holds a bare wiki
+    filename (confirmed by hand via Special:CargoQuery -- e.g. "EN A
+    Death in Chunfen banner.png"), not a resolved URL, and it's kept
+    that way here (see localize_images() for turning it into something
+    servable). Prefers the Global server's own art, but falls back to
+    another server's (usually CN) -- an event with no Global row yet
+    (estimated or announced) is exactly the case where showing *some*
+    preview art is most useful, and CN's banner is normally a close
+    preview of what Global's will look like."""
     for key in ("global", "cn"):
-        resolved = resolve_image_url((servers.get(key) or {}).get("image"))
-        if resolved:
-            return resolved
+        image = (servers.get(key) or {}).get("image")
+        if image and str(image).strip():
+            return str(image).strip()
     for server_entry in servers.values():
-        resolved = resolve_image_url(server_entry.get("image"))
-        if resolved:
-            return resolved
+        image = server_entry.get("image")
+        if image and str(image).strip():
+            return str(image).strip()
     return None
+
+
+IMAGES_DIR = "./images"
+
+# Where a locally-mirrored image is served from once committed -- mirrors
+# EXTRA_DATA_REPO_RAW_BASE in js/config.js; if you fork this, update both
+# together (and see the README's fork-setup section).
+PUBLIC_IMAGE_BASE = "https://raw.githubusercontent.com/KaKuna285/akshop-history/main/akgcc-extra-data/images/"
+
+
+def local_image_name(wiki_filename):
+    """A filesystem/git/URL-safe local name for a wiki filename -- kept
+    recognizable (so the repo's images/ folder stays human-browsable)
+    but with spaces and anything that could be awkward across
+    filesystems or in a URL path replaced with an underscore."""
+    name = wiki_filename.strip().replace(" ", "_")
+    return re.sub(r"[^A-Za-z0-9_.\-]", "_", name)
+
+
+def download_image(wiki_filename):
+    """Mirror one wiki banner into IMAGES_DIR. Skips the download
+    entirely if a file with this name already exists locally -- the
+    wiki filename itself changes whenever the actual art changes (a
+    rerun gets " Rerun" appended to the filename, for example), so an
+    unchanged filename means an unchanged image, and only a new or
+    changed banner costs a request on any given run.
+
+    Resolves the actual bytes via Special:FilePath, a standard
+    MediaWiki feature that redirects a bare filename straight to the
+    real file with no extra API call needed -- fetched here with a
+    plain server-side GET, which Cross-Origin-Resource-Policy doesn't
+    apply to at all (see the module docstring).
+
+    Returns the local filename on success, None on any failure (bad
+    status, wrong content type, network error) -- never raises, since
+    one bad image shouldn't take down the whole run."""
+    local_name = local_image_name(wiki_filename)
+    local_path = os.path.join(IMAGES_DIR, local_name)
+    if os.path.exists(local_path):
+        return local_name
+    try:
+        url = "https://arknights.wiki.gg/wiki/Special:FilePath/" + quote(
+            wiki_filename.replace(" ", "_")
+        )
+        r = http_get(url, headers=HEADERS, allow_redirects=True)
+        content_type = r.headers.get("Content-Type", "")
+        if r.status_code != 200 or not content_type.startswith("image/"):
+            print(
+                f"Skipping image {wiki_filename!r}: "
+                f"status={r.status_code} content-type={content_type!r}"
+            )
+            return None
+        os.makedirs(IMAGES_DIR, exist_ok=True)
+        with open(local_path, "wb") as f:
+            f.write(r.content)
+        return local_name
+    except Exception as exc:
+        print(f"Could not download image {wiki_filename!r}: {exc}")
+        return None
+
+
+def localize_images(events):
+    """Replace each event's raw wiki filename (see pick_image()) with
+    its locally-mirrored URL, downloading it first if needed (see
+    download_image()). An event whose image fails to download loses
+    its image entirely, rather than linking to something broken or
+    (as with the wiki directly) blocked. A small in-run cache means a
+    filename shared by more than one event -- rare, but possible -- is
+    only ever downloaded once."""
+    cache = {}
+    for entry in events:
+        filename = entry.get("image")
+        if not filename:
+            continue
+        if filename not in cache:
+            cache[filename] = download_image(filename)
+        local_name = cache[filename]
+        if local_name:
+            entry["image"] = PUBLIC_IMAGE_BASE + quote(local_name)
+        else:
+            del entry["image"]
+    return events
 
 
 def backtest_lag_model(confirmed_pairs, window):
@@ -442,6 +522,7 @@ if __name__ == "__main__":
     overrides = load_overrides()
     print(f"Loaded {len(overrides)} manual overrides")
     events, median_lag_days, current_lag_days, backtest = build_events(rows, overrides)
+    events = localize_images(events)
     with_image = sum(1 for e in events if e.get("image"))
     print(f"{with_image}/{len(events)} events have art")
     print(
