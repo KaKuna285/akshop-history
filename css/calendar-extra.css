@@ -264,6 +264,17 @@
   border-radius: 8px;
   max-height: 66vh;
   overflow-y: auto;
+  /* Browsers auto-adjust scrollTop on their own (CSS "scroll anchoring")
+     whenever content changes above the visible area, to stop it from
+     jumping -- but prependWeeks() in calendar.js already does that exact
+     compensation by hand (scrollTop += the height it just inserted
+     above). With both active, an insert can get compensated twice: the
+     browser's automatic nudge plus ours, landing the view a batch of
+     weeks off from where it should be. That only happens under certain
+     timing, which is why it was intermittent rather than constant.
+     Disabling the browser's version here leaves our own math as the only
+     thing moving scrollTop during a prepend. */
+  overflow-anchor: none;
 }
 
 .calWeekday {
