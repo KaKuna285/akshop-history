@@ -284,7 +284,9 @@
     const chip = document.createElement(href ? "a" : "div");
     chip.className = "calEventChip " + ev._status;
     chip.textContent = ev.event;
-    chip.title = `${ev.event} - ${fmtRange(ev.globalStart, ev.globalEnd)}`;
+    // No native title attribute here -- the custom hover tooltip below
+    // (which also carries the art) shows the same name/date info, and a
+    // native tooltip on top of it just doubles up visually.
     chip.addEventListener("mouseenter", () => showHoverTooltip(ev, chip));
     chip.addEventListener("mouseleave", hideHoverTooltip);
     if (href) {
