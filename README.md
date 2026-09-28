@@ -99,26 +99,27 @@ EN server events. `js/calendar.js` fetches
 `akgcc-extra-data/events.py` (same daily workflow step as the two scripts
 above).
 
-Gryphline (the EN publisher) only ever confirms an event's actual EN date
-a week or two ahead of release — there's no source anywhere for genuinely
+Yostar (the EN publisher) only ever confirms an event's actual EN date a
+week or two ahead of release - there's no source anywhere for genuinely
 confirmed EN dates months out, because that information doesn't exist
-yet. So for an event that's run on CN but has no confirmed EN date yet,
-`events.py` estimates one. The real CN&rarr;Global lag varies quite a bit
-per event (roughly 5 to 7 months in practice), so estimates are *chained*
-rather than each computed independently off a flat historical average:
-walking every event in CN-date order, an unconfirmed event's Global date
-is set to (the nearest earlier event's Global date) + (the CN-side gap
-between the two events) — so it inherits whichever lag was most recently
-actually observed, and each newly confirmed date snaps the chain back
-onto Gryphline's real schedule from that point on. The historical median
-lag (still shown on the page, for reference) is only used to bootstrap
-the very first estimate, before any anchor exists yet. Each event in the
-output carries a `globalConfirmed: true/false` flag so the page can
-visibly distinguish "this actually is the date" from "this is a guess
-based on the nearest confirmed pattern" — a green "CONFIRMED" badge vs. a
-yellow "ESTIMATED" one, plus a red "CN EXCLUSIVE" one for an event whose
-estimated window closed 30+ days ago with still no Global confirmation
-(likely not coming to Global at all, or running unusually late).
+yet. So for an event that's run on CN (developed and published there by
+Hypergryph) but has no confirmed EN date yet, `events.py` estimates one:
+its own CN date plus the median CN&rarr;Global lag observed from
+confirmed events in roughly the last year, recalculated fresh on every
+run (falling back to the all-time median if there isn't enough recent
+history yet). A CN/Global pair with a non-positive lag is dropped before
+either median is computed, since that's the wiki recording the same (or
+an inverted) date for both servers rather than a real observation. A
+rolling median tracks a genuine change in Yostar's localization pace
+much faster than an all-time average would, while still smoothing over
+a couple dozen events so one unusually fast or slow one doesn't swing
+every estimate on the page. Each event in the output carries a
+`globalConfirmed: true/false` flag so the page can visibly distinguish
+"this actually is the date" from "this is an estimate" - a green
+"CONFIRMED" badge vs. a yellow "ESTIMATED" one, plus a red "CN EXCLUSIVE"
+one for an event whose estimated window closed 30+ days ago with still
+no Global confirmation (likely not coming to Global at all, or running
+unusually late).
 
 `events.py`'s Cargo query (against the same `arknights.wiki.gg` API the
 other scripts use) couldn't be tested against the live wiki from the

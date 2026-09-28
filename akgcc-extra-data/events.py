@@ -1,14 +1,14 @@
 """Get past + upcoming EN (Global) event dates and write json/events.json.
 
-Gryphline (the EN publisher) only ever officially confirms an event's
+Yostar (the EN publisher) only ever officially confirms an event's
 Global date a week or two ahead of time. There's no source of "confirmed
 EN dates months out" because that information doesn't exist yet -- so
 "preliminary" here means: once an event has run on CN, arknights.wiki.gg
-tracks it, and once Gryphline has confirmed its Global date that's tracked
+tracks it, and once Yostar has confirmed its Global date that's tracked
 too, but for the (usually many-months) gap in between, we estimate it.
 
 The estimate is "this event's own CN date plus a lag" -- but which lag
-matters a lot. The real Global lag drifts over time (Gryphline has sped
+matters a lot. The real Global lag drifts over time (Yostar has sped
 up localization before and can again), so a flat lag averaged over the
 *entire* dataset reacts to that far too slowly: months of schedule
 changes get diluted by years of older history sitting in the same
@@ -232,7 +232,7 @@ def build_events(rows):
         entry["cnEnd"] = cn_end.isoformat() if cn_end else None
 
         if gl_start:
-            # Confirmed: Gryphline has actually set/run this date.
+            # Confirmed: Yostar has actually set/run this date.
             entry["globalStart"] = gl_start.isoformat()
             entry["globalEnd"] = gl_end.isoformat() if gl_end else None
             entry["globalConfirmed"] = True

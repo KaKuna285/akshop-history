@@ -131,7 +131,7 @@
     return `${-d} day${d === -1 ? "" : "s"} ago`;
   }
 
-  // Confirmed events are exactly what Gryphline has set. An event that's
+  // Confirmed events are exactly what Yostar has set. An event that's
   // only ever had an *estimated* Global date, and whose estimated window
   // closed more than GRACE_DAYS ago with still no confirmation, is treated
   // as CN exclusive instead of "upcoming forever" -- it's either not coming
