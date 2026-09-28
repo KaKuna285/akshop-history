@@ -38,16 +38,16 @@ resulting median/p75/p90/max absolute errors (in days) are reported in
 the output alongside the current lag, as a running check on how
 accurate this approach actually is.
 
-NOTE: this script's exact field names (EventServerDetails.event/
-startTime/endTime/server) are based on the query already proven to work
-in operator_online.py's scrape_wiki(), which only ever used startTime for
-server='global'. endTime, and rows for server='CN', are new territory --
-this could not be tested directly (arknights.wiki.gg isn't reachable from
-the environment this was written in), so if this fails in the Action log,
-check the exact error: a wrong field/table name shows up immediately as a
-Cargo API error in the response body. fetch_event_images() below is an
-even bigger guess in the same vein -- see its own docstring -- but it's
-wrapped to fail safe (no images, not a broken build) if it's wrong.
+NOTE: this script's field names (EventServerDetails.event/startTime/
+endTime/server/image) were confirmed against the live table structure
+at Special:CargoTables/EventServerDetails on arknights.wiki.gg -- that
+page (like api.php itself) is blocked by the wiki's robots.txt to this
+project's own research tooling, so it was checked by hand instead.
+EventServerDetails carries one row per (event, server) pair, each with
+its own `image` (the page's per-language banner art -- CN and Global
+often use different key art for the same event), so the same query
+already used for dates also gives us art for free; see pick_image()
+below for how a per-event image is chosen from those rows.
 """
 import requests
 import re
@@ -164,9 +164,9 @@ def load_overrides(path=OVERRIDES_PATH):
 
 
 def fetch_event_server_details():
-    """Pull every (event, server, startTime, endTime) row. No `where`
-    filter -- we don't know every server-name spelling in use (CN/global/
-    TW/JP/KR), so grab everything and sort it out in Python."""
+    """Pull every (event, server, startTime, endTime, image) row. No
+    `where` filter -- we don't know every server-name spelling in use
+    (CN/global/TW/JP/KR), so grab everything and sort it out in Python."""
     rows = []
     offset = 0
     limit = 500
@@ -174,7 +174,7 @@ def fetch_event_server_details():
         params = {
             "action": "cargoquery",
             "tables": "EventServerDetails",
-            "fields": "EventServerDetails._pageName=page,EventServerDetails.event=event,EventServerDetails.startTime=startTime,EventServerDetails.endTime=endTime,EventServerDetails.server=server",
+            "fields": "EventServerDetails._pageName=page,EventServerDetails.event=event,EventServerDetails.startTime=startTime,EventServerDetails.endTime=endTime,EventServerDetails.server=server,EventServerDetails.image=image",
             "format": "json",
             "limit": limit,
             "offset": offset,
@@ -192,62 +192,25 @@ def fetch_event_server_details():
     return rows
 
 
-def fetch_event_images():
-    """Best-effort: pull each event's banner image URL from the wiki's
-    page-level `Event` table -- the parent of the per-server
-    `EventServerDetails` sub-table this script already queries for dates
-    (an event page's infobox shows both an EN and a CN banner image; this
-    assumes the page-level table exposes at least one of them as a `File`
-    field, which Cargo resolves to a full URL in query results).
-
-    This table/field name is a guess: unlike everything else in this
-    script, it couldn't be checked against the live wiki at all from the
-    environment this was written in (`Special:CargoTables` and `api.php`
-    are both blocked by the wiki's robots.txt to the tool used to research
-    this). So this is kept completely separate from
-    fetch_event_server_details() and wrapped in its own try/except --
-    if the guess is wrong, this just returns an empty dict and every
-    event goes without an image, rather than breaking date fetching too.
-    Check the Action log after this ships to see whether it actually
-    worked.
-
-    Returns {wiki page name: image URL}."""
-    images = {}
-    try:
-        offset = 0
-        limit = 500
-        while True:
-            params = {
-                "action": "cargoquery",
-                "tables": "Event",
-                "fields": "Event._pageName=page,Event.image=image",
-                "where": "Event.image IS NOT NULL",
-                "format": "json",
-                "limit": limit,
-                "offset": offset,
-            }
-            r = http_get(WIKI_API, params=params, headers=HEADERS)
-            data = r.json()
-            if "error" in data:
-                raise RuntimeError(f"Cargo API error: {data['error']}")
-            page_rows = data.get("cargoquery", [])
-            for row in page_rows:
-                title = row.get("title", {})
-                page = title.get("page")
-                image = title.get("image")
-                # Only trust this if Cargo actually resolved it to a full
-                # URL -- if the field turns out to hold a bare filename
-                # instead, we'd need a second API call (imageinfo) to
-                # resolve the real upload path, and a guessed-at filename
-                # is more likely to produce a broken image than no image.
-                if page and image and str(image).startswith("http"):
-                    images[page] = image
-            offset += limit
-            if len(page_rows) < limit:
-                break
-    except Exception as exc:
-        print(f"Could not fetch event images (non-fatal, calendar will just show no art): {exc}")
-    return images
+def pick_image(servers):
+    """Choose one banner image for an event out of its per-server rows.
+    Prefers the Global server's own art, but falls back to another
+    server's (usually CN) -- an event with no Global row yet (estimated
+    or announced) is exactly the case where showing *some* preview art
+    is most useful, and CN's banner is normally a close preview of what
+    Global's will look like. Only trusts a value Cargo actually resolved
+    to a full URL -- a bare filename would need a second API call to
+    resolve to a real upload path, and a guessed-at URL is worse than no
+    image at all."""
+    for key in ("global", "cn"):
+        image = (servers.get(key) or {}).get("image")
+        if image and str(image).startswith("http"):
+            return image
+    for server_entry in servers.values():
+        image = server_entry.get("image")
+        if image and str(image).startswith("http"):
+            return image
+    return None
 
 
 def backtest_lag_model(confirmed_pairs, window):
@@ -285,8 +248,7 @@ def backtest_lag_model(confirmed_pairs, window):
     }
 
 
-def build_events(rows, images=None, overrides=None):
-    images = images or {}
+def build_events(rows, overrides=None):
     overrides = overrides or {}
     # Group every row by event name, then by a normalized server key.
     by_event = {}
@@ -308,6 +270,7 @@ def build_events(rows, images=None, overrides=None):
         entry[server_key] = {
             "start": parse_date(row.get("startTime")),
             "end": parse_date(row.get("endTime")),
+            "image": row.get("image"),
         }
 
     def clean_window(server_entry):
@@ -389,9 +352,9 @@ def build_events(rows, images=None, overrides=None):
         wiki_page = wiki_page_by_event.get(event)
         if wiki_page:
             entry["wikiPage"] = wiki_page
-            image = images.get(wiki_page)
-            if image:
-                entry["image"] = image
+        image = pick_image(by_event[event])
+        if image:
+            entry["image"] = image
         entry["cnStart"] = cn_start.isoformat()
         entry["cnEnd"] = cn_end.isoformat() if cn_end else None
 
@@ -443,9 +406,9 @@ def build_events(rows, images=None, overrides=None):
         wiki_page = wiki_page_by_event.get(event)
         if wiki_page:
             entry["wikiPage"] = wiki_page
-            image = images.get(wiki_page)
-            if image:
-                entry["image"] = image
+        image = pick_image(by_event[event])
+        if image:
+            entry["image"] = image
         out.append(entry)
 
     out.sort(key=lambda e: e["globalStart"])
@@ -456,11 +419,11 @@ def build_events(rows, images=None, overrides=None):
 if __name__ == "__main__":
     rows = fetch_event_server_details()
     print(f"Fetched {len(rows)} EventServerDetails rows")
-    images = fetch_event_images()
-    print(f"Fetched {len(images)} event images")
     overrides = load_overrides()
     print(f"Loaded {len(overrides)} manual overrides")
-    events, median_lag_days, current_lag_days, backtest = build_events(rows, images, overrides)
+    events, median_lag_days, current_lag_days, backtest = build_events(rows, overrides)
+    with_image = sum(1 for e in events if e.get("image"))
+    print(f"{with_image}/{len(events)} events have art")
     print(
         f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days, "
         f"current CN->Global lag = {current_lag_days} days"

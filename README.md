@@ -154,20 +154,24 @@ nothing to anchor an end date to otherwise), and never overrides an
 actual wiki-confirmed date once the wiki catches up - confirmed always
 wins.
 
-`events.py` also makes a best-effort attempt (`fetch_event_images()`) to
-pull each event's banner art from the wiki for the calendar's hover
-tooltip and list view. Unlike everything else in this script, that query
-couldn't be verified against the live wiki at all while writing it (see
-the note below) - it's kept fully separate from date fetching and fails
-silently (no images, not a broken build) if the guess turns out wrong.
+`events.py` also pulls each event's banner art for the calendar's hover
+tooltip and list view - it's just another field (`image`) on the same
+`EventServerDetails` Cargo table already queried for dates, so it comes
+along for free with no extra request. Each event can have a different
+banner per server (CN vs Global often use different key art for the same
+event), so `pick_image()` prefers the Global server's own art but falls
+back to CN's when Global's isn't known yet - which is exactly the case
+(an estimated or announced event) where a preview image is most useful.
 
 `events.py`'s Cargo queries (against the same `arknights.wiki.gg` API the
-other scripts use) couldn't be tested against the live wiki from the
-environment this was written in - if `json/events.json` isn't showing up
-after a workflow run, or the calendar page shows nothing, check that
-step's own log in the Actions tab first; the daily workflow runs this
-step with `continue-on-error: true` specifically so a problem here
-doesn't take down the shop tracker's own data update.
+other scripts use) target the `EventServerDetails` table, whose exact
+field names were confirmed by hand against `Special:CargoTables` on the
+wiki (that page, like `api.php` itself, is blocked by the wiki's
+robots.txt to this project's own research tooling). If `json/events.json`
+isn't showing up after a workflow run, or the calendar page shows
+nothing, check that step's own log in the Actions tab first; the daily
+workflow runs this step with `continue-on-error: true` specifically so a
+problem here doesn't take down the shop tracker's own data update.
 
 ## If you want to push this somewhere
 
