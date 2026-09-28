@@ -68,6 +68,17 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 			CN: 1556582400000,
 		};
 		let selectedServer = "EN";
+		// "Dynamic" (the default) keeps the x-axis start pinned to the
+		// earliest date among whatever's currently visible, so filtering
+		// down to e.g. Normal-pool only doesn't leave a huge stretch of
+		// empty axis before the first visible bar. The fixed periods
+		// (2y/4y/6y/ALL) are a deliberate "always show exactly this
+		// window" choice instead, so they're left alone here.
+		let selectedPeriod = "Dynamic";
+		function computeDynamicMin(subset) {
+			if (!subset.length) return SERVER_STARTS[selectedServer];
+			return Math.min(...subset.map((op) => op.first));
+		}
 		var shownrarities = new Set([5]);
 		for (const [serv, servdata] of Object.entries(SHOP_DATA)) {
 			for (const [op, data] of Object.entries(servdata)) {
@@ -416,6 +427,10 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 			// remove elements not in labels
 			datasets[i].data = subset;
 		adjustChartHeight(subset.length);
+		let initialXMin =
+			selectedPeriod === "Dynamic"
+				? computeDynamicMin(subset)
+				: SERVER_STARTS[selectedServer];
 		//////////////////////////////////////////////////
 		let barGraph = new Chart(document.getElementById("opChart"), {
 			type: "bar",
@@ -456,7 +471,7 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 						time: {
 							unit: "month",
 						},
-						min: SERVER_STARTS[selectedServer],
+						min: initialXMin,
 						max: Date.now(),
 						grid: {
 							// display: false,
@@ -471,7 +486,7 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 						time: {
 							unit: "month",
 						},
-						min: SERVER_STARTS[selectedServer],
+						min: initialXMin,
 						max: Date.now(),
 						ticks: { minRotation: 30 },
 					},
@@ -792,8 +807,10 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 		var start = SERVER_STARTS["CN"];
 		var now = new Date();
 		var diffYears = Math.floor((now - start) / (1000 * 60 * 60 * 24 * 365)); // full years
-		// generate 2-year increments
-		var periods = [];
+		// "Dynamic" always trims to whatever's actually visible (see
+		// computeDynamicMin); the rest are fixed "always show exactly
+		// this window" choices. Dynamic goes first and is the default.
+		var periods = ["Dynamic"];
 		for (var y = 2; y <= diffYears; y += 2) {
 			periods.push(y + "y");
 		}
@@ -801,7 +818,7 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 		periods.forEach(function (p) {
 			var btn = document.createElement("div");
 			btn.classList = "sorter button";
-			if (p === "ALL") btn.classList.add("checked");
+			if (p === "Dynamic") btn.classList.add("checked");
 			btn.dataset.period = p;
 			btn.innerHTML = p;
 			periodbtns.appendChild(btn);
@@ -812,6 +829,14 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 				e.currentTarget.classList.add("checked");
 
 				selectedPeriod = p;
+
+				if (p === "Dynamic") {
+					// redrawCharts() below computes and applies the min
+					// itself every time it's called while Dynamic is
+					// selected, so there's nothing to set here.
+					redrawCharts();
+					return;
+				}
 
 				// determine min based on period
 				var minDate;
@@ -891,8 +916,14 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 				e.currentTarget.classList.toggle("checked");
 				selectedServer = s;
 				barGraph.data.datasets = getDatasets(SHOP_DATA[selectedServer]);
-				barGraph.options.scales.x.min = SERVER_STARTS[selectedServer];
-				barGraph.options.scales.x1.min = SERVER_STARTS[selectedServer];
+				// Only force the fixed-period range here -- if "Dynamic" is
+				// selected, redrawCharts() below recomputes the min itself
+				// from this server's now-current data, so setting it here
+				// too would just get immediately overwritten.
+				if (selectedPeriod !== "Dynamic") {
+					barGraph.options.scales.x.min = SERVER_STARTS[selectedServer];
+					barGraph.options.scales.x1.min = SERVER_STARTS[selectedServer];
+				}
 
 				redrawCharts();
 			};
@@ -909,6 +940,18 @@ fetch(`${EXTRA_DATA_REPO_RAW_BASE}banner_history.json`)
 			for (i = 0; i < barGraph.data.datasets.length; i++)
 				// remove elements not in labels
 				barGraph.data.datasets[i].data = subset;
+
+			// "Dynamic" recomputes the axis start every redraw (filter
+			// change, sort, server switch, ...) so a narrower Show/rarity
+			// selection never leaves a stretch of empty axis before the
+			// first actually-visible bar. Fixed periods (2y/4y/6y/ALL) are
+			// left as whatever the period button set, on purpose.
+			if (selectedPeriod === "Dynamic") {
+				const dynMin = computeDynamicMin(subset);
+				barGraph.options.scales.x.min = dynMin;
+				barGraph.options.scales.x1.min = dynMin;
+			}
+
 			adjustChartHeight(subset.length);
 
 			barGraph.update();
