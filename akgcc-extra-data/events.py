@@ -5,11 +5,24 @@ Global date a week or two ahead of time. There's no source of "confirmed
 EN dates months out" because that information doesn't exist yet -- so
 "preliminary" here means: once an event has run on CN, arknights.wiki.gg
 tracks it, and once Gryphline has confirmed its Global date that's tracked
-too, but for the (usually many-months) gap in between, we estimate the
-Global date by applying the historical CN -> Global lag (computed from
-every event where enough dates are known) to the event's known CN date --
-the same "cadence"-style prediction idea already used for shop-debut
-predictions on the /store page.
+too, but for the (usually many-months) gap in between, we estimate it.
+
+The estimate is *not* "this event's own CN date plus the historical
+median lag" applied independently per event -- that undersells how close
+together Global events actually run. The real Global lag varies a fair
+bit per event (anywhere from ~5 to ~7 months in practice), so applying one
+flat number to every event individually can open up an artificial gap (or
+overlap) right where a confirmed date meets the next estimated one, since
+that confirmed event's own real lag is very likely *not* exactly the
+median. Instead, estimates are chained: walk every event in CN-date
+order, and estimate an unconfirmed event's Global start as (the nearest
+earlier event's Global date) + (the CN gap between the two events) -- so
+it inherits whatever lag was most recently actually observed (confirmed,
+or itself estimated the same way) instead of the dataset-wide average.
+Each newly confirmed date "snaps" the chain back onto Gryphline's real
+schedule from that point on. The historical median lag is kept only as a
+bootstrap, for the very first estimate before any anchor exists yet, and
+is still reported in the output for reference.
 
 NOTE: this script's exact field names (EventServerDetails.event/
 startTime/endTime/server) are based on the query already proven to work
@@ -120,60 +133,104 @@ def build_events(rows):
             "end": parse_date(row.get("endTime")),
         }
 
-    # Historical CN -> Global lag, from every event where both are known,
-    # so the estimate adapts automatically instead of using a hardcoded
-    # guess (same spirit as the shop-debut cadence prediction).
+    def clean_window(server_entry):
+        """Returns (start, end) for a cn/global sub-dict, dropping an end
+        date that's actually before its own start date (a mistyped year on
+        the wiki, most likely) rather than trusting it -- otherwise it can
+        produce a negative duration, and downstream an estimated globalEnd
+        earlier than globalStart."""
+        if not server_entry or not server_entry.get("start"):
+            return None, None
+        start = server_entry["start"]
+        end = server_entry.get("end")
+        if end and end < start:
+            end = None
+        return start, end
+
+    # Historical CN -> Global lag, from every event where both are known.
+    # Only used to bootstrap the very first estimate below (see the module
+    # docstring) -- kept as its own pass since it needs to look at every
+    # event regardless of CN-date order.
     lags_days = []
     for event, servers in by_event.items():
-        cn = servers.get("cn")
-        gl = servers.get("global")
-        if cn and gl and cn.get("start") and gl.get("start"):
-            lags_days.append((gl["start"] - cn["start"]).days)
+        cn_start, _ = clean_window(servers.get("cn"))
+        gl_start, _ = clean_window(servers.get("global"))
+        if cn_start and gl_start:
+            lags_days.append((gl_start - cn_start).days)
     median_lag_days = statistics.median(lags_days) if lags_days else None
 
-    out = []
+    # Split into events with a CN date (which can participate in the
+    # CN-ordered chain below) and events with only a Global date (rare --
+    # e.g. Global-exclusive content -- these skip the chain entirely and
+    # are just included as-is, since they're already fully known).
+    with_cn = []
+    without_cn = []
     for event, servers in by_event.items():
-        cn = servers.get("cn")
-        gl = servers.get("global")
+        cn_start, cn_end = clean_window(servers.get("cn"))
+        gl_start, gl_end = clean_window(servers.get("global"))
+        if cn_start:
+            with_cn.append((cn_start, event, cn_end, gl_start, gl_end))
+        elif gl_start:
+            without_cn.append((event, gl_start, gl_end))
+        # else: no usable date at all for this event -- dropped.
+
+    with_cn.sort(key=lambda t: t[0])
+
+    out = []
+    anchor_cn_start = None
+    anchor_global_start = None
+    for cn_start, event, cn_end, gl_start, gl_end in with_cn:
         entry = {"event": event}
         wiki_page = wiki_page_by_event.get(event)
         if wiki_page:
             entry["wikiPage"] = wiki_page
+        entry["cnStart"] = cn_start.isoformat()
+        entry["cnEnd"] = cn_end.isoformat() if cn_end else None
 
-        # A handful of wiki rows have an endTime that's actually *before*
-        # startTime (a mistyped year, most likely) -- treat that as "no end
-        # date" rather than let a negative duration through, which would
-        # otherwise silently produce an estimated globalEnd earlier than
-        # globalStart further down.
-        cn_end = cn.get("end") if cn else None
-        if cn_end and cn.get("start") and cn_end < cn["start"]:
-            cn_end = None
-
-        if cn and cn.get("start"):
-            entry["cnStart"] = cn["start"].isoformat()
-            entry["cnEnd"] = cn_end.isoformat() if cn_end else None
-
-        if gl and gl.get("start"):
-            # Confirmed: Gryphline has actually set/run this date.
-            gl_end = gl.get("end")
-            if gl_end and gl_end < gl["start"]:
-                gl_end = None
-            entry["globalStart"] = gl["start"].isoformat()
+        if gl_start:
+            # Confirmed: Gryphline has actually set/run this date. This
+            # becomes the chain's anchor going forward, so the next
+            # unconfirmed event snaps to this real lag instead of the
+            # dataset-wide median.
+            entry["globalStart"] = gl_start.isoformat()
             entry["globalEnd"] = gl_end.isoformat() if gl_end else None
             entry["globalConfirmed"] = True
-        elif cn and cn.get("start") and median_lag_days is not None:
-            # Not yet confirmed on Global: estimate from the historical
-            # CN -> Global lag, preserving the event's own CN duration.
-            est_start = cn["start"] + timedelta(days=median_lag_days)
-            duration = (cn_end - cn["start"]) if cn_end else timedelta(days=0)
+            anchor_cn_start, anchor_global_start = cn_start, gl_start
+        elif anchor_cn_start is not None:
+            # Not yet confirmed: carry forward the actual CN gap from the
+            # nearest earlier known anchor (confirmed, or itself estimated
+            # this same way), instead of reapplying the historical median.
+            est_start = anchor_global_start + (cn_start - anchor_cn_start)
+            duration = (cn_end - cn_start) if cn_end else timedelta(days=0)
             entry["globalStart"] = est_start.isoformat()
             entry["globalEnd"] = (est_start + duration).isoformat()
             entry["globalConfirmed"] = False
+            anchor_cn_start, anchor_global_start = cn_start, est_start
+        elif median_lag_days is not None:
+            # No anchor yet (this is CN-earlier than any known Global date)
+            # -- bootstrap from the historical median just this once.
+            est_start = cn_start + timedelta(days=median_lag_days)
+            duration = (cn_end - cn_start) if cn_end else timedelta(days=0)
+            entry["globalStart"] = est_start.isoformat()
+            entry["globalEnd"] = (est_start + duration).isoformat()
+            entry["globalConfirmed"] = False
+            anchor_cn_start, anchor_global_start = cn_start, est_start
         else:
-            # No CN date either (or no lag data to estimate from yet) --
-            # nothing usable to show for this event.
+            # No lag data at all to estimate from yet -- nothing usable.
             continue
 
+        out.append(entry)
+
+    for event, gl_start, gl_end in without_cn:
+        entry = {
+            "event": event,
+            "globalStart": gl_start.isoformat(),
+            "globalEnd": gl_end.isoformat() if gl_end else None,
+            "globalConfirmed": True,
+        }
+        wiki_page = wiki_page_by_event.get(event)
+        if wiki_page:
+            entry["wikiPage"] = wiki_page
         out.append(entry)
 
     out.sort(key=lambda e: e["globalStart"])

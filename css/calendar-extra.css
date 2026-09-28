@@ -53,6 +53,22 @@
   opacity: 0.75;
 }
 
+#pageCredit {
+  margin: 16px auto 24px;
+  padding: 0 20px;
+  font-size: 0.75rem;
+  color: #777;
+  text-align: center;
+}
+
+#pageCredit a {
+  color: #999;
+}
+
+#pageCredit a:hover {
+  color: #ccc;
+}
+
 /* ---- Controls bar: view toggle, status filters, sort ---- */
 
 #calendarControls {
@@ -117,20 +133,20 @@
   font-size: 0.85rem;
 }
 
-/* ---- Calendar (month grid) view ---- */
+/* ---- Calendar (scrollable week rows) view ---- */
 
 #calendarViewRoot {
   padding: 8px 20px 32px;
 }
 
-#monthNav {
+#weekNav {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
 }
 
-#monthNav button {
+#weekNav button {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #eee;
@@ -140,33 +156,42 @@
   font-size: 0.85rem;
 }
 
-#monthNav button:hover {
+#weekNav button:hover {
   border-color: #f8d511;
 }
 
-#monthLabel {
+#weekLabel {
   font-size: 1.1rem;
   font-weight: bold;
   color: #eee;
-  min-width: 160px;
+  min-width: 200px;
 }
 
 #todayBtn {
   margin-left: auto;
 }
 
-#monthGrid {
+/* A continuous, scrollable stream of week rows rather than a single
+   month's grid -- there's no "belongs to a different month" concept here,
+   so days are never dimmed; the weekday header row stays pinned to the
+   top of the scroll area via position: sticky. */
+#weekGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: min-content;
   gap: 1px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  overflow: hidden;
+  max-height: 66vh;
+  overflow-y: auto;
 }
 
 .calWeekday {
-  background: rgba(255, 255, 255, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #2e2e2e;
   color: #999;
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -184,25 +209,34 @@
   gap: 3px;
 }
 
-.calDay.otherMonth {
-  background: #202020;
-  opacity: 0.45;
-}
-
-.calDay.today .calDayNum {
-  background: #f8d511;
-  color: #262626;
-  border-radius: 50%;
-}
-
 .calDayNum {
   font-size: 0.75rem;
   color: #bbb;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.calDayNum .calDayNumCircle {
   width: 20px;
   height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.calDay.today .calDayNumCircle {
+  background: #f8d511;
+  color: #262626;
+  border-radius: 50%;
+}
+
+.calDayMonth {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #f8d511;
+  opacity: 0.85;
 }
 
 .calChips {
@@ -386,7 +420,11 @@ a.eventCard:hover {
     font-size: 0.6rem;
   }
 
-  #monthLabel {
+  #weekLabel {
     min-width: 0;
+  }
+
+  #weekGrid {
+    max-height: 56vh;
   }
 }

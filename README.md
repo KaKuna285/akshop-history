@@ -103,14 +103,22 @@ Gryphline (the EN publisher) only ever confirms an event's actual EN date
 a week or two ahead of release — there's no source anywhere for genuinely
 confirmed EN dates months out, because that information doesn't exist
 yet. So for an event that's run on CN but has no confirmed EN date yet,
-`events.py` estimates one by applying the historical CN&rarr;Global lag
-(the median gap between CN and EN dates across every past event where
-both are known) to that event's CN date — the same idea as the shop-debut
-cadence prediction already used on `/store/`. Each event in the output
-carries a `globalConfirmed: true/false` flag so the page can visibly
-distinguish "this actually is the date" from "this is a guess based on
-past pattern," and the calendar page shows both explicitly (a green
-"CONFIRMED" badge vs. a yellow "ESTIMATED" one).
+`events.py` estimates one. The real CN&rarr;Global lag varies quite a bit
+per event (roughly 5 to 7 months in practice), so estimates are *chained*
+rather than each computed independently off a flat historical average:
+walking every event in CN-date order, an unconfirmed event's Global date
+is set to (the nearest earlier event's Global date) + (the CN-side gap
+between the two events) — so it inherits whichever lag was most recently
+actually observed, and each newly confirmed date snaps the chain back
+onto Gryphline's real schedule from that point on. The historical median
+lag (still shown on the page, for reference) is only used to bootstrap
+the very first estimate, before any anchor exists yet. Each event in the
+output carries a `globalConfirmed: true/false` flag so the page can
+visibly distinguish "this actually is the date" from "this is a guess
+based on the nearest confirmed pattern" — a green "CONFIRMED" badge vs. a
+yellow "ESTIMATED" one, plus a red "CN EXCLUSIVE" one for an event whose
+estimated window closed 30+ days ago with still no Global confirmation
+(likely not coming to Global at all, or running unusually late).
 
 `events.py`'s Cargo query (against the same `arknights.wiki.gg` API the
 other scripts use) couldn't be tested against the live wiki from the

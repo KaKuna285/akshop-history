@@ -8,15 +8,22 @@
   const sortGroup = document.getElementById("sortGroup");
   const calendarViewRoot = document.getElementById("calendarViewRoot");
   const calendarContent = document.getElementById("calendarContent");
-  const monthGridEl = document.getElementById("monthGrid");
-  const monthLabelEl = document.getElementById("monthLabel");
-  const prevMonthBtn = document.getElementById("prevMonthBtn");
-  const nextMonthBtn = document.getElementById("nextMonthBtn");
+  const weekGridEl = document.getElementById("weekGrid");
+  const weekLabelEl = document.getElementById("weekLabel");
+  const prevWeekBtn = document.getElementById("prevWeekBtn");
+  const nextWeekBtn = document.getElementById("nextWeekBtn");
   const todayBtn = document.getElementById("todayBtn");
 
   const GRACE_DAYS = 30;
   const DAY_MS = 24 * 60 * 60 * 1000;
   const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  // The calendar view is a continuous, scrollable stream of week rows
+  // rather than one month at a time -- these control how many weeks
+  // before/after the focused week are rendered into that scrollable area
+  // at once (Prev/Next Week re-center the window; scrolling moves within
+  // it without needing a click).
+  const WEEKS_BEFORE = 4;
+  const WEEKS_AFTER = 10;
 
   const STATUS_LABEL = {
     confirmed: "CONFIRMED",
@@ -28,10 +35,22 @@
   let currentView = "calendar"; // "calendar" | "list"
   let sortMode = "date"; // "date" | "name"
   let activeStatuses = new Set(["confirmed", "estimated", "cnExclusive"]);
-  let visibleMonth = startOfMonth(new Date());
+  let focusWeekStart = startOfWeek(new Date());
 
-  function startOfMonth(d) {
-    return new Date(d.getFullYear(), d.getMonth(), 1);
+  function startOfWeek(d) {
+    const c = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    c.setDate(c.getDate() - c.getDay());
+    return c;
+  }
+
+  function fmtWeekLabel(weekStart) {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const opts = { month: "short", day: "numeric" };
+    return `${weekStart.toLocaleDateString(undefined, opts)} – ${weekEnd.toLocaleDateString(
+      undefined,
+      opts,
+    )}, ${weekEnd.getFullYear()}`;
   }
 
   function toDayNum(d) {
@@ -199,38 +218,47 @@
       endDay: toDayNum(effectiveEnd(ev.globalStart, ev.globalEnd)),
     }));
 
-    const year = visibleMonth.getFullYear();
-    const month = visibleMonth.getMonth();
-    monthLabelEl.textContent = visibleMonth.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-    });
+    weekLabelEl.textContent = fmtWeekLabel(focusWeekStart);
 
-    const gridStart = new Date(year, month, 1);
-    gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+    const gridStart = new Date(focusWeekStart);
+    gridStart.setDate(gridStart.getDate() - WEEKS_BEFORE * 7);
+    const totalDays = (WEEKS_BEFORE + 1 + WEEKS_AFTER) * 7;
     const todayDayNum = toDayNum(now);
 
-    monthGridEl.innerHTML = "";
+    weekGridEl.innerHTML = "";
 
     for (const wd of WEEKDAY_NAMES) {
       const head = document.createElement("div");
       head.className = "calWeekday";
       head.textContent = wd;
-      monthGridEl.appendChild(head);
+      weekGridEl.appendChild(head);
     }
 
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < totalDays; i++) {
       const cellDate = new Date(gridStart);
       cellDate.setDate(gridStart.getDate() + i);
       const cellDayNum = toDayNum(cellDate);
       const cell = document.createElement("div");
       cell.className = "calDay";
-      if (cellDate.getMonth() !== month) cell.classList.add("otherMonth");
       if (cellDayNum === todayDayNum) cell.classList.add("today");
 
+      // This is a continuous stream of weeks, not one month's grid, so
+      // days are never dimmed for "belonging to a different month" --
+      // instead, the 1st of each month (and the very first visible cell,
+      // so the top of the scroll area always has its bearings) gets a
+      // small month label next to the day number.
       const dayNum = document.createElement("div");
       dayNum.className = "calDayNum";
-      dayNum.textContent = String(cellDate.getDate());
+      const dayCircle = document.createElement("span");
+      dayCircle.className = "calDayNumCircle";
+      dayCircle.textContent = String(cellDate.getDate());
+      dayNum.appendChild(dayCircle);
+      if (cellDate.getDate() === 1 || i === 0) {
+        const monthLabel = document.createElement("span");
+        monthLabel.className = "calDayMonth";
+        monthLabel.textContent = cellDate.toLocaleDateString(undefined, { month: "short" });
+        dayNum.appendChild(monthLabel);
+      }
       cell.appendChild(dayNum);
 
       const chipWrap = document.createElement("div");
@@ -251,7 +279,7 @@
         }
       }
       cell.appendChild(chipWrap);
-      monthGridEl.appendChild(cell);
+      weekGridEl.appendChild(cell);
     }
   }
 
@@ -291,16 +319,16 @@
     render();
   });
 
-  prevMonthBtn.addEventListener("click", () => {
-    visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
+  prevWeekBtn.addEventListener("click", () => {
+    focusWeekStart = new Date(focusWeekStart.getFullYear(), focusWeekStart.getMonth(), focusWeekStart.getDate() - 7);
     renderCalendar();
   });
-  nextMonthBtn.addEventListener("click", () => {
-    visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
+  nextWeekBtn.addEventListener("click", () => {
+    focusWeekStart = new Date(focusWeekStart.getFullYear(), focusWeekStart.getMonth(), focusWeekStart.getDate() + 7);
     renderCalendar();
   });
   todayBtn.addEventListener("click", () => {
-    visibleMonth = startOfMonth(new Date());
+    focusWeekStart = startOfWeek(new Date());
     renderCalendar();
   });
 
@@ -317,9 +345,9 @@
       allEvents = (data.events || []).map((ev) => ({ ...ev, _status: getStatus(ev, now) }));
 
       if (data.medianLagDays != null) {
-        lagHintEl.textContent = `Historical CN→Global lag used for estimates: ~${Math.round(
+        lagHintEl.textContent = `Typical historical CN→Global lag: ~${Math.round(
           data.medianLagDays,
-        )} days`;
+        )} days (estimates use the gap from the nearest confirmed date, not this average)`;
       }
 
       render();

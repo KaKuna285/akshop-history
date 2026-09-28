@@ -23,7 +23,7 @@
     </div>
     <div id="calendarLegend">
       <span><span class="legendSwatch legendConfirmed"></span> Confirmed by Gryphline</span>
-      <span><span class="legendSwatch legendEstimated"></span> Estimated from historical CN&rarr;Global lag</span>
+      <span><span class="legendSwatch legendEstimated"></span> Estimated from the nearest confirmed date</span>
       <span
         ><span class="legendSwatch legendCnExclusive"></span> CN exclusive (no Global date 30+
         days after the estimated window)</span
@@ -49,13 +49,13 @@
       </div>
     </div>
     <div id="calendarViewRoot">
-      <div id="monthNav">
-        <button type="button" id="prevMonthBtn" aria-label="Previous month">&lsaquo;</button>
-        <span id="monthLabel"></span>
-        <button type="button" id="nextMonthBtn" aria-label="Next month">&rsaquo;</button>
+      <div id="weekNav">
+        <button type="button" id="prevWeekBtn" aria-label="Previous week">&lsaquo;</button>
+        <span id="weekLabel"></span>
+        <button type="button" id="nextWeekBtn" aria-label="Next week">&rsaquo;</button>
         <button type="button" id="todayBtn">Today</button>
       </div>
-      <div id="monthGrid"></div>
+      <div id="weekGrid"></div>
     </div>
     <div id="calendarContent">
       <h2 class="calendarSectionHeading">Upcoming</h2>
