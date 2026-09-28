@@ -9,7 +9,9 @@
 #calendarViewRoot,
 #calendarContent,
 #pageCredit {
-  max-width: calc((100vw + 1200px) / 2);
+  /* min() clamps this to 100% on any screen narrower than 1200px, where
+     (100vw + 1200px) / 2 otherwise evaluates to *more* than 100vw. */
+  max-width: min(100%, calc((100vw + 1200px) / 2));
   margin-left: auto;
   margin-right: auto;
 }
@@ -203,6 +205,15 @@
 .calDay {
   background: #262626;
   min-height: 84px;
+  /* A grid item's automatic minimum width is otherwise based on its
+     content's min-content size -- and a long, unbreakable event name (see
+     .calEventChip's white-space: nowrap) would otherwise force this
+     column, and so the whole #weekGrid, wider than its container. Setting
+     both min-width and overflow here is what actually lets the "1fr"
+     columns shrink to fit -- this is the fix for needing to side-scroll to
+     see the rest of the week. */
+  min-width: 0;
+  overflow: hidden;
   padding: 4px 4px 6px;
   display: flex;
   flex-direction: column;
@@ -243,6 +254,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
   overflow: hidden;
 }
 

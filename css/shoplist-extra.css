@@ -7,14 +7,16 @@
    wider than 1200px, each side's empty space becomes half of what a plain
    1200px cap would leave (derivation: margin-per-side = (100vw - 1200px)/2
    before; halving that and solving for the resulting width gives
-   (100vw + 1200px)/2). On narrower/mobile screens this just evaluates to
-   more than 100vw, which is harmless -- the block still only fills its
-   actual container width, so mobile layout is unaffected. */
+   (100vw + 1200px)/2). On narrower/mobile screens this evaluates to more
+   than 100vw, so it's wrapped in min(100%, ...) to clamp it back down --
+   a plain block wouldn't overflow from this alone, but it's cheap
+   insurance against a descendant with unbreakable content (long text,
+   etc.) actually forcing it wider. */
 #topNav,
 .btnPanel,
 #chartLegend,
 #chartDiv {
-  max-width: calc((100vw + 1200px) / 2);
+  max-width: min(100%, calc((100vw + 1200px) / 2));
   margin-left: auto;
   margin-right: auto;
 }
@@ -81,7 +83,7 @@
 }
 
 #pageCredit {
-  max-width: calc((100vw + 1200px) / 2);
+  max-width: min(100%, calc((100vw + 1200px) / 2));
   margin: 16px auto 24px;
   padding: 0 20px;
   font-size: 0.75rem;

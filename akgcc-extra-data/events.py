@@ -234,19 +234,36 @@ def build_events(rows):
         out.append(entry)
 
     out.sort(key=lambda e: e["globalStart"])
-    return out, median_lag_days
+
+    # The lag actually driving today's estimates: since the chain above is
+    # a pure translation (an estimate's own effective lag always equals its
+    # anchor's lag -- carrying forward unchanged until the next confirmed
+    # date resets it), the final anchor's lag is exactly the number being
+    # applied to every current/upcoming estimated event, as opposed to
+    # medianLagDays, which is the dataset-wide average and is now only used
+    # as a one-time bootstrap (see the module docstring).
+    if anchor_cn_start is not None:
+        current_lag_days = (anchor_global_start - anchor_cn_start).days
+    else:
+        current_lag_days = median_lag_days
+
+    return out, median_lag_days, current_lag_days
 
 
 if __name__ == "__main__":
     rows = fetch_event_server_details()
     print(f"Fetched {len(rows)} EventServerDetails rows")
-    events, median_lag_days = build_events(rows)
-    print(f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days")
+    events, median_lag_days, current_lag_days = build_events(rows)
+    print(
+        f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days, "
+        f"current CN->Global lag = {current_lag_days} days"
+    )
     with open("./json/events.json", "w") as f:
         json.dump(
             {
                 "generatedAt": datetime.now(timezone.utc).isoformat(),
                 "medianLagDays": median_lag_days,
+                "currentLagDays": current_lag_days,
                 "events": events,
             },
             f,
