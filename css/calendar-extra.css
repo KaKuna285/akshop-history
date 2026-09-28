@@ -171,6 +171,18 @@
   font-size: 0.85em;
 }
 
+/* Same muted treatment as #pageCredit's link -- nothing here sets a
+   link color, so it was otherwise falling back to the browser's
+   default bright blue, which is hard to read against this dark
+   background. */
+#aboutContent a {
+  color: #999;
+}
+
+#aboutContent a:hover {
+  color: #ccc;
+}
+
 /* ---- Controls bar: view toggle, status filters, sort ---- */
 
 #calendarControls {
