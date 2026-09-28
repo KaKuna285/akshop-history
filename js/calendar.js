@@ -12,6 +12,8 @@
   const eventPreviewCloseBtn = document.getElementById("eventPreviewClose");
   const eventPreviewImgEl = document.getElementById("eventPreviewImg");
   const eventPreviewBodyEl = document.getElementById("eventPreviewBody");
+  const legendAnnouncedItem = document.getElementById("legendAnnouncedItem");
+  const filterAnnouncedItem = document.getElementById("filterAnnouncedItem");
   const weekGridEl = document.getElementById("weekGrid");
   const weekLabelEl = document.getElementById("weekLabel");
   const prevWeekBtn = document.getElementById("prevWeekBtn");
@@ -151,6 +153,17 @@
     const end = effectiveEnd(ev.globalStart, ev.globalEnd);
     if (now.getTime() - end.getTime() > GRACE_DAYS * DAY_MS) return "cnExclusive";
     return "estimated";
+  }
+
+  // "Announced" only ever shows up when something is currently pinned via
+  // overrides.json -- most of the time nothing is, so its legend swatch and
+  // filter checkbox would just be clutter for a status that never appears.
+  // Hide both whenever no loaded event is currently in that state.
+  function updateAnnouncedVisibility() {
+    const hasAnnounced = allEvents.some((ev) => ev._status === "announced");
+    const display = hasAnnounced ? "" : "none";
+    if (legendAnnouncedItem) legendAnnouncedItem.style.display = display;
+    if (filterAnnouncedItem) filterAnnouncedItem.style.display = display;
   }
 
   // Builds a /wiki/<page> URL from a MediaWiki page name. Segments are
@@ -776,6 +789,7 @@
       const data = await res.json();
       const now = new Date();
       allEvents = (data.events || []).map((ev) => ({ ...ev, _status: getStatus(ev, now) }));
+      updateAnnouncedVisibility();
       // Real chip content is about to exist for the first time -- the
       // scroll-to-today position computed on the empty grid no longer
       // reflects the real row heights, so it needs to be redone once
