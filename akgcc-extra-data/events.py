@@ -13,19 +13,30 @@ up localization before and can again), so a flat lag averaged over the
 *entire* dataset reacts to that far too slowly: months of schedule
 changes get diluted by years of older history sitting in the same
 average. Instead, the lag applied to every current estimate is the
-median CN->Global lag from just the last RECENT_LAG_WINDOW_DAYS days of
-confirmed events -- a rolling window recomputed fresh on every run.
-That's still a median over a couple dozen events rather than one single
-data point, so one unusually fast or slow event doesn't swing every
-estimate on the page, but it tracks a real shift in pace (the schedule
-speeding up or slowing down) far faster than the all-time average would.
-A CN/Global pair with a non-positive lag is dropped before either median
-is computed -- that's not a real observation, just the wiki having the
-same (or an inverted) date recorded for both servers. If there isn't
-enough recent history to compute the rolling median from (early on, or
-a quiet stretch with nothing confirmed in the window), estimates fall
-back to the all-time median instead, which is still reported in the
-output for reference.
+median CN->Global lag from just the last RECENT_LAG_WINDOW_EVENTS
+*confirmed events* (by Global release order, not calendar days) --
+a trailing window recomputed fresh on every run. That's still a median
+over several events rather than one single data point, so one unusually
+fast or slow event doesn't swing every estimate on the page, but it
+tracks a real shift in pace (the schedule speeding up or slowing down)
+much faster than an all-time average would, and unlike a fixed-days
+window it doesn't go quiet (or noisy) just because events happened to
+ship more slowly (or quickly) than usual recently. A CN/Global pair with
+a non-positive lag is dropped before any of this is computed -- that's
+not a real observation, just the wiki having the same (or an inverted)
+date recorded for both servers. The all-time median (across every
+confirmed event ever) is also reported in the output, for comparison --
+it's not used to build any estimate, just a reference point for how far
+the current pace has drifted from the historical one.
+
+To sanity-check the window size, `backtest()` below simulates the same
+model against history: at each past confirmed event, it rebuilds the
+trailing-window model using only the events that were confirmed earlier,
+estimates that event's date the same way the page would have at the
+time, and compares the estimate to what actually happened. The
+resulting median/p75/p90/max absolute errors (in days) are reported in
+the output alongside the current lag, as a running check on how
+accurate this approach actually is.
 
 NOTE: this script's exact field names (EventServerDetails.event/
 startTime/endTime/server) are based on the query already proven to work
@@ -40,18 +51,37 @@ import requests
 import re
 import json
 import time
-import statistics
 from datetime import datetime, timedelta, timezone
 
 REQUEST_TIMEOUT = 30  # seconds, per attempt
 REQUEST_RETRIES = 3
 REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number
 
-# How far back to look for the rolling "current lag" median (see the
-# module docstring). A year covers roughly two dozen events -- enough to
-# smooth out one noisy data point without being so long a real change in
-# pace takes forever to show up.
-RECENT_LAG_WINDOW_DAYS = 365
+# How many of the most recently Global-released confirmed events to take
+# the "current lag" median from (see the module docstring). Matches the
+# default window size myrtle.moe's own release-lag model uses.
+RECENT_LAG_WINDOW_EVENTS = 10
+
+# backtest() needs at least this many earlier confirmed events before it'll
+# simulate a prediction for a given point -- an estimate built from 1-2
+# data points isn't a meaningful test of the model, just noise.
+MIN_BACKTEST_PRIOR = 3
+
+
+def percentile(sorted_values, p):
+    """Linear-interpolated percentile of an already-sorted list (p in
+    [0, 1]). Returns 0.0 for an empty list rather than raising, since every
+    caller here already treats "no data" as its own case."""
+    n = len(sorted_values)
+    if n == 0:
+        return 0.0
+    if n == 1:
+        return sorted_values[0]
+    rank = p * (n - 1)
+    lo = int(rank)
+    hi = min(lo + 1, n - 1)
+    frac = rank - lo
+    return sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * frac
 
 
 def http_get(url, **kwargs):
@@ -119,6 +149,41 @@ def fetch_event_server_details():
     return rows
 
 
+def backtest_lag_model(confirmed_pairs, window):
+    """Simulates the trailing-window model against history: for every
+    confirmed pair, rebuilds the model from only the pairs that were
+    already confirmed *earlier* (by Global release order) than it, and
+    compares what that model would have estimated to what actually
+    happened. `confirmed_pairs` must already be sorted oldest-first by
+    Global start, same as `build_events` produces.
+
+    Returns a dict of {window, n, medianAbsErrDays, p75AbsErrDays,
+    p90AbsErrDays, maxAbsErrDays} -- n is how many past events this
+    actually got to test against (the first few, without enough prior
+    history, are skipped)."""
+    abs_errs = []
+    for i, (gl_start, event, cn_start, actual_lag) in enumerate(confirmed_pairs):
+        prior = confirmed_pairs[:i]
+        if len(prior) < MIN_BACKTEST_PRIOR:
+            continue
+        model_lags = sorted(d for _, _, _, d in prior[-window:])
+        predicted_lag = percentile(model_lags, 0.5)
+        predicted_gl_start = cn_start + timedelta(days=predicted_lag)
+        abs_err = abs((predicted_gl_start - gl_start).total_seconds()) / 86400
+        abs_errs.append(abs_err)
+
+    abs_errs.sort()
+    n = len(abs_errs)
+    return {
+        "window": window,
+        "n": n,
+        "medianAbsErrDays": percentile(abs_errs, 0.5) if n else 0.0,
+        "p75AbsErrDays": percentile(abs_errs, 0.75) if n else 0.0,
+        "p90AbsErrDays": percentile(abs_errs, 0.9) if n else 0.0,
+        "maxAbsErrDays": abs_errs[-1] if n else 0.0,
+    }
+
+
 def build_events(rows):
     # Group every row by event name, then by a normalized server key.
     by_event = {}
@@ -164,46 +229,39 @@ def build_events(rows):
         d = (gl_start - cn_start).days
         return d if d > 0 else None
 
-    # All-time CN -> Global lag, from every event where both are known.
-    # Used only as a fallback when there isn't enough recent history to
-    # compute the rolling median below (see the module docstring) -- kept
-    # as its own pass since it needs to look at every event regardless of
-    # date.
-    lags_days = []
+    # Every event where both a CN and a Global date are known and the lag
+    # between them is usable, in Global release order (oldest first) --
+    # this is the basis for both the current estimate and the backtest
+    # below. `by_event` isn't ordered usefully (it's insertion order from
+    # the raw rows), so this is its own sorted pass.
+    confirmed_pairs = []
     for event, servers in by_event.items():
         cn_start, _ = clean_window(servers.get("cn"))
         gl_start, _ = clean_window(servers.get("global"))
-        if cn_start and gl_start:
-            d = lag_days(cn_start, gl_start)
-            if d is not None:
-                lags_days.append(d)
-    median_lag_days = statistics.median(lags_days) if lags_days else None
+        if not (cn_start and gl_start):
+            continue
+        d = lag_days(cn_start, gl_start)
+        if d is not None:
+            confirmed_pairs.append((gl_start, event, cn_start, d))
+    confirmed_pairs.sort(key=lambda p: p[0])
 
-    # Recent CN -> Global lag: the same thing, but only from confirmed
-    # pairs whose CN date falls within the last RECENT_LAG_WINDOW_DAYS
-    # days. This is the number that actually drives every estimate below.
-    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
-    recent_cutoff = now_naive - timedelta(days=RECENT_LAG_WINDOW_DAYS)
-    recent_lags_days = []
-    for event, servers in by_event.items():
-        cn_start, _ = clean_window(servers.get("cn"))
-        gl_start, _ = clean_window(servers.get("global"))
-        if cn_start and gl_start and cn_start >= recent_cutoff:
-            d = lag_days(cn_start, gl_start)
-            if d is not None:
-                recent_lags_days.append(d)
-    recent_median_lag_days = (
-        statistics.median(recent_lags_days) if recent_lags_days else None
-    )
+    def median_lag(pairs):
+        if not pairs:
+            return None
+        return percentile(sorted(d for _, _, _, d in pairs), 0.5)
 
-    # The lag actually applied to every estimate below: the rolling
-    # recent median when there's enough recent history to compute one,
-    # otherwise the all-time median as a fallback.
-    estimate_lag_days = (
-        recent_median_lag_days
-        if recent_median_lag_days is not None
-        else median_lag_days
-    )
+    # All-time median, across every confirmed pair regardless of date.
+    # Not used to build any estimate -- purely a reference point, shown
+    # alongside the current lag so it's obvious how far the current pace
+    # has drifted from the historical one.
+    median_lag_days = median_lag(confirmed_pairs)
+
+    # The lag actually applied to every estimate below: the median lag
+    # from just the last RECENT_LAG_WINDOW_EVENTS confirmed pairs (or
+    # fewer, early on when that many don't exist yet).
+    estimate_lag_days = median_lag(confirmed_pairs[-RECENT_LAG_WINDOW_EVENTS:])
+
+    backtest = backtest_lag_model(confirmed_pairs, RECENT_LAG_WINDOW_EVENTS)
 
     # Split into events with a CN date (which can be estimated below) and
     # events with only a Global date (rare -- e.g. Global-exclusive
@@ -264,16 +322,23 @@ def build_events(rows):
 
     out.sort(key=lambda e: e["globalStart"])
 
-    return out, median_lag_days, estimate_lag_days
+    return out, median_lag_days, estimate_lag_days, backtest
 
 
 if __name__ == "__main__":
     rows = fetch_event_server_details()
     print(f"Fetched {len(rows)} EventServerDetails rows")
-    events, median_lag_days, current_lag_days = build_events(rows)
+    events, median_lag_days, current_lag_days, backtest = build_events(rows)
     print(
         f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days, "
         f"current CN->Global lag = {current_lag_days} days"
+    )
+    print(
+        f"Backtest ({backtest['n']} points, window={backtest['window']} events): "
+        f"median err = {backtest['medianAbsErrDays']:.1f}d, "
+        f"p75 = {backtest['p75AbsErrDays']:.1f}d, "
+        f"p90 = {backtest['p90AbsErrDays']:.1f}d, "
+        f"max = {backtest['maxAbsErrDays']:.1f}d"
     )
     with open("./json/events.json", "w") as f:
         json.dump(
@@ -281,6 +346,7 @@ if __name__ == "__main__":
                 "generatedAt": datetime.now(timezone.utc).isoformat(),
                 "medianLagDays": median_lag_days,
                 "currentLagDays": current_lag_days,
+                "backtest": backtest,
                 "events": events,
             },
             f,

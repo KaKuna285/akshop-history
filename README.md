@@ -104,22 +104,28 @@ week or two ahead of release - there's no source anywhere for genuinely
 confirmed EN dates months out, because that information doesn't exist
 yet. So for an event that's run on CN (developed and published there by
 Hypergryph) but has no confirmed EN date yet, `events.py` estimates one:
-its own CN date plus the median CN&rarr;Global lag observed from
-confirmed events in roughly the last year, recalculated fresh on every
-run (falling back to the all-time median if there isn't enough recent
-history yet). A CN/Global pair with a non-positive lag is dropped before
-either median is computed, since that's the wiki recording the same (or
-an inverted) date for both servers rather than a real observation. A
-rolling median tracks a genuine change in Yostar's localization pace
-much faster than an all-time average would, while still smoothing over
-a couple dozen events so one unusually fast or slow one doesn't swing
-every estimate on the page. Each event in the output carries a
-`globalConfirmed: true/false` flag so the page can visibly distinguish
-"this actually is the date" from "this is an estimate" - a green
-"CONFIRMED" badge vs. a yellow "ESTIMATED" one, plus a red "CN EXCLUSIVE"
-one for an event whose estimated window closed 30+ days ago with still
-no Global confirmation (likely not coming to Global at all, or running
-unusually late).
+its own CN date plus the median CN&rarr;Global lag observed from the
+last 10 confirmed events, ordered by when each one actually went live on
+Global (not by CN date), recalculated fresh on every run. A CN/Global
+pair with a non-positive lag is dropped before that median is computed,
+since that's the wiki recording the same (or an inverted) date for both
+servers rather than a real observation. A trailing window by event count
+(rather than a fixed number of calendar days) tracks a genuine change in
+Yostar's localization pace fast, without going quiet or noisy just
+because events happened to ship faster or slower than usual recently.
+The all-time median (across every confirmed event ever) is also
+reported, purely as a reference point - it isn't used to build any
+estimate. `events.py` also runs a self-backtest on every update:
+rebuilding the same 10-event model at each past confirmed event using
+only what would've been known at the time, and comparing that estimate
+to what actually happened, to report how accurate this approach has
+been historically (median/p75/p90/max absolute error in days). Each
+event in the output carries a `globalConfirmed: true/false` flag so the
+page can visibly distinguish "this actually is the date" from "this is
+an estimate" - a green "CONFIRMED" badge vs. a yellow "ESTIMATED" one,
+plus a red "CN EXCLUSIVE" one for an event whose estimated window closed
+30+ days ago with still no Global confirmation (likely not coming to
+Global at all, or running unusually late).
 
 `events.py`'s Cargo query (against the same `arknights.wiki.gg` API the
 other scripts use) couldn't be tested against the live wiki from the

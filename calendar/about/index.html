@@ -10,6 +10,7 @@
     <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
     <link type="text/css" href="/css/calendar-extra.css" rel="stylesheet" />
     <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/calendar-about.js" defer></script>
     <meta charset="UTF-8" />
   </head>
   <body ontouchstart>
@@ -70,8 +71,9 @@
           an inverted, date for both servers, not a same-day release.
         </li>
         <li>
-          The lag applied to every current estimate is the median of just the observations from
-          confirmed events in roughly the last year, recalculated fresh on every update.
+          The lag applied to every current estimate is the median of just the last 10 of those
+          observations, ordered by when each event actually went live on Global - not by
+          calendar time. Recalculated fresh on every update.
         </li>
         <li>
           Each unconfirmed event's Global date = its own CN date + that lag, independently of
@@ -79,23 +81,33 @@
         </li>
       </ol>
       <p>
-        A median over the last year smooths out any single unusually fast or slow event without
-        averaging in outdated history, so it tracks a real change in pace much faster than an
-        all-time average would.
+        A trailing window of the 10 most recent releases smooths out any single unusually fast
+        or slow event without averaging in outdated history, so it tracks a real change in pace
+        much faster than an all-time average would - and unlike a fixed calendar window (the
+        last year, say), it doesn't go quiet or noisy just because events happened to ship
+        faster or slower than usual recently.
       </p>
 
       <h2 class="calendarSectionHeading">The CN&rarr;Global lag</h2>
       <ul>
         <li>
-          <strong>Current lag</strong> - the median CN&rarr;Global lag across confirmed events
-          from roughly the last year. This is what every estimate on the page is using right now.
+          <strong>Current lag</strong> - the median CN&rarr;Global lag across the last 10
+          confirmed events. This is what every estimate on the page is using right now.
         </li>
         <li>
-          <strong>Historical lag</strong> - the median lag across every event with both dates
-          known, going back further. Only used as a fallback when there isn't enough recent
-          history to compute the current lag from.
+          <strong>Historical lag</strong> - the median lag across every confirmed event ever,
+          for comparison. Not used to build any estimate - just a reference point for how far
+          the current pace has drifted from the historical one.
         </li>
       </ul>
+
+      <h2 class="calendarSectionHeading">How accurate is this?</h2>
+      <p>
+        Every update, this approach is checked against its own history: for each past confirmed
+        event, the 10-event model is rebuilt using only the events that were confirmed earlier
+        than it, and the resulting estimate is compared to what Global actually shipped.
+      </p>
+      <p id="backtestStats" class="aboutBacktestStats">Loading accuracy stats&hellip;</p>
 
       <h2 class="calendarSectionHeading">CN exclusive</h2>
       <p>An event is marked <code>cnExclusive</code> once both of these are true:</p>
