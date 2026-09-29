@@ -3,9 +3,11 @@
   // across all of an operator's skills), skill mastery (M1-M3, per
   // individual skill), and module stages, for a roster of operators
   // combined into one running total -- reduced by a depot of materials
-  // you already own, if you've entered any. Nothing here tracks a real
-  // in-game inventory automatically; the depot is just numbers you type
-  // in once and it remembers.
+  // (and LMD, and EXP -- both are real, searchable items in the game
+  // data, ids "4001" and "5001" respectively) you already own, if
+  // you've entered any. Nothing here tracks a real in-game inventory
+  // automatically; the depot is just numbers you type in once and it
+  // remembers.
   //
   // All the cost data this page needs is plain, static JSON already served
   // by the same raw game-data mirror util.js's DATA_BASE points at -- no
@@ -17,16 +19,22 @@
   // reused as-is here rather than fetching character_table.json a second
   // time. Three more files are fetched fresh: gamedata_const.json, for the
   // per-rarity/phase/level EXP+LMD curve and the per-rarity/phase Elite
-  // promotion LMD cost; item_table.json, for material names/icons; and
-  // uniequip_table.json, for module stage costs (equipDict, keyed by
-  // uniEquipId, each entry carrying its own charId back-reference -- there's
-  // no separate charId -> module-list table, so that list is built here by
-  // filtering). Unlike every other cost source on this page, a module's
-  // itemCost list embeds its LMD cost directly as a normal entry (id
-  // "4001", type "GOLD") instead of a separate LMD-only table -- addCosts()
-  // below is what routes a GOLD-type entry into the LMD total rather than
-  // the material list, so that one difference doesn't need special-casing
-  // anywhere else.
+  // promotion LMD cost; item_table.json, for material names/icons (and
+  // LMD/EXP's own names/icons); and uniequip_table.json, for module stage
+  // costs (equipDict, keyed by uniEquipId, each entry carrying its own
+  // charId back-reference -- there's no separate charId -> module-list
+  // table, so that list is built here by filtering). Unlike every other
+  // cost source on this page, a module's itemCost list embeds its LMD cost
+  // directly as a normal entry (id "4001", type "GOLD") instead of a
+  // separate LMD-only table -- addCosts() below is what routes a
+  // GOLD-type entry into the LMD total rather than the material list, so
+  // that one difference doesn't need special-casing anywhere else.
+  //
+  // Roster entries render as compact cards on the left of the Roster tab;
+  // clicking one opens the edit modal (current/target phase, level, skill
+  // level, mastery, modules) rather than editing inline, which leaves the
+  // "what you still need" list room to read as an actual list on the
+  // right instead of a cramped, wrapped cloud of chips.
 
   const SERVER = SERVERS.EN; // v1: EN data only
 
@@ -68,54 +76,86 @@
     setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP));
   }
 
+  // LMD and EXP are real, individually-iconed items in the game data
+  // (ids "4001" and "5001") -- kept searchable/addable in the depot like
+  // any other material, but their owned amounts subtract from the LMD/EXP
+  // totals directly rather than ever appearing as a generic material row.
+  const LMD_ITEM_ID = "4001";
+  const EXP_ITEM_ID = "5001";
+
   const tabBtnRoster = document.getElementById("tabBtnRoster");
   const tabBtnDepot = document.getElementById("tabBtnDepot");
   const tabPanelRoster = document.getElementById("tabPanelRoster");
   const tabPanelDepot = document.getElementById("tabPanelDepot");
   const searchInput = document.getElementById("operatorSearch");
   const searchResultsEl = document.getElementById("operatorSearchResults");
-  const rosterEl = document.getElementById("roster");
+  const rosterCardsEl = document.getElementById("rosterCards");
   const rosterEmptyEl = document.getElementById("rosterEmpty");
-  const summaryEl = document.getElementById("materialsSummary");
+  const rosterLayoutEl = document.getElementById("rosterLayout");
+  const summaryEl = document.getElementById("plannerSummary");
   const summaryLmdEl = document.getElementById("summaryLmd");
   const summaryExpEl = document.getElementById("summaryExp");
+  const summaryLmdOwnedEl = document.getElementById("summaryLmdOwned");
+  const summaryExpOwnedEl = document.getElementById("summaryExpOwned");
   const summaryCoveredNoteEl = document.getElementById("summaryCoveredNote");
   const summaryMaterialsEl = document.getElementById("summaryMaterials");
   const depotSearchInput = document.getElementById("depotSearch");
   const depotSearchResultsEl = document.getElementById("depotSearchResults");
   const depotListEl = document.getElementById("depotList");
   const depotEmptyEl = document.getElementById("depotEmpty");
+  const modalOverlayEl = document.getElementById("operatorEditModal");
+  const modalIconEl = document.getElementById("modalIcon");
+  const modalNameEl = document.getElementById("modalName");
+  const modalCloseEl = document.getElementById("modalClose");
+  const modalStatesEl = document.getElementById("modalStates");
+  const modalExtraEl = document.getElementById("modalExtra");
+  const modalRemoveEl = document.getElementById("modalRemove");
 
   let charTable = null; // charId -> operator record (rarity already 0-5 numeric, see util.js)
   let operatorList = []; // playable operators, sorted by name, for search
   let gameConst = null; // { characterExpMap, characterUpgradeCostMap, evolveGoldCost }
   let itemTable = null; // itemId -> { name, iconId, rarity, ... }
-  let itemList = []; // item records, sorted by name, for the depot search
+  let itemList = []; // item records (incl. LMD/EXP), sorted by name, for the depot search
   let roster = []; // [{ charId, current: {...}, target: {...} }] -- see defaultState()
-  let depot = {}; // itemId -> count you already own
+  let depot = {}; // itemId -> count you already own (incl. "4001" LMD, "5001" EXP)
   let dataReady = false;
   let highlightedIndex = -1;
   let currentResults = [];
   let depotHighlightedIndex = -1;
   let depotCurrentResults = [];
+  let editingIndex = -1; // roster index the edit modal is currently open on, -1 = closed
+
+  // A one-time migration for anyone who used this page back when it was
+  // called "materials" -- their roster/depot/active-tab were saved under
+  // the "materials" prefs section, and this page now reads/writes
+  // "planner" instead. Rename the section in place (once) rather than
+  // silently discarding their saved data.
+  (function migrateFromMaterialsSection() {
+    const blob = akPrefsLoadBlob();
+    if (blob.materials && !blob.planner) {
+      blob.planner = blob.materials;
+      delete blob.materials;
+      akPrefsSaveBlob(blob);
+    }
+  })();
 
   function loadRosterPref() {
-    return getPref("materials", "roster", [], (v) => Array.isArray(v));
+    return getPref("planner", "roster", [], (v) => Array.isArray(v));
   }
   function saveRosterPref() {
-    setPref("materials", "roster", roster);
+    setPref("planner", "roster", roster);
   }
   function loadDepotPref() {
-    return getPref("materials", "depot", {}, (v) => v && typeof v === "object");
+    return getPref("planner", "depot", {}, (v) => v && typeof v === "object");
   }
   function saveDepotPref() {
-    setPref("materials", "depot", depot);
+    setPref("planner", "depot", depot);
   }
   function loadActiveTabPref() {
-    return getPref("materials", "activeTab", "roster", (v) => v === "roster" || v === "depot");
+    return getPref("planner", "activeTab", "roster", (v) => v === "roster" || v === "depot");
   }
   function saveActiveTabPref(tab) {
-    setPref("materials", "activeTab", tab);
+    setPref("planner", "activeTab", tab);
   }
 
   // --- tabs --------------------------------------------------------------
@@ -175,8 +215,11 @@
       op.modules = modulesByChar[op.charId] || [];
     });
 
+    // LMD and EXP are real items too (ids "4001"/"5001") and stay in this
+    // list -- searchable and addable to the depot like any other
+    // material, same as they are in-game.
     itemList = Object.values(itemTable)
-      .filter((it) => it && it.name && it.itemId !== "4001")
+      .filter((it) => it && it.name)
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -384,75 +427,164 @@
   function removeOperator(index) {
     roster.splice(index, 1);
     saveRosterPref();
+    closeEditModal(); // indices shift on removal -- simplest to just close
     renderRoster();
     renderSummary();
   }
 
-  // --- rendering: roster --------------------------------------------------
+  // --- rendering: roster cards --------------------------------------------
+
+  // A compact one-line summary of where an operator is vs. where they're
+  // headed, shown on its card so there's something useful to see without
+  // opening the edit modal.
+  function formatCardStatus(op, entry) {
+    const c = entry.current;
+    const t = entry.target;
+    let line = `E${c.phase} Lv${c.level}`;
+    if (c.phase !== t.phase || c.level !== t.level) {
+      line += ` → E${t.phase} Lv${t.level}`;
+    }
+    if (hasSkills(op)) {
+      line += c.skillLevel === t.skillLevel ? ` · Sk.Lv ${c.skillLevel}` : ` · Sk.Lv ${c.skillLevel}→${t.skillLevel}`;
+    }
+    return line;
+  }
 
   function renderRoster() {
-    rosterEl.innerHTML = "";
+    rosterCardsEl.innerHTML = "";
     if (!dataReady) {
       rosterEmptyEl.textContent = "Loading operator data...";
       rosterEmptyEl.classList.remove("hidden");
+      rosterLayoutEl.classList.add("hidden");
       return;
     }
     if (!roster.length) {
       rosterEmptyEl.textContent = "No operators added yet -- search for one above to get started.";
       rosterEmptyEl.classList.remove("hidden");
+      rosterLayoutEl.classList.add("hidden");
       return;
     }
     rosterEmptyEl.classList.add("hidden");
+    rosterLayoutEl.classList.remove("hidden");
 
     roster.forEach((entry, index) => {
       const op = charTable[entry.charId];
       if (!op) return;
-      const row = document.createElement("div");
-      row.className = "rosterRow";
+      const card = document.createElement("div");
+      card.className = "operatorCard";
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
 
-      const mainRow = document.createElement("div");
-      mainRow.className = "rosterRowMain";
-
-      const opBlock = document.createElement("div");
-      opBlock.className = "rosterRowOperator";
       const icon = document.createElement("img");
-      icon.className = "rosterRowIcon";
+      icon.className = "operatorCardIcon";
       setAvatarIcon(icon, entry.charId);
       icon.alt = "";
-      const name = document.createElement("span");
-      name.className = "rosterRowName";
-      name.textContent = op.name;
-      opBlock.appendChild(icon);
-      opBlock.appendChild(name);
-      mainRow.appendChild(opBlock);
+      card.appendChild(icon);
 
-      const statesBlock = document.createElement("div");
-      statesBlock.className = "rosterRowStates";
-      statesBlock.appendChild(buildStateFields(op, entry, "current", index));
-      statesBlock.appendChild(buildStateFields(op, entry, "target", index));
-      mainRow.appendChild(statesBlock);
+      const info = document.createElement("div");
+      info.className = "operatorCardInfo";
+      const name = document.createElement("span");
+      name.className = "operatorCardName";
+      name.textContent = op.name;
+      const status = document.createElement("span");
+      status.className = "operatorCardStatus";
+      status.textContent = formatCardStatus(op, entry);
+      info.appendChild(name);
+      info.appendChild(status);
+      card.appendChild(info);
 
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
-      removeBtn.className = "rosterRowRemove";
+      removeBtn.className = "operatorCardRemove";
       removeBtn.setAttribute("aria-label", `Remove ${op.name}`);
       removeBtn.textContent = "×";
-      removeBtn.onclick = () => removeOperator(index);
-      mainRow.appendChild(removeBtn);
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        removeOperator(index);
+      };
+      card.appendChild(removeBtn);
 
-      row.appendChild(mainRow);
+      card.onclick = () => openEditModal(index);
+      card.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openEditModal(index);
+        }
+      };
 
-      const extra = buildExtraFields(op, entry);
-      if (extra) row.appendChild(extra);
-
-      rosterEl.appendChild(row);
+      rosterCardsEl.appendChild(card);
     });
+  }
+
+  // --- edit modal ----------------------------------------------------------
+
+  function openEditModal(index) {
+    editingIndex = index;
+    refreshModalFields();
+    modalOverlayEl.classList.remove("hidden");
+  }
+
+  function closeEditModal() {
+    editingIndex = -1;
+    modalOverlayEl.classList.add("hidden");
+  }
+
+  // Rebuilds the modal's own fields from the current roster entry --
+  // called both when the modal opens and after every field change (a
+  // phase change shifts the level field's valid range, for instance), so
+  // the modal never shows a stale control while it's open.
+  function refreshModalFields() {
+    if (editingIndex < 0 || !roster[editingIndex]) {
+      closeEditModal();
+      return;
+    }
+    const entry = roster[editingIndex];
+    const op = charTable[entry.charId];
+    if (!op) {
+      closeEditModal();
+      return;
+    }
+    setAvatarIcon(modalIconEl, entry.charId);
+    modalIconEl.alt = "";
+    modalNameEl.textContent = op.name;
+
+    modalStatesEl.innerHTML = "";
+    modalStatesEl.appendChild(buildStateFields(op, entry, "current"));
+    modalStatesEl.appendChild(buildStateFields(op, entry, "target"));
+
+    modalExtraEl.innerHTML = "";
+    const extra = buildExtraFields(op, entry);
+    if (extra) modalExtraEl.appendChild(extra);
+  }
+
+  modalCloseEl.addEventListener("click", closeEditModal);
+  modalOverlayEl.addEventListener("click", (e) => {
+    if (e.target === modalOverlayEl) closeEditModal();
+  });
+  modalRemoveEl.addEventListener("click", () => {
+    if (editingIndex >= 0) removeOperator(editingIndex);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modalOverlayEl.classList.contains("hidden")) {
+      closeEditModal();
+    }
+  });
+
+  // Every field change inside the modal goes through this: persist,
+  // refresh the card list (its status line may have changed), refresh
+  // the totals, and refresh the modal's own fields (a phase change moves
+  // the level field's valid range, for instance).
+  function onEditChange() {
+    saveRosterPref();
+    renderRoster();
+    renderSummary();
+    refreshModalFields();
   }
 
   // Mastery (per skill) and module (per module) rows -- each is its own
   // independent current -> target rank, so they're rendered as compact
-  // "label [current] -> [target]" lines below the main phase/level/skill
-  // row rather than folded into buildStateFields's two-column layout.
+  // "label [current] -> [target]" lines rather than folded into
+  // buildStateFields's two-column layout.
   function buildExtraFields(op, entry) {
     const masterySkills = (op.skills || []).filter((_, idx) => maxMastery(op, idx) > 0);
     const modules = op.modules || [];
@@ -504,8 +636,7 @@
       }
       sel.onchange = () => {
         state[stateKey][subKey] = parseInt(sel.value, 10);
-        saveRosterPref();
-        renderSummary();
+        onEditChange();
       };
       return sel;
     };
@@ -519,7 +650,7 @@
     return row;
   }
 
-  function buildStateFields(op, entry, which, index) {
+  function buildStateFields(op, entry, which) {
     const state = entry[which];
     const wrap = document.createElement("div");
     wrap.className = "rosterRowState";
@@ -542,9 +673,7 @@
     phaseSelect.onchange = () => {
       state.phase = parseInt(phaseSelect.value, 10);
       clampState(op, state);
-      saveRosterPref();
-      renderRoster();
-      renderSummary();
+      onEditChange();
     };
     fields.appendChild(phaseSelect);
 
@@ -557,9 +686,7 @@
       const v = parseInt(levelInput.value, 10);
       state.level = Number.isFinite(v) ? v : state.level;
       clampState(op, state);
-      saveRosterPref();
-      renderRoster();
-      renderSummary();
+      onEditChange();
     };
     fields.appendChild(levelInput);
 
@@ -574,9 +701,7 @@
       }
       skillSelect.onchange = () => {
         state.skillLevel = parseInt(skillSelect.value, 10);
-        saveRosterPref();
-        renderRoster();
-        renderSummary();
+        onEditChange();
       };
       fields.appendChild(skillSelect);
     }
@@ -593,6 +718,16 @@
     return RARITY_MAP[it.rarity] ?? 0;
   }
 
+  // LMD/EXP tiles show what's still needed after the depot's owned
+  // amount, same idea as a material row's shortfall -- but since the
+  // tile itself can't be hidden the way a fully-covered material row is,
+  // a full cover gets its own short note instead of "(have X of Y)".
+  function formatOwnedNote(owned, needed) {
+    if (owned <= 0) return null;
+    if (needed - owned <= 0) return "Fully covered by your depot";
+    return `(have ${owned.toLocaleString()} of ${needed.toLocaleString()})`;
+  }
+
   function renderSummary() {
     if (!dataReady || !roster.length) {
       summaryEl.classList.add("hidden");
@@ -600,13 +735,26 @@
     }
     summaryEl.classList.remove("hidden");
     const totals = calcRosterTotals();
-    summaryLmdEl.textContent = totals.lmd.toLocaleString();
-    summaryExpEl.textContent = totals.exp.toLocaleString();
+
+    const lmdOwned = depot[LMD_ITEM_ID] || 0;
+    const expOwned = depot[EXP_ITEM_ID] || 0;
+    summaryLmdEl.textContent = Math.max(0, totals.lmd - lmdOwned).toLocaleString();
+    summaryExpEl.textContent = Math.max(0, totals.exp - expOwned).toLocaleString();
+    const lmdNote = formatOwnedNote(lmdOwned, totals.lmd);
+    const expNote = formatOwnedNote(expOwned, totals.exp);
+    summaryLmdOwnedEl.textContent = lmdNote || "";
+    summaryLmdOwnedEl.classList.toggle("hidden", !lmdNote);
+    summaryExpOwnedEl.textContent = expNote || "";
+    summaryExpOwnedEl.classList.toggle("hidden", !expNote);
 
     // Materials the depot already fully covers are left out of the list
     // entirely -- the point of tracking what you own is to see what's
     // still missing, not to re-show something you don't need more of.
-    const neededIds = Object.keys(totals.materials).filter((id) => totals.materials[id] > 0);
+    // LMD/EXP never belong in this list at all (they have their own
+    // tiles above), even though nothing currently routes them here.
+    const neededIds = Object.keys(totals.materials).filter(
+      (id) => totals.materials[id] > 0 && id !== LMD_ITEM_ID && id !== EXP_ITEM_ID,
+    );
     const shortfallIds = neededIds.filter((id) => {
       const owned = depot[id] || 0;
       return totals.materials[id] - owned > 0;
@@ -634,28 +782,28 @@
       const owned = depot[id] || 0;
       const shortfall = totals.materials[id] - owned;
       const it = itemTable[id];
-      const chip = document.createElement("div");
-      chip.className = "summaryMaterialChip";
+      const row = document.createElement("div");
+      row.className = "summaryMaterialRow";
       const icon = document.createElement("img");
       icon.className = "summaryMaterialIcon";
       setItemIcon(icon, it && it.iconId);
       icon.alt = "";
-      chip.appendChild(icon);
+      row.appendChild(icon);
       const label = document.createElement("span");
       label.className = "summaryMaterialName";
       label.textContent = (it && it.name) || id;
-      chip.appendChild(label);
+      row.appendChild(label);
       const countEl = document.createElement("span");
       countEl.className = "summaryMaterialCount";
       countEl.textContent = "×" + shortfall.toLocaleString();
-      chip.appendChild(countEl);
+      row.appendChild(countEl);
       if (owned > 0) {
         const ownedEl = document.createElement("span");
         ownedEl.className = "summaryMaterialOwned";
         ownedEl.textContent = `(have ${owned.toLocaleString()} of ${totals.materials[id].toLocaleString()})`;
-        chip.appendChild(ownedEl);
+        row.appendChild(ownedEl);
       }
-      summaryMaterialsEl.appendChild(chip);
+      summaryMaterialsEl.appendChild(row);
     }
   }
 

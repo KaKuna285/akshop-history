@@ -1,9 +1,9 @@
-/* Every top-level block on this page (intro, tabs, roster, summary, depot)
+/* Every top-level block on this page (intro, tabs, roster layout, depot)
    shares this same max-width/padding/centering so their left and right
    edges all line up as you scroll, instead of each block picking its own
    narrower width and drifting out of alignment with the ones above and
    below it. */
-#materialsIntro {
+#plannerIntro {
   max-width: 900px;
   margin: 16px auto 20px;
   padding: 0 16px;
@@ -13,7 +13,7 @@
   text-align: center;
 }
 
-#materialsTabs {
+#plannerTabs {
   max-width: 900px;
   margin: 0 auto 20px;
   padding: 0 16px;
@@ -21,7 +21,7 @@
   gap: 8px;
 }
 
-.materialsTab {
+.plannerTab {
   flex: 0 0 auto;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -32,12 +32,12 @@
   cursor: pointer;
 }
 
-.materialsTab:hover {
+.plannerTab:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #ddd;
 }
 
-.materialsTab.active {
+.plannerTab.active {
   background: rgba(248, 213, 17, 0.12);
   border-color: rgba(248, 213, 17, 0.4);
   color: #f8d511;
@@ -55,8 +55,8 @@
 }
 
 /* Left-aligned (not independently centered) so its edge matches the
-   roster/depot rows below it, rather than floating as its own narrower
-   centered block. */
+   roster cards/depot rows below it, rather than floating as its own
+   narrower centered block. */
 #operatorAdd,
 #depotAdd {
   max-width: 480px;
@@ -72,11 +72,13 @@
   color: #aaa;
 }
 
-#operatorSearchWrap {
+#operatorSearchWrap,
+#depotSearchWrap {
   position: relative;
 }
 
-#operatorSearch {
+#operatorSearch,
+#depotSearch {
   width: 100%;
   box-sizing: border-box;
   padding: 8px 10px;
@@ -87,7 +89,8 @@
   font-size: 0.95rem;
 }
 
-#operatorSearchResults {
+#operatorSearchResults,
+#depotSearchResults {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -100,7 +103,8 @@
   z-index: 20;
 }
 
-#operatorSearchResults.hidden {
+#operatorSearchResults.hidden,
+#depotSearchResults.hidden {
   display: none;
 }
 
@@ -148,76 +152,46 @@
   display: none;
 }
 
-/* Width/centering now comes from the .tabPanel it lives in, so it lines
-   up with the search bar and summary above and below it instead of
-   picking its own independent width. */
-#roster {
+/* Two-column layout: compact operator cards on the left, the
+   list-style "what you still need" summary on the right. Stacks on
+   narrow screens (see the media query at the bottom). */
+#rosterLayout {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 24px;
 }
 
-.rosterRow {
+#rosterLayout.hidden {
+  display: none;
+}
+
+#rosterCards {
+  flex: 0 0 300px;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.operatorCard {
+  display: flex;
+  align-items: center;
   gap: 10px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  padding: 12px 16px;
+  padding: 8px 10px;
+  cursor: pointer;
 }
 
-.rosterRowMain {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
+.operatorCard:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
-.rosterRowExtra {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.rosterRowRank {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.rosterRowRankLabel {
-  font-size: 0.78rem;
-  color: #aaa;
-  min-width: 130px;
-}
-
-.rosterRowRank select {
-  background: #1c1c1c;
-  color: #eee;
-  border: 1px solid #555;
-  border-radius: 4px;
-  padding: 3px 6px;
-  font-size: 0.82rem;
-}
-
-.rosterRowRankArrow {
-  color: #777;
-  font-size: 0.8rem;
-}
-
-.rosterRowOperator {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 160px;
-  flex: 0 0 auto;
-}
-
-.rosterRowIcon {
+.operatorCardIcon {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -226,78 +200,55 @@
   flex: 0 0 auto;
 }
 
-.rosterRowName {
-  font-weight: bold;
-  font-size: 0.95rem;
-  color: #eee;
-}
-
-.rosterRowStates {
+.operatorCardInfo {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 18px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
   flex: 1 1 auto;
 }
 
-.rosterRowState {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.rosterRowStateLabel {
-  font-size: 0.7rem;
+.operatorCardName {
   font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #999;
-}
-
-.rosterRowStateFields {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.rosterRowStateFields select,
-.rosterRowStateFields input[type="number"] {
-  background: #1c1c1c;
+  font-size: 0.92rem;
   color: #eee;
-  border: 1px solid #555;
-  border-radius: 4px;
-  padding: 4px 6px;
-  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.rosterRowStateFields input[type="number"] {
-  width: 56px;
+.operatorCardStatus {
+  font-size: 0.75rem;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.rosterRowRemove {
+.operatorCardRemove {
   flex: 0 0 auto;
-  margin-left: auto;
   background: none;
   border: none;
   color: #999;
   font-size: 1.1rem;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 6px;
 }
 
-.rosterRowRemove:hover {
+.operatorCardRemove:hover {
   color: #e55;
 }
 
-#materialsSummary {
-  margin: 28px 0 16px;
+#plannerSummary {
+  flex: 1 1 380px;
+  min-width: 0;
 }
 
-#materialsSummary.hidden {
+#plannerSummary.hidden {
   display: none;
 }
 
-.materialsSectionHeading {
+.plannerSectionHeading {
   font-size: 1.1rem;
   margin: 0 0 12px;
   color: #eee;
@@ -332,19 +283,31 @@
   color: #f8d511;
 }
 
-#summaryMaterials {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.summaryTotalOwned {
+  font-size: 0.72rem;
+  color: #999;
 }
 
-.summaryMaterialChip {
+.summaryTotalOwned.hidden {
+  display: none;
+}
+
+/* The "what you still need" list -- one row per material, rather than
+   the old wrapped pill-chip layout, so it reads as a list next to the
+   operator cards instead of a cluttered cloud of tags. */
+#summaryMaterials {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryMaterialRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-  padding: 4px 12px 4px 4px;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 6px 12px 6px 6px;
 }
 
 .summaryMaterialIcon {
@@ -359,20 +322,32 @@
 /* Set on any icon <img> (operator avatar or material icon) once both the
    primary and fallback asset sources have failed to load -- keeps the
    circular background placeholder visible instead of a broken-image
-   glyph. See setIconWithFallback() in materials.js. */
+   glyph. See setIconWithFallback() in planner.js. */
 .iconMissing {
   visibility: hidden;
 }
 
 .summaryMaterialName {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: #eee;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .summaryMaterialCount {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: #f8d511;
   font-weight: bold;
+  flex: 0 0 auto;
+}
+
+.summaryMaterialOwned {
+  font-size: 0.72rem;
+  color: #999;
+  flex: 0 0 auto;
 }
 
 #depotIntro {
@@ -381,38 +356,6 @@
   line-height: 1.4;
   margin-bottom: 14px;
   max-width: 640px;
-}
-
-#depotSearchWrap {
-  position: relative;
-}
-
-#depotSearch {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #555;
-  background: #1c1c1c;
-  color: #eee;
-  font-size: 0.95rem;
-}
-
-#depotSearchResults {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  max-height: 280px;
-  overflow-y: auto;
-  background: #2c2c2c;
-  border: 1px solid #555;
-  border-radius: 6px;
-  z-index: 20;
-}
-
-#depotSearchResults.hidden {
-  display: none;
 }
 
 #depotList {
@@ -480,15 +423,171 @@
   display: none;
 }
 
-.summaryMaterialOwned {
-  font-size: 0.72rem;
+/* --- edit modal -- opened by clicking an operator card, holds every
+   editable value (current/target phase, level, skill level, mastery,
+   modules) that used to live inline in the roster row. --------------- */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.modalOverlay.hidden {
+  display: none;
+}
+
+.modalPanel {
+  background: #232323;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 16px 20px 20px;
+  max-width: 520px;
+  width: 100%;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.modalOperator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+}
+
+.modalIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.modalName {
+  font-weight: bold;
+  font-size: 1.05rem;
+  color: #eee;
+}
+
+.modalClose {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 2px 8px;
+}
+
+.modalClose:hover {
+  color: #eee;
+}
+
+.modalStates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rosterRowState {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rosterRowStateLabel {
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: #999;
 }
 
-/* Matches calendar's #pageCredit treatment exactly -- this page never had
-   its own rule for it, so the credit link fell back to the browser's
-   default (unmuted, high-contrast) link styling instead of the same
-   muted, readable treatment every other page's credit link gets. */
+.rosterRowStateFields {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rosterRowStateFields select,
+.rosterRowStateFields input[type="number"] {
+  background: #1c1c1c;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+}
+
+.rosterRowStateFields input[type="number"] {
+  width: 56px;
+}
+
+.modalExtra {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.rosterRowRank {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rosterRowRankLabel {
+  font-size: 0.78rem;
+  color: #aaa;
+  min-width: 130px;
+}
+
+.rosterRowRank select {
+  background: #1c1c1c;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.82rem;
+}
+
+.rosterRowRankArrow {
+  color: #777;
+  font-size: 0.8rem;
+}
+
+.modalRemove {
+  background: none;
+  border: 1px solid rgba(229, 85, 85, 0.4);
+  color: #e88;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.modalRemove:hover {
+  background: rgba(229, 85, 85, 0.12);
+  color: #faa;
+}
+
+/* Matches calendar's #pageCredit treatment exactly. */
 #pageCredit {
   max-width: 900px;
   margin: 16px auto 24px;
@@ -506,15 +605,21 @@
   color: #ccc;
 }
 
-@media (max-width: 600px) {
-  .rosterRowMain {
+@media (max-width: 760px) {
+  #rosterLayout {
     flex-direction: column;
-    align-items: flex-start;
   }
-  .rosterRowRemove {
-    margin-left: 0;
+  #rosterCards {
+    flex-basis: auto;
+    width: 100%;
   }
-  .materialsTab {
+  #plannerSummary {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .plannerTab {
     flex: 1 1 0;
     text-align: center;
   }

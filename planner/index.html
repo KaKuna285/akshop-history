@@ -1,0 +1,160 @@
+<html>
+  <head>
+    <title>Arknights Operator Planner</title>
+    <meta charset="UTF-8" />
+    <meta
+      name="description"
+      content="Calculate the LMD, EXP, and materials needed to raise one or more operators' level, Elite promotion, skill level, mastery, and modules to a target."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ak.athansson.com/planner/" />
+    <meta property="og:title" content="Operator Planner" />
+    <meta
+      property="og:description"
+      content="Calculate the LMD, EXP, and materials needed to raise one or more operators' level, Elite promotion, skill level, mastery, and modules to a target."
+    />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link type="text/css" href="/css/reset.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style2.css" rel="stylesheet" />
+    <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
+    <link type="text/css" href="/css/planner-extra.css" rel="stylesheet" />
+    <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/prefs.js"></script>
+    <script type="text/javascript" src="/js/util.js"></script>
+  </head>
+  <body>
+    <div id="topNav">
+      <div class="nav-left">
+        <a id="pageTitle">Operator Planner</a>
+      </div>
+      <div class="nav-right">
+        <a class="rightButton button iconButton" href="/" id="homeButton"></a>
+      </div>
+    </div>
+    <div id="plannerIntro">
+      Add operators below, click a card to set where it is now and where you
+      want it, and the totals update automatically. Covers operator level,
+      Elite promotion, skill level, skill mastery, and module stages. Switch
+      to the Your Depot tab to add what you already own, so the totals
+      reflect what's actually still missing.
+    </div>
+
+    <div id="plannerTabs" role="tablist">
+      <button
+        type="button"
+        class="plannerTab active"
+        id="tabBtnRoster"
+        data-tab="roster"
+        role="tab"
+        aria-selected="true"
+      >
+        Roster
+      </button>
+      <button
+        type="button"
+        class="plannerTab"
+        id="tabBtnDepot"
+        data-tab="depot"
+        role="tab"
+        aria-selected="false"
+      >
+        Your Depot
+      </button>
+    </div>
+
+    <div id="tabPanelRoster" class="tabPanel">
+      <div id="operatorAdd">
+        <label for="operatorSearch">Add operator</label>
+        <div id="operatorSearchWrap">
+          <input
+            type="text"
+            id="operatorSearch"
+            placeholder="Type a name..."
+            autocomplete="off"
+          />
+          <div id="operatorSearchResults" class="hidden"></div>
+        </div>
+      </div>
+      <div id="rosterEmpty" class="rosterEmpty">
+        No operators added yet -- search for one above to get started.
+      </div>
+
+      <div id="rosterLayout" class="hidden">
+        <div id="rosterCards"></div>
+
+        <div id="plannerSummary" class="hidden">
+          <h2 class="plannerSectionHeading">Total needed</h2>
+          <div id="summaryTotals">
+            <div class="summaryTotal">
+              <span class="summaryTotalLabel">LMD</span>
+              <span class="summaryTotalValue" id="summaryLmd">0</span>
+              <span class="summaryTotalOwned hidden" id="summaryLmdOwned"></span>
+            </div>
+            <div class="summaryTotal">
+              <span class="summaryTotalLabel">EXP</span>
+              <span class="summaryTotalValue" id="summaryExp">0</span>
+              <span class="summaryTotalOwned hidden" id="summaryExpOwned"></span>
+            </div>
+          </div>
+          <div id="summaryCoveredNote" class="summaryCoveredNote hidden"></div>
+          <div id="summaryMaterials"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tabPanelDepot" class="tabPanel hidden">
+      <div id="depotIntro">
+        Materials (and LMD, and EXP) you already own -- entered once,
+        subtracted from the totals on the Roster tab so you see what's
+        actually still missing.
+      </div>
+      <div id="depotAdd">
+        <label for="depotSearch">Add material</label>
+        <div id="depotSearchWrap">
+          <input
+            type="text"
+            id="depotSearch"
+            placeholder="Type a material name..."
+            autocomplete="off"
+          />
+          <div id="depotSearchResults" class="hidden"></div>
+        </div>
+      </div>
+      <div id="depotEmpty" class="rosterEmpty">
+        No materials tracked yet -- search for one above.
+      </div>
+      <div id="depotList"></div>
+    </div>
+
+    <div id="pageCredit">
+      Operator data from
+      <a href="https://github.com/Kengxxiao/ArknightsGameData_YoStar" target="_blank" rel="noopener"
+        >ArknightsGameData</a
+      >
+    </div>
+
+    <div id="operatorEditModal" class="modalOverlay hidden">
+      <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="modalName">
+        <div class="modalHeader">
+          <div class="modalOperator">
+            <img id="modalIcon" class="modalIcon" alt="" />
+            <span id="modalName" class="modalName"></span>
+          </div>
+          <button type="button" id="modalClose" class="modalClose" aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div id="modalStates" class="modalStates"></div>
+        <div id="modalExtra" class="modalExtra"></div>
+        <button type="button" id="modalRemove" class="modalRemove">
+          Remove operator
+        </button>
+      </div>
+    </div>
+
+    <script type="text/javascript" src="/js/planner.js"></script>
+  </body>
+</html>
