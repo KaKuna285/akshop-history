@@ -154,11 +154,23 @@
 }
 
 .eventPreviewImg {
-  width: 220px;
-  height: 124px;
-  object-fit: cover;
+  /* Event banners are wide (the wiki's own crop is 1560x500, ~3.12:1) --
+     a fixed 220x124 box with object-fit:cover was cropping away close to
+     half of the image's width to force it into a much taller-relative-
+     to-width shape than the source art actually is, cutting off titling
+     and art that sits near the banner's edges. flex-basis 100% puts it
+     on its own row (the card has plenty of width to spare for this --
+     see .eventPreview's max-width), sized by its own real aspect ratio
+     so the full banner always shows with no cropping, and object-fit:
+     contain (rather than cover) is a safety net for the handful of
+     banners that aren't quite 3.12:1 (letterboxed into the background
+     fill below rather than cropped).*/
+  flex: 1 1 100%;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3.12 / 1;
+  object-fit: contain;
   border-radius: 8px;
-  flex: 0 0 auto;
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -864,12 +876,6 @@
 
   .eventPreview {
     padding: 16px 40px 16px 16px;
-  }
-
-  .eventPreviewImg {
-    width: 100%;
-    height: auto;
-    max-height: 160px;
   }
 
   #calendarControls {
