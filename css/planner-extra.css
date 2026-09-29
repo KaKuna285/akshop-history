@@ -172,9 +172,12 @@
   display: none;
 }
 
-/* Two-column layout: compact operator cards on the left, the
-   list-style "what you still need" summary on the right. Stacks on
-   narrow screens (see the media query at the bottom). */
+/* Two-column layout: the "Add operator" search bar + operator cards on
+   the left, the list-style "what you still need" summary on the right --
+   always both present (even with an empty roster, so there's somewhere
+   to add the first operator), which is what keeps "Total needed" level
+   with "Add operator" instead of starting only once cards exist. Stacks
+   on narrow screens (see the media query at the bottom). */
 #rosterLayout {
   max-width: 900px;
   margin: 0 auto;
@@ -184,12 +187,14 @@
   gap: 24px;
 }
 
-#rosterLayout.hidden {
-  display: none;
+#rosterLeftCol {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 #rosterCards {
-  flex: 0 0 300px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -642,7 +647,7 @@
   #rosterLayout {
     flex-direction: column;
   }
-  #rosterCards {
+  #rosterLeftCol {
     flex-basis: auto;
     width: 100%;
   }

@@ -66,24 +66,25 @@
     </div>
 
     <div id="tabPanelRoster" class="tabPanel">
-      <div id="operatorAdd">
-        <label for="operatorSearch">Add operator</label>
-        <div id="operatorSearchWrap">
-          <input
-            type="text"
-            id="operatorSearch"
-            placeholder="Type a name..."
-            autocomplete="off"
-          />
-          <div id="operatorSearchResults" class="hidden"></div>
+      <div id="rosterLayout">
+        <div id="rosterLeftCol">
+          <div id="operatorAdd">
+            <label for="operatorSearch">Add operator</label>
+            <div id="operatorSearchWrap">
+              <input
+                type="text"
+                id="operatorSearch"
+                placeholder="Type a name..."
+                autocomplete="off"
+              />
+              <div id="operatorSearchResults" class="hidden"></div>
+            </div>
+          </div>
+          <div id="rosterEmpty" class="rosterEmpty">
+            No operators added yet -- search for one above to get started.
+          </div>
+          <div id="rosterCards"></div>
         </div>
-      </div>
-      <div id="rosterEmpty" class="rosterEmpty">
-        No operators added yet -- search for one above to get started.
-      </div>
-
-      <div id="rosterLayout" class="hidden">
-        <div id="rosterCards"></div>
 
         <div id="plannerSummary" class="hidden">
           <h2 class="plannerSectionHeading">Total needed</h2>

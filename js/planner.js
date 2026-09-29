@@ -84,11 +84,14 @@
   // shown with EN data throughout but marked wherever it appears (search
   // results, roster card, edit modal, depot row, materials list) so it's
   // never mistaken for an EN-available entry.
-  function buildCnBadge() {
+  function buildCnBadge(entity) {
     const badge = document.createElement("span");
     badge.className = "cnBadge";
     badge.textContent = "CN";
-    badge.title = "Not yet released on the EN server -- shown using CN data";
+    badge.title =
+      entity && entity.cnName
+        ? `Not yet released on the EN server -- shown under its CN codename (original CN name: ${entity.cnName})`
+        : "Not yet released on the EN server -- shown using CN data";
     return badge;
   }
 
@@ -107,7 +110,6 @@
   const searchResultsEl = document.getElementById("operatorSearchResults");
   const rosterCardsEl = document.getElementById("rosterCards");
   const rosterEmptyEl = document.getElementById("rosterEmpty");
-  const rosterLayoutEl = document.getElementById("rosterLayout");
   const summaryEl = document.getElementById("plannerSummary");
   const summaryLmdEl = document.getElementById("summaryLmd");
   const summaryExpEl = document.getElementById("summaryExp");
@@ -228,6 +230,18 @@
       for (const [charId, op] of Object.entries(cnChars)) {
         if (!charTable[charId]) {
           op.cnOnly = true;
+          // CN's own character_table.json has no English localization for
+          // an operator EN hasn't gotten yet -- "name" is in Chinese, so
+          // searching/reading it by an English term wouldn't work at all.
+          // "appellation" is the operator's internal codename and is
+          // always Latin (this is how every other AK tool displays
+          // not-yet-localized operators too) -- use that as the
+          // searchable/displayed name instead, keeping the original
+          // Chinese name (cnName) around only for the CN badge's tooltip.
+          if (op.appellation && /[A-Za-z]/.test(op.appellation)) {
+            op.cnName = op.name;
+            op.name = op.appellation;
+          }
           charTable[charId] = op;
         }
       }
@@ -536,20 +550,20 @@
 
   function renderRoster() {
     rosterCardsEl.innerHTML = "";
+    // #rosterLayout (and the "Add operator" search bar inside it) always
+    // stays visible now, even with an empty/loading roster -- only the
+    // empty-state message vs. the card list toggles within it.
     if (!dataReady) {
       rosterEmptyEl.textContent = "Loading operator data...";
       rosterEmptyEl.classList.remove("hidden");
-      rosterLayoutEl.classList.add("hidden");
       return;
     }
     if (!roster.length) {
       rosterEmptyEl.textContent = "No operators added yet -- search for one above to get started.";
       rosterEmptyEl.classList.remove("hidden");
-      rosterLayoutEl.classList.add("hidden");
       return;
     }
     rosterEmptyEl.classList.add("hidden");
-    rosterLayoutEl.classList.remove("hidden");
 
     roster.forEach((entry, index) => {
       const op = charTable[entry.charId];
@@ -571,7 +585,7 @@
       name.className = "operatorCardName";
       name.textContent = op.name;
       info.appendChild(name);
-      if (op.cnOnly) info.appendChild(buildCnBadge());
+      if (op.cnOnly) info.appendChild(buildCnBadge(op));
       card.appendChild(info);
       card.title = formatCardTooltip(op, entry);
 
@@ -632,7 +646,7 @@
     modalNameEl.parentNode
       .querySelectorAll(".cnBadge")
       .forEach((el) => el.remove());
-    if (op.cnOnly) modalNameEl.insertAdjacentElement("afterend", buildCnBadge());
+    if (op.cnOnly) modalNameEl.insertAdjacentElement("afterend", buildCnBadge(op));
 
     modalStatesEl.innerHTML = "";
     modalStatesEl.appendChild(buildStateFields(op, entry, "current"));
@@ -881,7 +895,7 @@
       label.className = "summaryMaterialName";
       label.textContent = (it && it.name) || id;
       labelWrap.appendChild(label);
-      if (it && it.cnOnly) labelWrap.appendChild(buildCnBadge());
+      if (it && it.cnOnly) labelWrap.appendChild(buildCnBadge(it));
       row.appendChild(labelWrap);
       const countEl = document.createElement("span");
       countEl.className = "summaryMaterialCount";
@@ -922,7 +936,7 @@
       rarity.textContent = (op.rarity + 1) + "★";
       row.appendChild(icon);
       row.appendChild(name);
-      if (op.cnOnly) row.appendChild(buildCnBadge());
+      if (op.cnOnly) row.appendChild(buildCnBadge(op));
       row.appendChild(rarity);
       row.onclick = () => selectSearchResult(op);
       searchResultsEl.appendChild(row);
@@ -1037,7 +1051,7 @@
         name.className = "depotRowName";
         name.textContent = (it && it.name) || id;
         nameWrap.appendChild(name);
-        if (it && it.cnOnly) nameWrap.appendChild(buildCnBadge());
+        if (it && it.cnOnly) nameWrap.appendChild(buildCnBadge(it));
         row.appendChild(nameWrap);
         const countInput = document.createElement("input");
         countInput.type = "number";
@@ -1094,7 +1108,7 @@
       name.textContent = it.name;
       row.appendChild(icon);
       row.appendChild(name);
-      if (it.cnOnly) row.appendChild(buildCnBadge());
+      if (it.cnOnly) row.appendChild(buildCnBadge(it));
       row.onclick = () => selectDepotSearchResult(it);
       depotSearchResultsEl.appendChild(row);
     });
