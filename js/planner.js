@@ -1342,7 +1342,17 @@
         `This will replace your current depot entirely -- anything you've tracked manually and ` +
         `isn't in this list will be removed.`;
       depotImportConfirmEl.classList.remove("hidden");
-      setDepotImportStatus("");
+      // TEMPORARY, while pinning down the real syncData response shape
+      // (see cloudflare/depot-import.js's shapeSummary()) -- surfaced
+      // here instead of only in the console so it's easy to copy back
+      // without digging through devtools. Safe to remove once the
+      // inventory field mapping is confirmed correct.
+      if (body.debug) {
+        console.log("depot-import debug shape:", body.debug);
+        setDepotImportStatus("DEBUG (copy this back): " + JSON.stringify(body.debug));
+      } else {
+        setDepotImportStatus("");
+      }
     } catch (err) {
       setDepotImportStatus(err.message || "Couldn't fetch your depot.", true);
     } finally {

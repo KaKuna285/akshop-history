@@ -470,6 +470,29 @@ async function getGameSecret(gsHost, uid, u8Token, versions, deviceIds) {
   return secret;
 }
 
+// TEMPORARY: shape of the real syncData response is still being confirmed
+// against a live account (see the "0 items" report) -- this returns a
+// structural summary (key names only, never values) alongside the result
+// so we can see exactly where the item map actually lives without another
+// guess-and-redeploy round trip. Safe to send back to the caller (it's the
+// account's own owner asking), unlike anything that would go to a log.
+function shapeSummary(obj, depth) {
+  if (!obj || typeof obj !== "object") return typeof obj;
+  const keys = Object.keys(obj);
+  const summary = { _type: Array.isArray(obj) ? "array" : "object", _keyCount: keys.length };
+  if (depth > 0) {
+    summary._keys = {};
+    for (const k of keys.slice(0, 40)) {
+      const v = obj[k];
+      summary._keys[k] =
+        v && typeof v === "object" ? shapeSummary(v, depth - 1) : typeof v;
+    }
+  } else {
+    summary._keys = keys.slice(0, 40);
+  }
+  return summary;
+}
+
 async function getInventory(gsHost, uid, secret) {
   const resp = await fetch(`${gsHost}/account/syncData`, {
     method: "POST",
@@ -481,7 +504,16 @@ async function getInventory(gsHost, uid, secret) {
   if (!user || typeof user.inventory !== "object" || user.inventory == null) {
     throw new StepError("sync data", "Account data didn't include an inventory.");
   }
-  return user;
+  // Always attached for now (not just on an empty result) -- a wrapper
+  // object one level off (e.g. inventory.items instead of a flat map)
+  // would still produce a non-empty-but-wrong top-level key count, which
+  // an empty-only check would miss.
+  const debug = {
+    topLevelShape: shapeSummary(data, 1),
+    userShape: user === data ? null : shapeSummary(user, 1),
+    inventoryShape: shapeSummary(user.inventory, 1),
+  };
+  return { user, debug };
 }
 
 async function fetchDepot(email, code) {
@@ -493,11 +525,12 @@ async function fetchDepot(email, code) {
 
   const { uid, token: u8Token } = await getU8Token(network.u8, channelUid, accessToken, deviceIds);
   const secret = await getGameSecret(network.gs, uid, u8Token, versions, deviceIds);
-  const user = await getInventory(network.gs, uid, secret);
+  const { user, debug } = await getInventory(network.gs, uid, secret);
 
   return {
     depot: user.inventory,
     nickname: user?.status?.nickName ?? user?.status?.nickname ?? null,
     level: user?.status?.level ?? null,
+    debug,
   };
 }
