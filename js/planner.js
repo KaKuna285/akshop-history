@@ -49,34 +49,65 @@
   // ASSET_SOURCE.ACESHIP in util.js) and, if that also fails, hide the
   // <img> so the icon's circular background shows as an empty placeholder
   // instead of a jarring broken-image icon.
-  function setIconWithFallback(imgEl, primarySrc, fallbackSrc) {
-    imgEl.src = primarySrc;
-    imgEl.onerror = () => {
-      if (fallbackSrc && fallbackSrc !== primarySrc) {
-        imgEl.onerror = () => {
-          imgEl.onerror = null;
-          imgEl.classList.add("iconMissing");
-        };
-        imgEl.src = fallbackSrc;
+  //
+  // Both of those sources are mirrors of RELEASED client data (an EN
+  // client asset dump, and an EN-focused community art repo respectively)
+  // -- an operator/material that isn't out on EN yet has no art in either
+  // one, by construction, regardless of iconId/charId correctness. There's
+  // no reliable third-party mirror of actual CN client art currently
+  // reachable (checked: a dedicated CN asset-dump repo exists but its real
+  // path layout isn't discoverable, and wiki sites that do show this art
+  // block scripted access). So for a cnOnly entity specifically, once both
+  // real sources fail, show a small generated "CN" placeholder instead of
+  // the plain blank circle -- same "nothing to show yet" outcome, but it
+  // reads as expected/labeled rather than looking like a broken image.
+  const CN_ICON_PLACEHOLDER =
+    "data:image/svg+xml," +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">' +
+        '<rect width="64" height="64" fill="#2a2a2a"/>' +
+        '<text x="32" y="40" font-family="sans-serif" font-size="20" ' +
+        'font-weight="bold" fill="#ff9f43" text-anchor="middle">CN</text>' +
+        "</svg>",
+    );
+  function setIconWithFallback(imgEl, primarySrc, fallbackSrc, isCnOnly) {
+    const giveUp = () => {
+      if (isCnOnly) {
+        imgEl.onerror = null;
+        imgEl.src = CN_ICON_PLACEHOLDER;
       } else {
         imgEl.onerror = null;
         imgEl.classList.add("iconMissing");
       }
     };
+    imgEl.src = primarySrc;
+    imgEl.onerror = () => {
+      if (fallbackSrc && fallbackSrc !== primarySrc) {
+        imgEl.onerror = giveUp;
+        imgEl.src = fallbackSrc;
+      } else {
+        giveUp();
+      }
+    };
   }
-  function setAvatarIcon(imgEl, charId) {
+  function setAvatarIcon(imgEl, charId, isCnOnly) {
     setIconWithFallback(
       imgEl,
       uri_avatar(charId),
       uri_avatar(charId, ASSET_SOURCE.ACESHIP),
+      isCnOnly,
     );
   }
-  function setItemIcon(imgEl, iconId) {
+  function setItemIcon(imgEl, iconId, isCnOnly) {
     if (!iconId) {
-      imgEl.classList.add("iconMissing");
+      if (isCnOnly) {
+        imgEl.src = CN_ICON_PLACEHOLDER;
+      } else {
+        imgEl.classList.add("iconMissing");
+      }
       return;
     }
-    setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP));
+    setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP), isCnOnly);
   }
 
   // A small "CN" tag for any operator/material flagged cnOnly during the
@@ -575,7 +606,7 @@
 
       const icon = document.createElement("img");
       icon.className = "operatorCardIcon";
-      setAvatarIcon(icon, entry.charId);
+      setAvatarIcon(icon, entry.charId, op.cnOnly);
       icon.alt = "";
       card.appendChild(icon);
 
@@ -640,7 +671,7 @@
       closeEditModal();
       return;
     }
-    setAvatarIcon(modalIconEl, entry.charId);
+    setAvatarIcon(modalIconEl, entry.charId, op.cnOnly);
     modalIconEl.alt = "";
     modalNameEl.textContent = op.name;
     modalNameEl.parentNode
@@ -886,7 +917,7 @@
       row.className = "summaryMaterialRow";
       const icon = document.createElement("img");
       icon.className = "summaryMaterialIcon";
-      setItemIcon(icon, it && it.iconId);
+      setItemIcon(icon, it && it.iconId, it && it.cnOnly);
       icon.alt = "";
       row.appendChild(icon);
       const labelWrap = document.createElement("span");
@@ -926,7 +957,7 @@
       row.className = "operatorSearchResult" + (i === highlightedIndex ? " highlighted" : "");
       const icon = document.createElement("img");
       icon.className = "operatorSearchResultIcon";
-      setAvatarIcon(icon, op.charId);
+      setAvatarIcon(icon, op.charId, op.cnOnly);
       icon.alt = "";
       const name = document.createElement("span");
       name.className = "operatorSearchResultName";
@@ -1042,7 +1073,7 @@
         row.className = "depotRow";
         const icon = document.createElement("img");
         icon.className = "depotRowIcon";
-        setItemIcon(icon, it && it.iconId);
+        setItemIcon(icon, it && it.iconId, it && it.cnOnly);
         icon.alt = "";
         row.appendChild(icon);
         const nameWrap = document.createElement("span");
@@ -1101,7 +1132,7 @@
         "operatorSearchResult" + (i === depotHighlightedIndex ? " highlighted" : "");
       const icon = document.createElement("img");
       icon.className = "operatorSearchResultIcon";
-      setItemIcon(icon, it.iconId);
+      setItemIcon(icon, it.iconId, it.cnOnly);
       icon.alt = "";
       const name = document.createElement("span");
       name.className = "operatorSearchResultName";
