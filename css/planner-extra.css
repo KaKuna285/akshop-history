@@ -377,6 +377,32 @@
   flex: 0 0 auto;
 }
 
+/* Group headings inside #summaryMaterials (Chips / Skill Summaries /
+   Module Items / Farming Materials, plus the per-rarity sub-headings
+   inside Farming Materials). Both sit in the same flex column as the
+   rows they label, so their own top margin is what separates one
+   group from the row above it -- reset on the very first heading so
+   the list doesn't start with a stray gap under "Total needed". */
+.summaryCategoryHeading {
+  font-size: 0.72rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #999;
+  margin: 10px 0 0;
+}
+
+.summaryRarityHeading {
+  font-size: 0.68rem;
+  color: #f8d511;
+  opacity: 0.8;
+  margin: 6px 0 0 2px;
+}
+
+#summaryMaterials > .summaryCategoryHeading:first-child {
+  margin-top: 0;
+}
+
 #depotIntro {
   color: var(--light-text-color, #999);
   font-size: 0.82rem;

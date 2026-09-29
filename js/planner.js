@@ -859,6 +859,57 @@
     return `(have ${owned.toLocaleString()} of ${needed.toLocaleString()})`;
   }
 
+  // Builds one material row, shared by every category in the grouped
+  // summary list below -- identical markup to what used to be inlined
+  // directly in renderSummary()'s loop.
+  function buildSummaryMaterialRow(id, totals) {
+    const owned = depot[id] || 0;
+    const shortfall = totals.materials[id] - owned;
+    const it = itemTable[id];
+    const row = document.createElement("div");
+    row.className = "summaryMaterialRow";
+    const icon = document.createElement("img");
+    icon.className = "summaryMaterialIcon";
+    setItemIcon(icon, it && it.iconId, it && it.cnOnly);
+    icon.alt = "";
+    row.appendChild(icon);
+    const labelWrap = document.createElement("span");
+    labelWrap.className = "summaryMaterialNameWrap";
+    const label = document.createElement("span");
+    label.className = "summaryMaterialName";
+    label.textContent = (it && it.name) || id;
+    labelWrap.appendChild(label);
+    if (it && it.cnOnly) labelWrap.appendChild(buildCnBadge(it));
+    row.appendChild(labelWrap);
+    const countEl = document.createElement("span");
+    countEl.className = "summaryMaterialCount";
+    countEl.textContent = "×" + shortfall.toLocaleString();
+    row.appendChild(countEl);
+    if (owned > 0) {
+      const ownedEl = document.createElement("span");
+      ownedEl.className = "summaryMaterialOwned";
+      ownedEl.textContent = `(have ${owned.toLocaleString()} of ${totals.materials[id].toLocaleString()})`;
+      row.appendChild(ownedEl);
+    }
+    return row;
+  }
+
+  // Which bucket a material's shortfall row belongs in. Module tokens
+  // ("mod_unlock_token", "mod_update_token_1/2") are identified by their
+  // itemId prefix -- that's stable regardless of localization. Chips
+  // (class chips, dualchips, and their "... Pack" bulk forms) and skill
+  // summary books don't share an id pattern the way module tokens do,
+  // but their EN names do: every chip's name contains "Chip" and every
+  // skill-level book is named "Skill Summary - N". Everything left over
+  // is an ordinary farmable material.
+  function categorizeMaterial(id) {
+    if (id.startsWith("mod_")) return "module";
+    const name = (itemTable[id] && itemTable[id].name) || "";
+    if (/skill summary/i.test(name)) return "skill";
+    if (/chip/i.test(name)) return "chip";
+    return "farm";
+  }
+
   function renderSummary() {
     if (!dataReady || !roster.length) {
       summaryEl.classList.add("hidden");
@@ -902,43 +953,57 @@
     }
 
     summaryMaterialsEl.innerHTML = "";
-    const ids = shortfallIds.sort((a, b) => {
+    const byRarityThenName = (a, b) => {
       const r = itemRarity(b) - itemRarity(a);
       if (r !== 0) return r;
       const nameA = (itemTable[a] && itemTable[a].name) || a;
       const nameB = (itemTable[b] && itemTable[b].name) || b;
       return nameA.localeCompare(nameB);
-    });
-    for (const id of ids) {
-      const owned = depot[id] || 0;
-      const shortfall = totals.materials[id] - owned;
-      const it = itemTable[id];
-      const row = document.createElement("div");
-      row.className = "summaryMaterialRow";
-      const icon = document.createElement("img");
-      icon.className = "summaryMaterialIcon";
-      setItemIcon(icon, it && it.iconId, it && it.cnOnly);
-      icon.alt = "";
-      row.appendChild(icon);
-      const labelWrap = document.createElement("span");
-      labelWrap.className = "summaryMaterialNameWrap";
-      const label = document.createElement("span");
-      label.className = "summaryMaterialName";
-      label.textContent = (it && it.name) || id;
-      labelWrap.appendChild(label);
-      if (it && it.cnOnly) labelWrap.appendChild(buildCnBadge(it));
-      row.appendChild(labelWrap);
-      const countEl = document.createElement("span");
-      countEl.className = "summaryMaterialCount";
-      countEl.textContent = "×" + shortfall.toLocaleString();
-      row.appendChild(countEl);
-      if (owned > 0) {
-        const ownedEl = document.createElement("span");
-        ownedEl.className = "summaryMaterialOwned";
-        ownedEl.textContent = `(have ${owned.toLocaleString()} of ${totals.materials[id].toLocaleString()})`;
-        row.appendChild(ownedEl);
+    };
+
+    // Group the shortfall list into a few recognizable buckets instead
+    // of one long undifferentiated list: chips, skill summaries, and
+    // module tokens each get their own (usually short) section, while
+    // the remaining, usually much longer, pool of ordinary farmable
+    // materials stays one section broken up by rarity rather than
+    // getting a heading per item.
+    const buckets = { chip: [], skill: [], module: [], farm: [] };
+    for (const id of shortfallIds) buckets[categorizeMaterial(id)].push(id);
+    for (const key of Object.keys(buckets)) buckets[key].sort(byRarityThenName);
+
+    const appendHeading = (className, text) => {
+      const heading = document.createElement("div");
+      heading.className = className;
+      heading.textContent = text;
+      summaryMaterialsEl.appendChild(heading);
+    };
+    const appendRows = (ids) => {
+      for (const id of ids) summaryMaterialsEl.appendChild(buildSummaryMaterialRow(id, totals));
+    };
+
+    if (buckets.chip.length) {
+      appendHeading("summaryCategoryHeading", "Chips");
+      appendRows(buckets.chip);
+    }
+    if (buckets.skill.length) {
+      appendHeading("summaryCategoryHeading", "Skill Summaries");
+      appendRows(buckets.skill);
+    }
+    if (buckets.module.length) {
+      appendHeading("summaryCategoryHeading", "Module Items");
+      appendRows(buckets.module);
+    }
+    if (buckets.farm.length) {
+      appendHeading("summaryCategoryHeading", "Farming Materials");
+      let lastRarity = null;
+      for (const id of buckets.farm) {
+        const rarity = itemRarity(id);
+        if (rarity !== lastRarity) {
+          appendHeading("summaryRarityHeading", rarity + 1 + "★");
+          lastRarity = rarity;
+        }
+        summaryMaterialsEl.appendChild(buildSummaryMaterialRow(id, totals));
       }
-      summaryMaterialsEl.appendChild(row);
     }
   }
 
