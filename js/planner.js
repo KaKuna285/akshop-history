@@ -152,6 +152,19 @@
   const depotSearchResultsEl = document.getElementById("depotSearchResults");
   const depotListEl = document.getElementById("depotList");
   const depotEmptyEl = document.getElementById("depotEmpty");
+  const depotImportEl = document.getElementById("depotImport");
+  const depotImportKeyEl = document.getElementById("depotImportKey");
+  const depotImportEmailEl = document.getElementById("depotImportEmail");
+  const depotImportSendCodeBtn = document.getElementById("depotImportSendCode");
+  const depotImportCodeRowEl = document.getElementById("depotImportCodeRow");
+  const depotImportCodeEl = document.getElementById("depotImportCode");
+  const depotImportFetchRowEl = document.getElementById("depotImportFetchRow");
+  const depotImportFetchBtn = document.getElementById("depotImportFetch");
+  const depotImportStatusEl = document.getElementById("depotImportStatus");
+  const depotImportConfirmEl = document.getElementById("depotImportConfirm");
+  const depotImportSummaryEl = document.getElementById("depotImportSummary");
+  const depotImportApplyBtn = document.getElementById("depotImportApply");
+  const depotImportCancelBtn = document.getElementById("depotImportCancel");
   const modalOverlayEl = document.getElementById("operatorEditModal");
   const modalIconEl = document.getElementById("modalIcon");
   const modalNameEl = document.getElementById("modalName");
@@ -1259,6 +1272,114 @@
       renderDepotSearchResults([]);
     }
   });
+
+  // --- depot import (Arknights EN account, via cloudflare/depot-import.js) --
+
+  // Holds the fetched-but-not-yet-applied result between "Import depot"
+  // and "Replace my depot with this" -- nothing here is saved to prefs
+  // until the user confirms, and it's discarded either way (applied or
+  // cancelled), never left sitting around.
+  let depotImportPending = null;
+
+  function setDepotImportStatus(text, isError) {
+    depotImportStatusEl.textContent = text || "";
+    depotImportStatusEl.classList.toggle("depotImportStatusError", !!isError);
+  }
+
+  async function depotImportRequestCode() {
+    const key = depotImportKeyEl.value.trim();
+    const email = depotImportEmailEl.value.trim();
+    if (!email) {
+      setDepotImportStatus("Enter your account email first.", true);
+      return;
+    }
+    depotImportSendCodeBtn.disabled = true;
+    setDepotImportStatus("Sending code...");
+    try {
+      const res = await fetch(`${DEPOT_IMPORT_ENDPOINT}/request-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Access-Key": key },
+        body: JSON.stringify({ email }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
+      depotImportCodeRowEl.classList.remove("hidden");
+      depotImportFetchRowEl.classList.remove("hidden");
+      depotImportCodeEl.focus();
+      setDepotImportStatus("Code sent -- check your email, then enter it below.");
+    } catch (err) {
+      setDepotImportStatus(err.message || "Couldn't send the code.", true);
+    } finally {
+      depotImportSendCodeBtn.disabled = false;
+    }
+  }
+
+  async function depotImportFetchDepot() {
+    const key = depotImportKeyEl.value.trim();
+    const email = depotImportEmailEl.value.trim();
+    const code = depotImportCodeEl.value.trim();
+    if (!code) {
+      setDepotImportStatus("Enter the code from your email first.", true);
+      return;
+    }
+    depotImportFetchBtn.disabled = true;
+    setDepotImportStatus("Fetching your depot...");
+    try {
+      const res = await fetch(`${DEPOT_IMPORT_ENDPOINT}/fetch-depot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Access-Key": key },
+        body: JSON.stringify({ email, code }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
+      depotImportPending = body.depot || {};
+      const itemCount = Object.keys(depotImportPending).length;
+      const who = body.nickname
+        ? `${body.nickname}${body.level ? ` (Lv ${body.level})` : ""}`
+        : "your account";
+      depotImportSummaryEl.textContent =
+        `Fetched ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"} from ${who}. ` +
+        `This will replace your current depot entirely -- anything you've tracked manually and ` +
+        `isn't in this list will be removed.`;
+      depotImportConfirmEl.classList.remove("hidden");
+      setDepotImportStatus("");
+    } catch (err) {
+      setDepotImportStatus(err.message || "Couldn't fetch your depot.", true);
+    } finally {
+      depotImportFetchBtn.disabled = false;
+    }
+  }
+
+  function depotImportApply() {
+    if (!depotImportPending) return;
+    depot = depotImportPending;
+    sanitizeDepot(); // drops anything that isn't a real, known item
+    saveDepotPref();
+    renderDepot();
+    renderSummary();
+    depotImportCancel();
+    depotImportKeyEl.value = "";
+    depotImportEmailEl.value = "";
+    depotImportCodeEl.value = "";
+    depotImportCodeRowEl.classList.add("hidden");
+    depotImportFetchRowEl.classList.add("hidden");
+    setDepotImportStatus("Depot replaced from your account.");
+    depotImportEl.open = false;
+  }
+
+  function depotImportCancel() {
+    depotImportPending = null;
+    depotImportConfirmEl.classList.add("hidden");
+    depotImportSummaryEl.textContent = "";
+  }
+
+  depotImportSendCodeBtn.addEventListener("click", depotImportRequestCode);
+  depotImportFetchBtn.addEventListener("click", depotImportFetchDepot);
+  depotImportApplyBtn.addEventListener("click", depotImportApply);
+  depotImportCancelBtn.addEventListener("click", depotImportCancel);
+  if (DEPOT_IMPORT_ENDPOINT) {
+    depotImportEl.classList.remove("hidden");
+  }
 
   // --- boot -----------------------------------------------------------
 

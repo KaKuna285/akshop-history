@@ -112,6 +112,59 @@
         subtracted from the totals on the Roster tab so you see what's
         actually still missing.
       </div>
+      <details id="depotImport" class="hidden">
+        <summary>Import from Arknights account (EN)</summary>
+        <div class="depotImportBody">
+          <p class="depotImportNotice">
+            This logs in the same way the game's mobile app does, using a
+            one-time code Yostar emails to your account, and reads your
+            current inventory once. It is not an official Hypergryph or
+            Yostar integration. Nothing about your account -- not your
+            email, not the code, not any session token -- is stored
+            anywhere; it's used once to fetch your depot and then
+            discarded. EN (Yostar) accounts only.
+          </p>
+          <div class="depotImportRow">
+            <label for="depotImportKey">Access key</label>
+            <input type="password" id="depotImportKey" autocomplete="off" />
+          </div>
+          <div class="depotImportRow">
+            <label for="depotImportEmail">Account email</label>
+            <input type="email" id="depotImportEmail" autocomplete="off" />
+          </div>
+          <div class="depotImportActions">
+            <button type="button" id="depotImportSendCode">
+              Send code
+            </button>
+          </div>
+          <div class="depotImportRow hidden" id="depotImportCodeRow">
+            <label for="depotImportCode">Code from email</label>
+            <input
+              type="text"
+              id="depotImportCode"
+              autocomplete="off"
+              inputmode="numeric"
+            />
+          </div>
+          <div class="depotImportActions hidden" id="depotImportFetchRow">
+            <button type="button" id="depotImportFetch">
+              Import depot
+            </button>
+          </div>
+          <div id="depotImportStatus" class="depotImportStatus"></div>
+          <div id="depotImportConfirm" class="depotImportConfirm hidden">
+            <p id="depotImportSummary"></p>
+            <div class="depotImportActions">
+              <button type="button" id="depotImportApply">
+                Replace my depot with this
+              </button>
+              <button type="button" id="depotImportCancel" class="depotImportCancelBtn">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
       <div id="depotAdd">
         <label for="depotSearch">Add material</label>
         <div id="depotSearchWrap">
