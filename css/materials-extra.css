@@ -1,5 +1,10 @@
+/* Every top-level block on this page (intro, tabs, roster, summary, depot)
+   shares this same max-width/padding/centering so their left and right
+   edges all line up as you scroll, instead of each block picking its own
+   narrower width and drifting out of alignment with the ones above and
+   below it. */
 #materialsIntro {
-  max-width: 720px;
+  max-width: 900px;
   margin: 16px auto 20px;
   padding: 0 16px;
   color: var(--light-text-color, #999);
@@ -8,16 +13,61 @@
   text-align: center;
 }
 
-#operatorAdd {
-  max-width: 480px;
+#materialsTabs {
+  max-width: 900px;
   margin: 0 auto 20px;
   padding: 0 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.materialsTab {
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #aaa;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.materialsTab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ddd;
+}
+
+.materialsTab.active {
+  background: rgba(248, 213, 17, 0.12);
+  border-color: rgba(248, 213, 17, 0.4);
+  color: #f8d511;
+  font-weight: bold;
+}
+
+.tabPanel {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.tabPanel.hidden {
+  display: none;
+}
+
+/* Left-aligned (not independently centered) so its edge matches the
+   roster/depot rows below it, rather than floating as its own narrower
+   centered block. */
+#operatorAdd,
+#depotAdd {
+  max-width: 480px;
+  margin: 0 0 20px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-#operatorAdd label {
+#operatorAdd label,
+#depotAdd label {
   font-size: 0.8rem;
   color: #aaa;
 }
@@ -98,10 +148,10 @@
   display: none;
 }
 
+/* Width/centering now comes from the .tabPanel it lives in, so it lines
+   up with the search bar and summary above and below it instead of
+   picking its own independent width. */
 #roster {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -240,9 +290,7 @@
 }
 
 #materialsSummary {
-  max-width: 900px;
-  margin: 28px auto 40px;
-  padding: 0 16px;
+  margin: 28px 0 16px;
 }
 
 #materialsSummary.hidden {
@@ -327,31 +375,12 @@
   font-weight: bold;
 }
 
-#depotSection {
-  max-width: 900px;
-  margin: 28px auto 0;
-  padding: 0 16px;
-}
-
 #depotIntro {
   color: var(--light-text-color, #999);
   font-size: 0.82rem;
   line-height: 1.4;
   margin-bottom: 14px;
   max-width: 640px;
-}
-
-#depotAdd {
-  max-width: 480px;
-  margin: 0 0 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-#depotAdd label {
-  font-size: 0.8rem;
-  color: #aaa;
 }
 
 #depotSearchWrap {
@@ -456,6 +485,27 @@
   color: #999;
 }
 
+/* Matches calendar's #pageCredit treatment exactly -- this page never had
+   its own rule for it, so the credit link fell back to the browser's
+   default (unmuted, high-contrast) link styling instead of the same
+   muted, readable treatment every other page's credit link gets. */
+#pageCredit {
+  max-width: 900px;
+  margin: 16px auto 24px;
+  padding: 0 16px;
+  font-size: 0.75rem;
+  color: #777;
+  text-align: center;
+}
+
+#pageCredit a {
+  color: #999;
+}
+
+#pageCredit a:hover {
+  color: #ccc;
+}
+
 @media (max-width: 600px) {
   .rosterRowMain {
     flex-direction: column;
@@ -463,5 +513,9 @@
   }
   .rosterRowRemove {
     margin-left: 0;
+  }
+  .materialsTab {
+    flex: 1 1 0;
+    text-align: center;
   }
 }

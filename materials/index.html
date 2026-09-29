@@ -37,31 +37,73 @@
     <div id="materialsIntro">
       Add operators below, set where each one is now and where you want them,
       and the totals update automatically. Covers operator level, Elite
-      promotion, skill level, skill mastery, and module stages. Add what you
-      already own to your depot to see what's actually still missing.
+      promotion, skill level, skill mastery, and module stages. Switch to the
+      Your Depot tab to add what you already own, so the totals reflect
+      what's actually still missing.
     </div>
-    <div id="operatorAdd">
-      <label for="operatorSearch">Add operator</label>
-      <div id="operatorSearchWrap">
-        <input
-          type="text"
-          id="operatorSearch"
-          placeholder="Type a name..."
-          autocomplete="off"
-        />
-        <div id="operatorSearchResults" class="hidden"></div>
+
+    <div id="materialsTabs" role="tablist">
+      <button
+        type="button"
+        class="materialsTab active"
+        id="tabBtnRoster"
+        data-tab="roster"
+        role="tab"
+        aria-selected="true"
+      >
+        Roster
+      </button>
+      <button
+        type="button"
+        class="materialsTab"
+        id="tabBtnDepot"
+        data-tab="depot"
+        role="tab"
+        aria-selected="false"
+      >
+        Your Depot
+      </button>
+    </div>
+
+    <div id="tabPanelRoster" class="tabPanel">
+      <div id="operatorAdd">
+        <label for="operatorSearch">Add operator</label>
+        <div id="operatorSearchWrap">
+          <input
+            type="text"
+            id="operatorSearch"
+            placeholder="Type a name..."
+            autocomplete="off"
+          />
+          <div id="operatorSearchResults" class="hidden"></div>
+        </div>
+      </div>
+      <div id="rosterEmpty" class="rosterEmpty">
+        No operators added yet -- search for one above to get started.
+      </div>
+      <div id="roster"></div>
+
+      <div id="materialsSummary" class="hidden">
+        <h2 class="materialsSectionHeading">Total needed</h2>
+        <div id="summaryTotals">
+          <div class="summaryTotal">
+            <span class="summaryTotalLabel">LMD</span>
+            <span class="summaryTotalValue" id="summaryLmd">0</span>
+          </div>
+          <div class="summaryTotal">
+            <span class="summaryTotalLabel">EXP</span>
+            <span class="summaryTotalValue" id="summaryExp">0</span>
+          </div>
+        </div>
+        <div id="summaryCoveredNote" class="summaryCoveredNote hidden"></div>
+        <div id="summaryMaterials"></div>
       </div>
     </div>
-    <div id="rosterEmpty" class="rosterEmpty">
-      No operators added yet -- search for one above to get started.
-    </div>
-    <div id="roster"></div>
 
-    <div id="depotSection">
-      <h2 class="materialsSectionHeading">Your depot</h2>
+    <div id="tabPanelDepot" class="tabPanel hidden">
       <div id="depotIntro">
         Materials you already own -- entered once, subtracted from the
-        total below so you see what's actually still missing.
+        total on the Roster tab so you see what's actually still missing.
       </div>
       <div id="depotAdd">
         <label for="depotSearch">Add material</label>
@@ -81,21 +123,6 @@
       <div id="depotList"></div>
     </div>
 
-    <div id="materialsSummary" class="hidden">
-      <h2 class="materialsSectionHeading">Total needed</h2>
-      <div id="summaryTotals">
-        <div class="summaryTotal">
-          <span class="summaryTotalLabel">LMD</span>
-          <span class="summaryTotalValue" id="summaryLmd">0</span>
-        </div>
-        <div class="summaryTotal">
-          <span class="summaryTotalLabel">EXP</span>
-          <span class="summaryTotalValue" id="summaryExp">0</span>
-        </div>
-      </div>
-      <div id="summaryCoveredNote" class="summaryCoveredNote hidden"></div>
-      <div id="summaryMaterials"></div>
-    </div>
     <div id="pageCredit">
       Operator data from
       <a href="https://github.com/Kengxxiao/ArknightsGameData_YoStar" target="_blank" rel="noopener"

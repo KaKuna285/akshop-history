@@ -68,6 +68,10 @@
     setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP));
   }
 
+  const tabBtnRoster = document.getElementById("tabBtnRoster");
+  const tabBtnDepot = document.getElementById("tabBtnDepot");
+  const tabPanelRoster = document.getElementById("tabPanelRoster");
+  const tabPanelDepot = document.getElementById("tabPanelDepot");
   const searchInput = document.getElementById("operatorSearch");
   const searchResultsEl = document.getElementById("operatorSearchResults");
   const rosterEl = document.getElementById("roster");
@@ -107,6 +111,28 @@
   function saveDepotPref() {
     setPref("materials", "depot", depot);
   }
+  function loadActiveTabPref() {
+    return getPref("materials", "activeTab", "roster", (v) => v === "roster" || v === "depot");
+  }
+  function saveActiveTabPref(tab) {
+    setPref("materials", "activeTab", tab);
+  }
+
+  // --- tabs --------------------------------------------------------------
+
+  function switchTab(tab) {
+    const onRoster = tab === "roster";
+    tabBtnRoster.classList.toggle("active", onRoster);
+    tabBtnRoster.setAttribute("aria-selected", String(onRoster));
+    tabBtnDepot.classList.toggle("active", !onRoster);
+    tabBtnDepot.setAttribute("aria-selected", String(!onRoster));
+    tabPanelRoster.classList.toggle("hidden", !onRoster);
+    tabPanelDepot.classList.toggle("hidden", onRoster);
+    saveActiveTabPref(tab);
+  }
+
+  tabBtnRoster.addEventListener("click", () => switchTab("roster"));
+  tabBtnDepot.addEventListener("click", () => switchTab("depot"));
 
   // --- data loading -----------------------------------------------------
 
@@ -315,6 +341,21 @@
     return { phase: 0, level: 1, skillLevel: 1, mastery: {}, modules: {} };
   }
 
+  // A newly-added operator's target starts at a common "just promoted"
+  // goal -- E2 level 1, skill level 7 -- rather than mirroring their
+  // (equally blank) current state, so there's usually something to see
+  // in the summary right away. Mastery/module ranks still default to
+  // None, since there's no similarly common default for those.
+  function defaultTargetState(op) {
+    return {
+      phase: Math.min(2, maxPhase(op)),
+      level: 1,
+      skillLevel: hasSkills(op) ? 7 : 1,
+      mastery: {},
+      modules: {},
+    };
+  }
+
   function sanitizeRoster() {
     roster = roster
       .filter((entry) => entry && typeof entry.charId === "string" && charTable[entry.charId])
@@ -333,7 +374,7 @@
     const op = charTable[charId];
     if (!op) return;
     const current = defaultState(op);
-    const target = defaultState(op);
+    const target = defaultTargetState(op);
     roster.push({ charId, current, target });
     saveRosterPref();
     renderRoster();
@@ -864,6 +905,7 @@
 
   roster = loadRosterPref();
   depot = loadDepotPref();
+  switchTab(loadActiveTabPref());
   searchInput.disabled = true;
   searchInput.placeholder = "Loading operator data...";
   depotSearchInput.disabled = true;
