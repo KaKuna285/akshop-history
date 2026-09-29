@@ -470,6 +470,21 @@ async function getGameSecret(gsHost, uid, u8Token, versions, deviceIds) {
   return secret;
 }
 
+// The four "Battle Record" cards operators consume for EXP -- confirmed
+// against Penguin Stats' item list (real itemIds) and the wiki's stated
+// per-unit EXP values. These are genuine, separately-tracked inventory
+// items in their own right (they'll also appear under their own ids in
+// the returned depot), used here only to compute the single combined
+// "EXP owned" total the planner already expects under EXP_ITEM_ID "5001"
+// -- the same aggregate a user would otherwise work out by hand and type
+// in themselves.
+const BATTLE_RECORD_EXP_VALUES = {
+  "2001": 200, // Drill Battle Record
+  "2002": 400, // Frontline Battle Record
+  "2003": 1000, // Tactical Battle Record
+  "2004": 2000, // Strategic Battle Record
+};
+
 async function getInventory(gsHost, uid, secret) {
   const resp = await fetch(`${gsHost}/account/syncData`, {
     method: "POST",
@@ -477,16 +492,14 @@ async function getInventory(gsHost, uid, secret) {
     body: JSON.stringify({ platform: 1 }),
   });
   const data = await parseJsonOrThrow(resp, "sync data");
-  // Confirmed against a real account's response: the full account state
-  // sits under "user" (alongside "result"/"ts"/"playerDataDelta" at the
-  // top level), and "inventory" is a flat itemId -> count map directly on
-  // it -- an empty object there is a legitimate result for a low-progress
-  // account, not a wrong extraction path.
+  // The full account state sits under "user" (alongside "result"/"ts"/
+  // "playerDataDelta" at the top level), and "inventory" is a flat
+  // itemId -> count map directly on it.
   const user = data?.user ?? data;
   if (!user || typeof user.inventory !== "object" || user.inventory == null) {
     throw new StepError("sync data", "Account data didn't include an inventory.");
   }
-  return user;
+  return { user, delta: data?.playerDataDelta ?? null };
 }
 
 async function fetchDepot(email, code) {
@@ -498,7 +511,7 @@ async function fetchDepot(email, code) {
 
   const { uid, token: u8Token } = await getU8Token(network.u8, channelUid, accessToken, deviceIds);
   const secret = await getGameSecret(network.gs, uid, u8Token, versions, deviceIds);
-  const user = await getInventory(network.gs, uid, secret);
+  const { user, delta } = await getInventory(network.gs, uid, secret);
 
   // LMD isn't part of "inventory" at all -- it's tracked as its own
   // currency field, status.gold -- so it's merged in here under the same
@@ -509,9 +522,48 @@ async function fetchDepot(email, code) {
     depot["4001"] = user.status.gold;
   }
 
+  // Combine the four Battle Record card counts into the single "EXP
+  // owned" total under EXP_ITEM_ID ("5001"), same convention as LMD
+  // above. The individual cards are left in the depot too (under their
+  // own real ids), so they still show up as their own rows.
+  let expTotal = 0;
+  for (const [itemId, expPerUnit] of Object.entries(BATTLE_RECORD_EXP_VALUES)) {
+    const count = user.inventory[itemId];
+    if (typeof count === "number" && count > 0) expTotal += count * expPerUnit;
+  }
+  if (expTotal > 0) depot["5001"] = expTotal;
+
+  // --- TEMPORARY diagnostics -------------------------------------------
+  // The gold figure above has been coming back lower than what's actually
+  // showing in-game (e.g. 10000 vs a real 33000), which smells like a
+  // stale/base snapshot that a "playerDataDelta" patch is meant to be
+  // applied on top of. This block reports ONLY key names and the specific
+  // numeric fields needed to check that theory -- never full delta
+  // contents, email, code, or session secrets -- and gets removed once
+  // the real shape is confirmed.
+  const debug = {
+    hasDelta: !!delta,
+    deltaTopLevelKeys: delta && typeof delta === "object" ? Object.keys(delta) : null,
+    deltaModifiedTopLevelKeys:
+      delta && typeof delta.modified === "object" && delta.modified
+        ? Object.keys(delta.modified)
+        : null,
+    deltaModifiedStatusKeys:
+      delta && typeof delta?.modified?.status === "object" && delta.modified.status
+        ? Object.keys(delta.modified.status)
+        : null,
+    statusGoldFromUser: user?.status?.gold ?? null,
+    statusGoldFromDeltaModified: delta?.modified?.status?.gold ?? null,
+    deltaModifiedInventoryKeys:
+      delta && typeof delta?.modified?.inventory === "object" && delta.modified.inventory
+        ? Object.keys(delta.modified.inventory)
+        : null,
+  };
+
   return {
     depot,
     nickname: user?.status?.nickName ?? user?.status?.nickname ?? null,
     level: user?.status?.level ?? null,
+    _debug: debug,
   };
 }

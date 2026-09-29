@@ -1340,7 +1340,12 @@
       depotImportSummaryEl.textContent =
         `Fetched ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"} from ${who}. ` +
         `This will replace your current depot entirely -- anything you've tracked manually and ` +
-        `isn't in this list will be removed.`;
+        `isn't in this list will be removed.` +
+        // TEMPORARY: surfaces the Worker's diagnostic block (key names and
+        // a couple of numeric fields only, see cloudflare/depot-import.js)
+        // so it can be copy-pasted back without needing devtools, while
+        // tracking down why LMD imports lower than the real balance.
+        (body._debug ? `\n\nDEBUG: ${JSON.stringify(body._debug)}` : "");
       depotImportConfirmEl.classList.remove("hidden");
       setDepotImportStatus("");
     } catch (err) {
