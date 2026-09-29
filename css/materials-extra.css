@@ -1,0 +1,289 @@
+#materialsIntro {
+  max-width: 720px;
+  margin: 16px auto 20px;
+  padding: 0 16px;
+  color: var(--light-text-color, #999);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+#operatorAdd {
+  max-width: 480px;
+  margin: 0 auto 20px;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#operatorAdd label {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+#operatorSearchWrap {
+  position: relative;
+}
+
+#operatorSearch {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1c1c1c;
+  color: #eee;
+  font-size: 0.95rem;
+}
+
+#operatorSearchResults {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #2c2c2c;
+  border: 1px solid #555;
+  border-radius: 6px;
+  z-index: 20;
+}
+
+#operatorSearchResults.hidden {
+  display: none;
+}
+
+.operatorSearchResult {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.operatorSearchResult:hover,
+.operatorSearchResult.highlighted {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.operatorSearchResultIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.operatorSearchResultName {
+  font-size: 0.88rem;
+  color: #eee;
+}
+
+.operatorSearchResultRarity {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.rosterEmpty {
+  text-align: center;
+  color: #777;
+  padding: 24px 16px;
+  font-size: 0.9rem;
+}
+
+.rosterEmpty.hidden {
+  display: none;
+}
+
+#roster {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rosterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.rosterRowOperator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+  flex: 0 0 auto;
+}
+
+.rosterRowIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.rosterRowName {
+  font-weight: bold;
+  font-size: 0.95rem;
+  color: #eee;
+}
+
+.rosterRowStates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  flex: 1 1 auto;
+}
+
+.rosterRowState {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rosterRowStateLabel {
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #999;
+}
+
+.rosterRowStateFields {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rosterRowStateFields select,
+.rosterRowStateFields input[type="number"] {
+  background: #1c1c1c;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+}
+
+.rosterRowStateFields input[type="number"] {
+  width: 56px;
+}
+
+.rosterRowRemove {
+  flex: 0 0 auto;
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.rosterRowRemove:hover {
+  color: #e55;
+}
+
+#materialsSummary {
+  max-width: 900px;
+  margin: 28px auto 40px;
+  padding: 0 16px;
+}
+
+#materialsSummary.hidden {
+  display: none;
+}
+
+.materialsSectionHeading {
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+  color: #eee;
+}
+
+#summaryTotals {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.summaryTotal {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+.summaryTotalLabel {
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #999;
+}
+
+.summaryTotalValue {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #f8d511;
+}
+
+#summaryMaterials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summaryMaterialChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 4px 12px 4px 4px;
+}
+
+.summaryMaterialIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.summaryMaterialName {
+  font-size: 0.82rem;
+  color: #eee;
+}
+
+.summaryMaterialCount {
+  font-size: 0.82rem;
+  color: #f8d511;
+  font-weight: bold;
+}
+
+@media (max-width: 600px) {
+  .rosterRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .rosterRowRemove {
+    margin-left: 0;
+  }
+}
