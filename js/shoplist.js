@@ -418,6 +418,36 @@ fetch(extraDataUrl("banner_history.json"))
 			},
 		};
 		var labelSort = sorters.Shop;
+
+		// Restore any settings saved from a previous visit (see
+		// js/prefs.js), overwriting the hardcoded defaults set above.
+		// `sortName` tracks the restored sort by its KEY, since labelSort
+		// itself is just a function reference -- that's what the sort
+		// buttons' initial "checked" state (below) compares against.
+		selectedServer = getPref("store", "server", selectedServer, (v) =>
+			Object.keys(SHOP_DATA).includes(v),
+		);
+		selectedPeriod = getPref("store", "period", selectedPeriod, (v) =>
+			/^(Dynamic|ALL|\d+y)$/.test(v),
+		);
+		var sortName = getPref("store", "sort", "Shop", (v) =>
+			Object.prototype.hasOwnProperty.call(sorters, v),
+		);
+		labelSort = sorters[sortName];
+		shownrarities = new Set(
+			getPref("store", "rarities", Array.from(shownrarities), (v) =>
+				Array.isArray(v) && v.every((n) => [3, 4, 5].includes(n)),
+			),
+		);
+		Object.assign(
+			showntypes,
+			getPref("store", "types", showntypes, (v) =>
+				v &&
+				typeof v === "object" &&
+				Object.keys(showntypes).every((k) => typeof v[k] === "boolean"),
+			),
+		);
+
 		//////////////////////////////////////////////////
 		// this is just the contents of redrawCharts()
 		let subset = filterOperators(SHOP_DATA[selectedServer]);
@@ -427,10 +457,20 @@ fetch(extraDataUrl("banner_history.json"))
 			// remove elements not in labels
 			datasets[i].data = subset;
 		adjustChartHeight(subset.length);
+		// Mirrors the fixed-period math in the Period buttons' own onclick
+		// (below) -- needed here too now that a restored (non-"Dynamic")
+		// period can be the very first thing rendered, not just something
+		// the user clicks into later.
+		function computeFixedPeriodMin(period, server) {
+			if (period === "ALL") return SERVER_STARTS[server];
+			const minDate = new Date();
+			minDate.setFullYear(minDate.getFullYear() - parseInt(period));
+			return minDate < SERVER_STARTS[server] ? SERVER_STARTS[server] : minDate;
+		}
 		let initialXMin =
 			selectedPeriod === "Dynamic"
 				? computeDynamicMin(subset)
-				: SERVER_STARTS[selectedServer];
+				: computeFixedPeriodMin(selectedPeriod, selectedServer);
 		//////////////////////////////////////////////////
 		let barGraph = new Chart(document.getElementById("opChart"), {
 			type: "bar",
@@ -783,7 +823,7 @@ fetch(extraDataUrl("banner_history.json"))
 		for (const [n, sorter] of Object.entries(sorters)) {
 			btn = document.createElement("div");
 			btn.classList = "sorter button";
-			if (n == "Shop") btn.classList.add("checked");
+			if (n == sortName) btn.classList.add("checked");
 			btn.dataset.name = n;
 			btn.innerHTML = n;
 			btns.appendChild(btn);
@@ -793,6 +833,7 @@ fetch(extraDataUrl("banner_history.json"))
 					x.classList.remove("checked"),
 				);
 				e.currentTarget.classList.toggle("checked");
+				setPref("store", "sort", n);
 				redrawCharts();
 			};
 		}
@@ -818,7 +859,7 @@ fetch(extraDataUrl("banner_history.json"))
 		periods.forEach(function (p) {
 			var btn = document.createElement("div");
 			btn.classList = "sorter button";
-			if (p === "Dynamic") btn.classList.add("checked");
+			if (p === selectedPeriod) btn.classList.add("checked");
 			btn.dataset.period = p;
 			btn.innerHTML = p;
 			periodbtns.appendChild(btn);
@@ -829,6 +870,7 @@ fetch(extraDataUrl("banner_history.json"))
 				e.currentTarget.classList.add("checked");
 
 				selectedPeriod = p;
+				setPref("store", "period", p);
 
 				if (p === "Dynamic") {
 					// redrawCharts() below computes and applies the min
@@ -866,7 +908,7 @@ fetch(extraDataUrl("banner_history.json"))
 		for (const i of [3, 4, 5]) {
 			btn = document.createElement("div");
 			btn.classList = "sorter button";
-			if (i == 5) btn.classList.add("checked");
+			if (shownrarities.has(i)) btn.classList.add("checked");
 			btn.dataset.name = 1 + i + "*";
 			btn.innerHTML = 1 + i + "*";
 			raritybtns.appendChild(btn);
@@ -875,6 +917,7 @@ fetch(extraDataUrl("banner_history.json"))
 				if (e.currentTarget.classList.contains("checked"))
 					shownrarities.add(i);
 				else shownrarities.delete(i);
+				setPref("store", "rarities", Array.from(shownrarities));
 				redrawCharts();
 			};
 		}
@@ -891,6 +934,7 @@ fetch(extraDataUrl("banner_history.json"))
 			btn.onclick = (e) => {
 				e.currentTarget.classList.toggle("checked");
 				showntypes[i] = e.currentTarget.classList.contains("checked");
+				setPref("store", "types", Object.assign({}, showntypes));
 				redrawCharts();
 			};
 		}
@@ -905,7 +949,7 @@ fetch(extraDataUrl("banner_history.json"))
 		Object.keys(SHOP_DATA).forEach((s) => {
 			btn = document.createElement("div");
 			btn.classList = "sorter button";
-			if (s == "EN") btn.classList.add("checked");
+			if (s == selectedServer) btn.classList.add("checked");
 			btn.dataset.name = s;
 			btn.innerHTML = s;
 			serverbtns.appendChild(btn);
@@ -915,6 +959,7 @@ fetch(extraDataUrl("banner_history.json"))
 				);
 				e.currentTarget.classList.toggle("checked");
 				selectedServer = s;
+				setPref("store", "server", s);
 				barGraph.data.datasets = getDatasets(SHOP_DATA[selectedServer]);
 				// Only force the fixed-period range here -- if "Dynamic" is
 				// selected, redrawCharts() below recomputes the min itself

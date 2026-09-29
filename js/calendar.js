@@ -46,6 +46,32 @@
   let sortMode = "date"; // "date" | "name"
   let activeStatuses = new Set(["confirmed", "announced", "estimated", "cnExclusive"]);
 
+  // Restore any settings saved from a previous visit (see js/prefs.js).
+  // Deliberately NOT included here: which week the calendar view was
+  // scrolled to -- every visit starts back at today, on purpose.
+  currentView = getPref(
+    "calendar",
+    "view",
+    currentView,
+    (v) => v === "calendar" || v === "list",
+  );
+  sortMode = getPref("calendar", "sort", sortMode, (v) => v === "date" || v === "name");
+  activeStatuses = new Set(
+    getPref("calendar", "statusFilters", Array.from(activeStatuses), (v) =>
+      Array.isArray(v) && v.every((s) => Object.keys(STATUS_LABEL).includes(s)),
+    ),
+  );
+  // The controls above are hardcoded in the HTML to match the defaults
+  // just overwritten -- reflect whatever was actually restored back into
+  // the DOM so the UI matches these variables from the very first paint.
+  for (const b of viewToggle.querySelectorAll(".viewToggleBtn")) {
+    b.classList.toggle("active", b.dataset.view === currentView);
+  }
+  for (const input of statusFiltersEl.querySelectorAll("input[type=checkbox]")) {
+    input.checked = activeStatuses.has(input.value);
+  }
+  sortSelect.value = sortMode;
+
   // Calendar-view-only state. The grid is built once (renderCalendarInitial)
   // and then only ever grown (prependWeeks/appendWeeks) or has its chip
   // contents refreshed in place (refreshCalendarChips) -- never torn down
@@ -769,6 +795,7 @@
     for (const b of viewToggle.querySelectorAll(".viewToggleBtn")) {
       b.classList.toggle("active", b === btn);
     }
+    setPref("calendar", "view", currentView);
     render();
   });
 
@@ -776,11 +803,13 @@
     activeStatuses = new Set(
       Array.from(statusFiltersEl.querySelectorAll("input:checked")).map((el) => el.value),
     );
+    setPref("calendar", "statusFilters", Array.from(activeStatuses));
     render();
   });
 
   sortSelect.addEventListener("change", () => {
     sortMode = sortSelect.value;
+    setPref("calendar", "sort", sortMode);
     render();
   });
 
