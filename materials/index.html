@@ -37,8 +37,8 @@
     <div id="materialsIntro">
       Add operators below, set where each one is now and where you want them,
       and the totals update automatically. Covers operator level, Elite
-      promotion, and skill level for this first version -- skill mastery,
-      modules, and tracking what you already own are planned next.
+      promotion, skill level, skill mastery, and module stages. Add what you
+      already own to your depot to see what's actually still missing.
     </div>
     <div id="operatorAdd">
       <label for="operatorSearch">Add operator</label>
@@ -56,6 +56,31 @@
       No operators added yet -- search for one above to get started.
     </div>
     <div id="roster"></div>
+
+    <div id="depotSection">
+      <h2 class="materialsSectionHeading">Your depot</h2>
+      <div id="depotIntro">
+        Materials you already own -- entered once, subtracted from the
+        total below so you see what's actually still missing.
+      </div>
+      <div id="depotAdd">
+        <label for="depotSearch">Add material</label>
+        <div id="depotSearchWrap">
+          <input
+            type="text"
+            id="depotSearch"
+            placeholder="Type a material name..."
+            autocomplete="off"
+          />
+          <div id="depotSearchResults" class="hidden"></div>
+        </div>
+      </div>
+      <div id="depotEmpty" class="rosterEmpty">
+        No materials tracked yet -- search for one above.
+      </div>
+      <div id="depotList"></div>
+    </div>
+
     <div id="materialsSummary" class="hidden">
       <h2 class="materialsSectionHeading">Total needed</h2>
       <div id="summaryTotals">
@@ -68,6 +93,7 @@
           <span class="summaryTotalValue" id="summaryExp">0</span>
         </div>
       </div>
+      <div id="summaryCoveredNote" class="summaryCoveredNote hidden"></div>
       <div id="summaryMaterials"></div>
     </div>
     <div id="pageCredit">
