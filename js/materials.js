@@ -19,6 +19,44 @@
 
   const SERVER = SERVERS.EN; // v1: EN data only
 
+  // The community asset mirror uri_avatar()/uri_item() default to (LOCAL,
+  // an akgcc/arkdata jsdelivr mirror) doesn't have full coverage -- some
+  // rarer materials' icons 404 there. Rather than leave a broken-image
+  // glyph in the material list, fall back to the Aceship mirror (a
+  // separately-maintained, more complete asset repo already wired up as
+  // ASSET_SOURCE.ACESHIP in util.js) and, if that also fails, hide the
+  // <img> so the icon's circular background shows as an empty placeholder
+  // instead of a jarring broken-image icon.
+  function setIconWithFallback(imgEl, primarySrc, fallbackSrc) {
+    imgEl.src = primarySrc;
+    imgEl.onerror = () => {
+      if (fallbackSrc && fallbackSrc !== primarySrc) {
+        imgEl.onerror = () => {
+          imgEl.onerror = null;
+          imgEl.classList.add("iconMissing");
+        };
+        imgEl.src = fallbackSrc;
+      } else {
+        imgEl.onerror = null;
+        imgEl.classList.add("iconMissing");
+      }
+    };
+  }
+  function setAvatarIcon(imgEl, charId) {
+    setIconWithFallback(
+      imgEl,
+      uri_avatar(charId),
+      uri_avatar(charId, ASSET_SOURCE.ACESHIP),
+    );
+  }
+  function setItemIcon(imgEl, iconId) {
+    if (!iconId) {
+      imgEl.classList.add("iconMissing");
+      return;
+    }
+    setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP));
+  }
+
   const searchInput = document.getElementById("operatorSearch");
   const searchResultsEl = document.getElementById("operatorSearchResults");
   const rosterEl = document.getElementById("roster");
@@ -232,7 +270,7 @@
       opBlock.className = "rosterRowOperator";
       const icon = document.createElement("img");
       icon.className = "rosterRowIcon";
-      icon.src = uri_avatar(entry.charId);
+      setAvatarIcon(icon, entry.charId);
       icon.alt = "";
       const name = document.createElement("span");
       name.className = "rosterRowName";
@@ -357,13 +395,11 @@
       const it = itemTable[id];
       const chip = document.createElement("div");
       chip.className = "summaryMaterialChip";
-      if (it && it.iconId) {
-        const icon = document.createElement("img");
-        icon.className = "summaryMaterialIcon";
-        icon.src = uri_item(it.iconId);
-        icon.alt = "";
-        chip.appendChild(icon);
-      }
+      const icon = document.createElement("img");
+      icon.className = "summaryMaterialIcon";
+      setItemIcon(icon, it && it.iconId);
+      icon.alt = "";
+      chip.appendChild(icon);
       const label = document.createElement("span");
       label.className = "summaryMaterialName";
       label.textContent = (it && it.name) || id;
@@ -391,7 +427,7 @@
       row.className = "operatorSearchResult" + (i === highlightedIndex ? " highlighted" : "");
       const icon = document.createElement("img");
       icon.className = "operatorSearchResultIcon";
-      icon.src = uri_avatar(op.charId);
+      setAvatarIcon(icon, op.charId);
       icon.alt = "";
       const name = document.createElement("span");
       name.className = "operatorSearchResultName";

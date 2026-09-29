@@ -267,6 +267,14 @@
   flex: 0 0 auto;
 }
 
+/* Set on any icon <img> (operator avatar or material icon) once both the
+   primary and fallback asset sources have failed to load -- keeps the
+   circular background placeholder visible instead of a broken-image
+   glyph. See setIconWithFallback() in materials.js. */
+.iconMissing {
+  visibility: hidden;
+}
+
 .summaryMaterialName {
   font-size: 0.82rem;
   color: #eee;
