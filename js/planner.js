@@ -36,7 +36,10 @@
   // "what you still need" list room to read as an actual list on the
   // right instead of a cramped, wrapped cloud of chips.
 
-  const SERVER = SERVERS.EN; // v1: EN data only
+  // EN is the primary/default server; CN is merged in on top of it in
+  // loadData() below to cover operators/materials not yet released on EN
+  // (flagged cnOnly and badged in the UI) -- see the merge block there.
+  const SERVER = SERVERS.EN;
 
   // The community asset mirror uri_avatar()/uri_item() default to (LOCAL,
   // an akgcc/arkdata jsdelivr mirror) doesn't have full coverage -- some
@@ -74,6 +77,19 @@
       return;
     }
     setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP));
+  }
+
+  // A small "CN" tag for any operator/material flagged cnOnly during the
+  // EN+CN merge in loadData() -- not yet released on the EN server, so
+  // shown with EN data throughout but marked wherever it appears (search
+  // results, roster card, edit modal, depot row, materials list) so it's
+  // never mistaken for an EN-available entry.
+  function buildCnBadge() {
+    const badge = document.createElement("span");
+    badge.className = "cnBadge";
+    badge.textContent = "CN";
+    badge.title = "Not yet released on the EN server -- shown using CN data";
+    return badge;
   }
 
   // LMD and EXP are real, individually-iconed items in the game data
@@ -194,6 +210,46 @@
     itemTable = itemJson.items || itemJson;
     const equipJson = await fixedJson(equipRes);
     const equipDict = equipJson.equipDict || equipJson;
+
+    // Operators/materials not yet released on EN simply have no entry in
+    // EN's own tables at all -- there's no per-record flag to check.
+    // Fetching CN's copies of the same three files and adding whatever
+    // charIds/itemIds are missing from EN (flagged cnOnly so the UI can
+    // badge them) covers those without disturbing anything EN already
+    // has. This is best-effort: if the CN mirror is slow or down, EN data
+    // should still load and work normally, just without CN-exclusive
+    // entries for that session.
+    try {
+      const [cnChars, cnItemRes, cnEquipRes] = await Promise.all([
+        get_char_table(false, SERVERS.CN, false),
+        fetch(`${DATA_BASE[SERVERS.CN]}/gamedata/excel/item_table.json`),
+        fetch(`${DATA_BASE[SERVERS.CN]}/gamedata/excel/uniequip_table.json`),
+      ]);
+      for (const [charId, op] of Object.entries(cnChars)) {
+        if (!charTable[charId]) {
+          op.cnOnly = true;
+          charTable[charId] = op;
+        }
+      }
+      const cnItemJson = await fixedJson(cnItemRes);
+      const cnItemTable = cnItemJson.items || cnItemJson;
+      for (const [itemId, it] of Object.entries(cnItemTable)) {
+        if (!itemTable[itemId]) {
+          it.cnOnly = true;
+          itemTable[itemId] = it;
+        }
+      }
+      const cnEquipJson = await fixedJson(cnEquipRes);
+      const cnEquipDict = cnEquipJson.equipDict || cnEquipJson;
+      for (const [uniEquipId, equip] of Object.entries(cnEquipDict)) {
+        if (!equipDict[uniEquipId]) equipDict[uniEquipId] = equip;
+      }
+    } catch (err) {
+      console.warn(
+        "Couldn't load CN-exclusive operator/material data (EN data still loaded fine):",
+        err,
+      );
+    }
 
     // Group modules by charId (there's no ready-made charId -> module-list
     // table) and drop the non-upgradeable placeholder entries every
@@ -434,20 +490,48 @@
 
   // --- rendering: roster cards --------------------------------------------
 
-  // A compact one-line summary of where an operator is vs. where they're
-  // headed, shown on its card so there's something useful to see without
-  // opening the edit modal.
-  function formatCardStatus(op, entry) {
+  // A multi-line summary of where an operator is vs. where they're headed,
+  // set as the card's hover tooltip (native title attribute) rather than
+  // shown inline, so the card itself stays compact. Elite/level always
+  // shows; skill level shows as a current->target range UNLESS at least
+  // one mastery target is set, in which case the skill-level line is
+  // replaced entirely by the selected masteries (one "S{skill}M{rank}"
+  // entry per skill with a nonzero target, e.g. "S2M3"); modules only
+  // appear when a nonzero target stage is set, as "Mod {letter} Lv. {n}".
+  function formatCardTooltip(op, entry) {
     const c = entry.current;
     const t = entry.target;
-    let line = `E${c.phase} Lv${c.level}`;
+    const lines = [];
+
+    let eliteLine = `E${c.phase} Lv${c.level}`;
     if (c.phase !== t.phase || c.level !== t.level) {
-      line += ` → E${t.phase} Lv${t.level}`;
+      eliteLine += ` → E${t.phase} Lv${t.level}`;
     }
+    lines.push(eliteLine);
+
     if (hasSkills(op)) {
-      line += c.skillLevel === t.skillLevel ? ` · Sk.Lv ${c.skillLevel}` : ` · Sk.Lv ${c.skillLevel}→${t.skillLevel}`;
+      const masteries = [];
+      (op.skills || []).forEach((skill, idx) => {
+        const tgtM = (t.mastery && t.mastery[idx]) || 0;
+        if (tgtM > 0) masteries.push(`S${idx + 1}M${tgtM}`);
+      });
+      if (masteries.length) {
+        lines.push(masteries.join(", "));
+      } else if (c.skillLevel !== t.skillLevel) {
+        lines.push(`Sk.Lv ${c.skillLevel} → ${t.skillLevel}`);
+      } else {
+        lines.push(`Sk.Lv ${c.skillLevel}`);
+      }
     }
-    return line;
+
+    (op.modules || []).forEach((mod) => {
+      const tgtS = (t.modules && t.modules[mod.uniEquipId]) || 0;
+      if (tgtS > 0) {
+        lines.push(`Mod ${mod.typeName2 || "?"} Lv. ${tgtS}`);
+      }
+    });
+
+    return lines.join("\n");
   }
 
   function renderRoster() {
@@ -486,12 +570,10 @@
       const name = document.createElement("span");
       name.className = "operatorCardName";
       name.textContent = op.name;
-      const status = document.createElement("span");
-      status.className = "operatorCardStatus";
-      status.textContent = formatCardStatus(op, entry);
       info.appendChild(name);
-      info.appendChild(status);
+      if (op.cnOnly) info.appendChild(buildCnBadge());
       card.appendChild(info);
+      card.title = formatCardTooltip(op, entry);
 
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
@@ -547,6 +629,10 @@
     setAvatarIcon(modalIconEl, entry.charId);
     modalIconEl.alt = "";
     modalNameEl.textContent = op.name;
+    modalNameEl.parentNode
+      .querySelectorAll(".cnBadge")
+      .forEach((el) => el.remove());
+    if (op.cnOnly) modalNameEl.insertAdjacentElement("afterend", buildCnBadge());
 
     modalStatesEl.innerHTML = "";
     modalStatesEl.appendChild(buildStateFields(op, entry, "current"));
@@ -789,10 +875,14 @@
       setItemIcon(icon, it && it.iconId);
       icon.alt = "";
       row.appendChild(icon);
+      const labelWrap = document.createElement("span");
+      labelWrap.className = "summaryMaterialNameWrap";
       const label = document.createElement("span");
       label.className = "summaryMaterialName";
       label.textContent = (it && it.name) || id;
-      row.appendChild(label);
+      labelWrap.appendChild(label);
+      if (it && it.cnOnly) labelWrap.appendChild(buildCnBadge());
+      row.appendChild(labelWrap);
       const countEl = document.createElement("span");
       countEl.className = "summaryMaterialCount";
       countEl.textContent = "×" + shortfall.toLocaleString();
@@ -832,6 +922,7 @@
       rarity.textContent = (op.rarity + 1) + "★";
       row.appendChild(icon);
       row.appendChild(name);
+      if (op.cnOnly) row.appendChild(buildCnBadge());
       row.appendChild(rarity);
       row.onclick = () => selectSearchResult(op);
       searchResultsEl.appendChild(row);
@@ -843,7 +934,12 @@
     addOperator(op.charId);
     searchInput.value = "";
     renderSearchResults([]);
-    searchInput.focus();
+    const index = roster.findIndex((e) => e.charId === op.charId);
+    if (index >= 0) {
+      openEditModal(index);
+    } else {
+      searchInput.focus();
+    }
   }
 
   function updateHighlight() {
@@ -935,10 +1031,14 @@
         setItemIcon(icon, it && it.iconId);
         icon.alt = "";
         row.appendChild(icon);
+        const nameWrap = document.createElement("span");
+        nameWrap.className = "depotRowNameWrap";
         const name = document.createElement("span");
         name.className = "depotRowName";
         name.textContent = (it && it.name) || id;
-        row.appendChild(name);
+        nameWrap.appendChild(name);
+        if (it && it.cnOnly) nameWrap.appendChild(buildCnBadge());
+        row.appendChild(nameWrap);
         const countInput = document.createElement("input");
         countInput.type = "number";
         countInput.min = "0";
@@ -994,6 +1094,7 @@
       name.textContent = it.name;
       row.appendChild(icon);
       row.appendChild(name);
+      if (it.cnOnly) row.appendChild(buildCnBadge());
       row.onclick = () => selectDepotSearchResult(it);
       depotSearchResultsEl.appendChild(row);
     });

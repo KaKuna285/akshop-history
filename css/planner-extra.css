@@ -56,19 +56,21 @@
 
 /* Left-aligned (not independently centered) so its edge matches the
    roster cards/depot rows below it, rather than floating as its own
-   narrower centered block. */
+   narrower centered block. Kept deliberately compact (small gap/margin,
+   tight input padding) so the roster/depot content below starts higher
+   on the page instead of this bar eating vertical space it doesn't need. */
 #operatorAdd,
 #depotAdd {
   max-width: 480px;
-  margin: 0 0 20px;
+  margin: 0 0 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 #operatorAdd label,
 #depotAdd label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #aaa;
 }
 
@@ -81,7 +83,7 @@
 #depotSearch {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid #555;
   background: #1c1c1c;
@@ -139,6 +141,24 @@
   margin-left: auto;
   font-size: 0.75rem;
   color: #999;
+}
+
+/* Marks an operator/material not yet released on the EN server (shown
+   using CN data instead -- see the cnOnly merge in planner.js's
+   loadData()). Distinct from the LMD/rarity yellow used elsewhere so it
+   reads as "different source", not "cost/value". */
+.cnBadge {
+  flex: 0 0 auto;
+  background: rgba(255, 159, 67, 0.15);
+  color: #ff9f43;
+  border: 1px solid rgba(255, 159, 67, 0.35);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.62rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: help;
 }
 
 .rosterEmpty {
@@ -200,10 +220,13 @@
   flex: 0 0 auto;
 }
 
+/* One line now (name + optional CN badge) -- the current/target summary
+   that used to live here as a second visible line is now the card's
+   hover tooltip (see formatCardTooltip() in planner.js) instead. */
 .operatorCardInfo {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -212,14 +235,6 @@
   font-weight: bold;
   font-size: 0.92rem;
   color: #eee;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.operatorCardStatus {
-  font-size: 0.75rem;
-  color: #999;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -327,10 +342,17 @@
   visibility: hidden;
 }
 
+.summaryMaterialNameWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .summaryMaterialName {
   font-size: 0.85rem;
   color: #eee;
-  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -383,10 +405,21 @@
   flex: 0 0 auto;
 }
 
+.depotRowNameWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .depotRowName {
   font-size: 0.88rem;
   color: #eee;
-  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .depotRow input[type="number"] {
