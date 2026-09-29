@@ -26,4 +26,4 @@ function extraDataUrl(filename) {
 // comment for deploy steps). No trailing slash. Leave this blank to keep
 // that feature hidden entirely -- the planner only shows the import UI
 // once this is set to a real deployed Worker URL.
-const DEPOT_IMPORT_ENDPOINT = "";
+const DEPOT_IMPORT_ENDPOINT = "https://akshop-depot-import.freddyhansson.workers.dev";
