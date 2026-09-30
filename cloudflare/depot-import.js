@@ -291,6 +291,26 @@ function randomAndroidDeviceIds() {
   return [crypto.randomUUID().replace(/-/g, ""), id2, crypto.randomUUID().replace(/-/g, "")];
 }
 
+// TEMPORARY experiment: a real phone presents the SAME device id on every
+// login for a given account, but fetchDepot() was generating a brand new
+// random one on every single request -- which is a real, concrete
+// difference from how a legitimate client behaves, and a plausible reason
+// the game server might hand back a restricted/bootstrap view of the
+// account (near-empty inventory, a default starting gold figure) rather
+// than its real state, since it looks like a never-before-seen device
+// every time. This derives a stable id from the account email instead
+// (nothing persisted -- just a deterministic hash, so the same account
+// always presents the same "device" across separate requests, without
+// this Worker needing to remember anything).
+async function stableAndroidDeviceIds(email) {
+  const digest = await sha256Hex(`akshop-depot-import-device-id-v1:${email}`);
+  const id1 = digest.slice(0, 32);
+  const id3 = digest.slice(32, 64);
+  let id2 = "86";
+  for (let i = 0; i < 13; i++) id2 += (parseInt(digest[i], 16) % 10).toString();
+  return [id1, id2, id3];
+}
+
 // --- Yostar EN auth chain ---------------------------------------------------
 
 async function generateYostarplatHeaders(bodyStr, { uid = "", token = "", deviceId } = {}) {
@@ -485,10 +505,10 @@ const BATTLE_RECORD_EXP_VALUES = {
   "2004": 2000, // Strategic Battle Record
 };
 
-async function getInventory(gsHost, uid, secret) {
+async function syncDataOnce(gsHost, uid, secret, seqnum) {
   const resp = await fetch(`${gsHost}/account/syncData`, {
     method: "POST",
-    headers: { secret, seqnum: "2", uid, "Content-Type": "application/json" },
+    headers: { secret, seqnum: String(seqnum), uid, "Content-Type": "application/json" },
     body: JSON.stringify({ platform: 1 }),
   });
   const data = await parseJsonOrThrow(resp, "sync data");
@@ -496,10 +516,15 @@ async function getInventory(gsHost, uid, secret) {
   // "playerDataDelta" at the top level), and "inventory" is a flat
   // itemId -> count map directly on it.
   const user = data?.user ?? data;
+  return { user, delta: data?.playerDataDelta ?? null };
+}
+
+async function getInventory(gsHost, uid, secret) {
+  const { user, delta } = await syncDataOnce(gsHost, uid, secret, 2);
   if (!user || typeof user.inventory !== "object" || user.inventory == null) {
     throw new StepError("sync data", "Account data didn't include an inventory.");
   }
-  return { user, delta: data?.playerDataDelta ?? null };
+  return { user, delta };
 }
 
 async function fetchDepot(email, code) {
@@ -507,11 +532,26 @@ async function fetchDepot(email, code) {
   const { channelUid, accessToken } = await getYostarToken(email, emailToken);
 
   const [network, versions] = await Promise.all([loadNetworkConfig(), loadVersionConfig()]);
-  const deviceIds = randomAndroidDeviceIds();
+  // TEMPORARY experiment: see stableAndroidDeviceIds()'s comment above --
+  // was randomAndroidDeviceIds() (a fresh, never-before-seen device id on
+  // every single request).
+  const deviceIds = await stableAndroidDeviceIds(email);
 
   const { uid, token: u8Token } = await getU8Token(network.u8, channelUid, accessToken, deviceIds);
   const secret = await getGameSecret(network.gs, uid, u8Token, versions, deviceIds);
   const { user, delta } = await getInventory(network.gs, uid, secret);
+
+  // TEMPORARY diagnostic: fire a second syncData call (bumped seqnum) in
+  // the same session, purely to check whether a first sync after login
+  // returns a restricted/bootstrap view and a follow-up call reveals the
+  // account's real state. Never affects the depot actually returned below
+  // -- comparison numbers only, surfaced via _debug.
+  let secondSync = null;
+  try {
+    secondSync = await syncDataOnce(network.gs, uid, secret, 3);
+  } catch (err) {
+    secondSync = { error: err instanceof Error ? err.message : String(err) };
+  }
 
   // LMD isn't part of "inventory" at all -- it's tracked as its own
   // currency field, status.gold -- so it's merged in here under the same
@@ -558,6 +598,12 @@ async function fetchDepot(email, code) {
       delta && typeof delta?.modified?.inventory === "object" && delta.modified.inventory
         ? Object.keys(delta.modified.inventory)
         : null,
+    inventoryKeyCountFirstSync: Object.keys(user.inventory || {}).length,
+    secondSyncError: secondSync?.error ?? null,
+    secondSyncGold: secondSync?.user?.status?.gold ?? null,
+    secondSyncInventoryKeyCount: secondSync?.user?.inventory
+      ? Object.keys(secondSync.user.inventory).length
+      : null,
   };
 
   return {
