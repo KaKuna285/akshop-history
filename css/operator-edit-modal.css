@@ -1,0 +1,191 @@
+/* The operator edit modal (current/target Elite, level, skill level,
+   mastery, module stages) -- built and injected into <body> by
+   js/operator-edit-modal.js, shared unchanged between the planner page
+   (opened from a roster card, or right after adding one via search) and
+   the calendar page (opened from an event's "Add to planner"/"In
+   planner" operator chips, in place, without navigating to the
+   planner). Loaded by both pages so the one shared modal always has its
+   styling available regardless of which page opened it. -------------- */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.modalOverlay.hidden {
+  display: none;
+}
+
+.modalPanel {
+  background: #232323;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 16px 20px 20px;
+  max-width: 520px;
+  width: 100%;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.modalOperator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+}
+
+.modalIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.modalName {
+  font-weight: bold;
+  font-size: 1.05rem;
+  color: #eee;
+}
+
+.modalClose {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 2px 8px;
+}
+
+.modalClose:hover {
+  color: #eee;
+}
+
+.modalStates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rosterRowState {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rosterRowStateLabel {
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #999;
+}
+
+.rosterRowStateFields {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rosterRowStateFields select,
+.rosterRowStateFields input[type="number"] {
+  background: #1c1c1c;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+}
+
+.rosterRowStateFields input[type="number"] {
+  width: 56px;
+}
+
+.modalExtra {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.rosterRowRank {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rosterRowRankLabel {
+  font-size: 0.78rem;
+  color: #aaa;
+  min-width: 130px;
+}
+
+.rosterRowRank select {
+  background: #1c1c1c;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.82rem;
+}
+
+.rosterRowRankArrow {
+  color: #777;
+  font-size: 0.8rem;
+}
+
+.modalRemove {
+  background: none;
+  border: 1px solid rgba(229, 85, 85, 0.4);
+  color: #e88;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.modalRemove:hover {
+  background: rgba(229, 85, 85, 0.12);
+  color: #faa;
+}
+
+/* Duplicated (not shared via a single rule) from shoplist/planner's own
+   material-list styling -- small, stable, and needed wherever
+   setAvatarIcon()/buildCnBadge() (js/util.js) are used, which now
+   includes this modal on a page (the calendar) that doesn't otherwise
+   load either of these two rules. */
+.cnBadge {
+  flex: 0 0 auto;
+  background: rgba(255, 159, 67, 0.15);
+  color: #ff9f43;
+  border: 1px solid rgba(255, 159, 67, 0.35);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.62rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: help;
+}
+
+.iconMissing {
+  visibility: hidden;
+}

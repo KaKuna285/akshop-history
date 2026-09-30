@@ -21,6 +21,7 @@
     <link type="text/css" href="/css/style2.css" rel="stylesheet" />
     <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
     <link type="text/css" href="/css/planner-extra.css" rel="stylesheet" />
+    <link type="text/css" href="/css/operator-edit-modal.css" rel="stylesheet" />
     <script type="text/javascript" src="/js/config.js"></script>
     <script type="text/javascript" src="/js/prefs.js"></script>
     <script type="text/javascript" src="/js/util.js"></script>
@@ -199,25 +200,13 @@
       >
     </div>
 
-    <div id="operatorEditModal" class="modalOverlay hidden">
-      <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="modalName">
-        <div class="modalHeader">
-          <div class="modalOperator">
-            <img id="modalIcon" class="modalIcon" alt="" />
-            <span id="modalName" class="modalName"></span>
-          </div>
-          <button type="button" id="modalClose" class="modalClose" aria-label="Close">
-            ×
-          </button>
-        </div>
-        <div id="modalStates" class="modalStates"></div>
-        <div id="modalExtra" class="modalExtra"></div>
-        <button type="button" id="modalRemove" class="modalRemove">
-          Remove operator
-        </button>
-      </div>
-    </div>
+    <!-- The edit modal (current/target Elite, level, skill level, mastery,
+         modules) is no longer static markup here -- js/operator-edit-modal.js
+         injects it into <body> itself on first use, so the exact same modal
+         can also be opened from the calendar page without duplicating this
+         HTML there. -->
 
+    <script type="text/javascript" src="/js/operator-edit-modal.js"></script>
     <script type="text/javascript" src="/js/planner.js"></script>
   </body>
 </html>

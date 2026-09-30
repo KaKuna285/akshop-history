@@ -261,6 +261,12 @@
   gap: 6px;
 }
 
+/* Every chip is a real <button> (see js/calendar.js) -- clicking either
+   state opens the same shared edit card in place: for a not-yet-added
+   operator that adds it first, for one already on the roster it just
+   opens the card to edit. Both states stay clickable, so both get a
+   hover affordance -- gold (the site's "do something" accent) for "add",
+   green for "already in your planner, click to edit". */
 .eventPreviewOperatorChip {
   display: flex;
   align-items: center;
@@ -269,21 +275,18 @@
   border: 1px solid transparent;
   border-radius: 999px;
   padding: 3px 10px 3px 3px;
+  font: inherit;
+  text-align: left;
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-/* Only the "not yet in your planner" chips are real links (see
-   js/calendar.js) -- give those a pointer + gold hover to read as
-   actionable, matching the rest of the site's gold "do something" accent.
-   The "already in your planner" state is a plain, non-interactive div. */
-a.eventPreviewOperatorChip {
-  cursor: pointer;
-}
-
 @media (hover: hover) {
-  a.eventPreviewOperatorChip:hover {
+  .eventPreviewOperatorChip:not(.inPlanner):hover {
     background: rgba(248, 213, 17, 0.12);
     border-color: rgba(248, 213, 17, 0.4);
   }
@@ -291,6 +294,13 @@ a.eventPreviewOperatorChip {
 
 .eventPreviewOperatorChip.inPlanner {
   background: rgba(109, 212, 126, 0.1);
+}
+
+@media (hover: hover) {
+  .eventPreviewOperatorChip.inPlanner:hover {
+    background: rgba(109, 212, 126, 0.18);
+    border-color: rgba(109, 212, 126, 0.4);
+  }
 }
 
 .eventPreviewOperatorIcon {
@@ -312,7 +322,7 @@ a.eventPreviewOperatorChip {
   white-space: nowrap;
 }
 
-a.eventPreviewOperatorChip .eventPreviewOperatorAction {
+.eventPreviewOperatorChip:not(.inPlanner) .eventPreviewOperatorAction {
   color: #f8d511;
 }
 

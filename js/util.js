@@ -49,6 +49,80 @@ function uri_avatar(charId, source = ASSET_SOURCE.LOCAL) {
       return `${ASSET_SOURCE.ACESHIP}avatars/${charId}${skinSuffix}.png`;
   }
 }
+
+// setAvatarIcon()/buildCnBadge() (and their shared helpers below) are used
+// by both the planner page (roster cards, search results, the operator
+// edit modal) and the calendar page (the same edit modal, opened in place
+// from an event's operator chips -- see js/operator-edit-modal.js) -- kept
+// here, already loaded by both, rather than duplicated in each.
+//
+// The community asset mirror uri_avatar() defaults to (LOCAL, an
+// akgcc/arkdata jsdelivr mirror) doesn't have full coverage -- some
+// operators' icons 404 there. Rather than leave a broken-image glyph
+// showing, fall back to the Aceship mirror (a separately-maintained, more
+// complete asset repo, already wired up as ASSET_SOURCE.ACESHIP above)
+// and, if that also fails, hide the <img> so the icon's circular
+// background shows as an empty placeholder instead of a broken-image icon.
+//
+// Both of those sources are mirrors of RELEASED client data -- an
+// operator that isn't out on EN yet has no art in either one, by
+// construction, regardless of charId correctness. There's no reliable
+// third-party mirror of actual CN client art currently reachable (a
+// dedicated CN asset-dump repo exists but its real path layout isn't
+// discoverable, and wiki sites that do show this art block scripted
+// access). So for a cnOnly entity specifically, once both real sources
+// fail, show a small generated "CN" placeholder instead of the plain
+// blank circle -- same "nothing to show yet" outcome, but it reads as
+// expected/labeled rather than looking like a broken image.
+const CN_ICON_PLACEHOLDER =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">' +
+      '<rect width="64" height="64" fill="#2a2a2a"/>' +
+      '<text x="32" y="40" font-family="sans-serif" font-size="20" ' +
+      'font-weight="bold" fill="#ff9f43" text-anchor="middle">CN</text>' +
+      "</svg>",
+  );
+function setIconWithFallback(imgEl, primarySrc, fallbackSrc, isCnOnly) {
+  const giveUp = () => {
+    if (isCnOnly) {
+      imgEl.onerror = null;
+      imgEl.src = CN_ICON_PLACEHOLDER;
+    } else {
+      imgEl.onerror = null;
+      imgEl.classList.add("iconMissing");
+    }
+  };
+  imgEl.src = primarySrc;
+  imgEl.onerror = () => {
+    if (fallbackSrc && fallbackSrc !== primarySrc) {
+      imgEl.onerror = giveUp;
+      imgEl.src = fallbackSrc;
+    } else {
+      giveUp();
+    }
+  };
+}
+function setAvatarIcon(imgEl, charId, isCnOnly) {
+  setIconWithFallback(imgEl, uri_avatar(charId), uri_avatar(charId, ASSET_SOURCE.ACESHIP), isCnOnly);
+}
+
+// A small "CN" tag for any operator/material flagged cnOnly during an
+// EN+CN data merge (see loadData() in planner.js, loadCharTable() in
+// operator-edit-modal.js) -- not yet released on the EN server, so shown
+// with EN data throughout but marked wherever it appears so it's never
+// mistaken for an EN-available entry.
+function buildCnBadge(entity) {
+  const badge = document.createElement("span");
+  badge.className = "cnBadge";
+  badge.textContent = "CN";
+  badge.title =
+    entity && entity.cnName
+      ? `Not yet released on the EN server -- shown under its CN codename (original CN name: ${entity.cnName})`
+      : "Not yet released on the EN server -- shown using CN data";
+  return badge;
+}
+
 function uri_background(imageName, source = ASSET_SOURCE.LOCAL) {
   switch (source) {
     case ASSET_SOURCE.LOCAL:

@@ -397,9 +397,8 @@
       const opsList = document.createElement("div");
       opsList.className = "eventPreviewOperatorsList";
       // Read fresh each time this panel opens (rather than once at load)
-      // so it reflects whatever was added/removed on the planner tab
-      // since the page loaded -- getPref() is cheap enough to call per
-      // chip build.
+      // so it reflects whatever was added/removed since the page loaded --
+      // getPref() is cheap enough to call per chip build.
       const rosterCharIds = new Set(
         getPref("planner", "roster", [], (v) => Array.isArray(v))
           .filter((e) => e && typeof e.charId === "string")
@@ -407,17 +406,20 @@
       );
       ev.operators.forEach((op) => {
         const inPlanner = rosterCharIds.has(op.charId);
-        // A real <a> (clickable, keyboard-reachable, no JS needed to
-        // activate) when there's somewhere useful to go; a plain div --
-        // not a dead link to nowhere -- once it's already in the roster.
-        const chip = document.createElement(inPlanner ? "div" : "a");
+        // Every chip is a real <button> now, whether or not the operator
+        // is already in the roster -- clicking it always opens the same
+        // edit card in place (adding the operator first if it isn't
+        // already on the roster), the way planner.js's own
+        // selectSearchResult() does when you add one from its search box.
+        // This used to be a link to /planner/?add=charId instead, but
+        // that navigated away from the calendar entirely rather than
+        // popping the card open here.
+        const chip = document.createElement("button");
+        chip.type = "button";
         chip.className = "eventPreviewOperatorChip" + (inPlanner ? " inPlanner" : "");
-        if (!inPlanner) {
-          chip.href = `/planner/?add=${encodeURIComponent(op.charId)}`;
-          chip.title = `Add ${op.name} to your planner roster`;
-        } else {
-          chip.title = `${op.name} is already in your planner roster`;
-        }
+        chip.title = inPlanner
+          ? `${op.name} is in your planner roster -- click to edit`
+          : `Add ${op.name} to your planner roster`;
         if (op.icon) {
           const icon = document.createElement("img");
           icon.className = "eventPreviewOperatorIcon";
@@ -433,6 +435,7 @@
         action.className = "eventPreviewOperatorAction";
         action.textContent = inPlanner ? "✓ In planner" : "+ Add to planner";
         chip.appendChild(action);
+        chip.addEventListener("click", () => openOperatorModalFromChip(op, ev));
         opsList.appendChild(chip);
       });
       opsSection.appendChild(opsList);
@@ -457,6 +460,54 @@
     eventPreviewEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  // Opens the shared operator edit modal (js/operator-edit-modal.js) for
+  // the operator an "Add to planner"/"In planner" chip was clicked for --
+  // adding it to the roster first if it wasn't already there, the same
+  // add-then-open sequence planner.js's own selectSearchResult() uses.
+  // The modal is injected into <body>, a sibling of #eventPreview rather
+  // than a descendant of it, so it stays open (and the calendar page
+  // underneath it stays put) regardless of what the preview panel does.
+  //
+  // The chip's own "Add to planner"/"In planner" label is deliberately
+  // NOT refreshed synchronously here, even right after adding -- doing
+  // so would rebuild (detach + recreate) the very chip this click is
+  // still bubbling from, and loadCharTable()'s promise can resolve *in
+  // the middle* of that bubble (Chromium runs a microtask checkpoint
+  // between each event listener), which would make the "click landed
+  // outside the preview panel" check below see a detached, already-
+  // orphaned target and close the panel out from under the modal that
+  // was just opened. Refreshing once the modal actually closes (via
+  // onClose) sidesteps that race entirely, since by then this click's
+  // dispatch has long finished.
+  function openOperatorModalFromChip(op, ev) {
+    OperatorEditModal.loadCharTable()
+      .then((charTable) => {
+        const fullOp = charTable[op.charId];
+        if (!fullOp) return; // shouldn't happen -- op came from this same table
+        let roster = getPref("planner", "roster", [], (v) => Array.isArray(v));
+        let entry = roster.find((e) => e && e.charId === op.charId);
+        if (!entry) {
+          entry = {
+            charId: op.charId,
+            current: OperatorEditModal.defaultState(),
+            target: OperatorEditModal.defaultTargetState(fullOp),
+          };
+          roster = roster.concat([entry]);
+          setPref("planner", "roster", roster);
+        }
+        OperatorEditModal.open(fullOp, entry, {
+          onChange: () => setPref("planner", "roster", roster),
+          onRemove: () => {
+            roster = roster.filter((e) => e !== entry);
+            setPref("planner", "roster", roster);
+            OperatorEditModal.close();
+          },
+          onClose: () => showEventPreview(ev),
+        });
+      })
+      .catch((err) => console.warn("Couldn't load operator data for the edit card:", err));
+  }
+
   function hideEventPreview() {
     eventPreviewEl.classList.remove("visible");
   }
@@ -464,15 +515,22 @@
   eventPreviewCloseBtn.addEventListener("click", hideEventPreview);
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") hideEventPreview();
+    // Let the modal's own Escape handler close itself first -- otherwise
+    // Escape while editing an operator would also dismiss the event
+    // preview panel underneath it.
+    if (e.key === "Escape" && !OperatorEditModal.isOpen()) hideEventPreview();
   });
 
   // Closes the preview on a click anywhere outside it. Safe from
   // immediately closing a panel that was just opened -- see
-  // makeClickable()'s stopPropagation().
+  // makeClickable()'s stopPropagation(). The modal is injected as a
+  // sibling of #eventPreview (not a descendant), so without this guard
+  // every click inside it -- picking a phase, typing a level -- would
+  // also be seen as "outside the preview" and close the panel under it.
   document.addEventListener("click", (e) => {
     if (!eventPreviewEl.classList.contains("visible")) return;
     if (eventPreviewEl.contains(e.target)) return;
+    if (e.target.closest && e.target.closest("#operatorEditModal")) return;
     hideEventPreview();
   });
 
@@ -944,16 +1002,21 @@
       render();
 
       // Best-effort operator-release matching (see matchOperatorsToEvents()
-      // above) for the "Add to planner" links in the preview panel.
+      // above) for the "Add to planner" chips in the preview panel.
       // Deliberately fetched *after* the render above so a slow or failed
       // character-data load never holds up the calendar itself -- anyone
       // who opens the preview before this resolves just won't see operator
-      // chips on that one open.
+      // chips on that one open. Routed through OperatorEditModal.loadCharTable()
+      // (js/operator-edit-modal.js) rather than a separate get_char_table()
+      // call here -- that table already carries onlineTime (extra_data,
+      // needed for matching) *and* modules (needed by the edit modal a chip
+      // opens), and both this matching step and the modal want the exact
+      // same table, so there's no reason to fetch character_table.json twice.
       try {
-        const charTable = await get_char_table(false, SERVERS.EN, true);
+        const charTable = await OperatorEditModal.loadCharTable();
         matchOperatorsToEvents(allEvents, charTable);
       } catch (err) {
-        console.warn("Couldn't load operator release-date data for planner links:", err);
+        console.warn("Couldn't load operator release-date data for planner chips:", err);
       }
     } catch (err) {
       console.error("Failed to load events.json:", err);

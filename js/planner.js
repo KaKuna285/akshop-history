@@ -61,43 +61,11 @@
   // real sources fail, show a small generated "CN" placeholder instead of
   // the plain blank circle -- same "nothing to show yet" outcome, but it
   // reads as expected/labeled rather than looking like a broken image.
-  const CN_ICON_PLACEHOLDER =
-    "data:image/svg+xml," +
-    encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">' +
-        '<rect width="64" height="64" fill="#2a2a2a"/>' +
-        '<text x="32" y="40" font-family="sans-serif" font-size="20" ' +
-        'font-weight="bold" fill="#ff9f43" text-anchor="middle">CN</text>' +
-        "</svg>",
-    );
-  function setIconWithFallback(imgEl, primarySrc, fallbackSrc, isCnOnly) {
-    const giveUp = () => {
-      if (isCnOnly) {
-        imgEl.onerror = null;
-        imgEl.src = CN_ICON_PLACEHOLDER;
-      } else {
-        imgEl.onerror = null;
-        imgEl.classList.add("iconMissing");
-      }
-    };
-    imgEl.src = primarySrc;
-    imgEl.onerror = () => {
-      if (fallbackSrc && fallbackSrc !== primarySrc) {
-        imgEl.onerror = giveUp;
-        imgEl.src = fallbackSrc;
-      } else {
-        giveUp();
-      }
-    };
-  }
-  function setAvatarIcon(imgEl, charId, isCnOnly) {
-    setIconWithFallback(
-      imgEl,
-      uri_avatar(charId),
-      uri_avatar(charId, ASSET_SOURCE.ACESHIP),
-      isCnOnly,
-    );
-  }
+  //
+  // CN_ICON_PLACEHOLDER/setIconWithFallback/setAvatarIcon/buildCnBadge
+  // used to live here too, but are also needed by the calendar page (for
+  // the shared operator edit modal -- see js/operator-edit-modal.js) and
+  // now live in util.js, already loaded by both pages, instead.
   function setItemIcon(imgEl, iconId, isCnOnly) {
     if (!iconId) {
       if (isCnOnly) {
@@ -110,21 +78,9 @@
     setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP), isCnOnly);
   }
 
-  // A small "CN" tag for any operator/material flagged cnOnly during the
-  // EN+CN merge in loadData() -- not yet released on the EN server, so
-  // shown with EN data throughout but marked wherever it appears (search
-  // results, roster card, edit modal, depot row, materials list) so it's
-  // never mistaken for an EN-available entry.
-  function buildCnBadge(entity) {
-    const badge = document.createElement("span");
-    badge.className = "cnBadge";
-    badge.textContent = "CN";
-    badge.title =
-      entity && entity.cnName
-        ? `Not yet released on the EN server -- shown under its CN codename (original CN name: ${entity.cnName})`
-        : "Not yet released on the EN server -- shown using CN data";
-    return badge;
-  }
+  // buildCnBadge() (small "CN" tag for anything flagged cnOnly during the
+  // EN+CN merge in loadData() -- not yet released on the EN server) also
+  // moved to util.js alongside setAvatarIcon(), for the same reason.
 
   // LMD and EXP are real, individually-iconed items in the game data
   // (ids "4001" and "5001") -- kept searchable/addable in the depot like
@@ -166,13 +122,10 @@
   const depotImportSummaryEl = document.getElementById("depotImportSummary");
   const depotImportApplyBtn = document.getElementById("depotImportApply");
   const depotImportCancelBtn = document.getElementById("depotImportCancel");
-  const modalOverlayEl = document.getElementById("operatorEditModal");
-  const modalIconEl = document.getElementById("modalIcon");
-  const modalNameEl = document.getElementById("modalName");
-  const modalCloseEl = document.getElementById("modalClose");
-  const modalStatesEl = document.getElementById("modalStates");
-  const modalExtraEl = document.getElementById("modalExtra");
-  const modalRemoveEl = document.getElementById("modalRemove");
+  // The edit modal itself (current/target phase, level, skill, mastery,
+  // modules) is owned by js/operator-edit-modal.js -- shared with the
+  // calendar page, which opens the exact same card in place rather than
+  // navigating here. See openOperatorModal() below.
 
   let charTable = null; // charId -> operator record (rarity already 0-5 numeric, see util.js)
   let operatorList = []; // playable operators, sorted by name, for search
@@ -186,7 +139,6 @@
   let currentResults = [];
   let depotHighlightedIndex = -1;
   let depotCurrentResults = [];
-  let editingIndex = -1; // roster index the edit modal is currently open on, -1 = closed
 
   // A one-time migration for anyone who used this page back when it was
   // called "materials" -- their roster/depot/active-tab were saved under
@@ -584,7 +536,7 @@
   function removeOperator(index) {
     roster.splice(index, 1);
     saveRosterPref();
-    closeEditModal(); // indices shift on removal -- simplest to just close
+    OperatorEditModal.close(); // indices shift on removal -- simplest to just close
     renderRoster();
     renderSummary();
   }
@@ -687,11 +639,11 @@
       };
       card.appendChild(removeBtn);
 
-      card.onclick = () => openEditModal(index);
+      card.onclick = () => openOperatorModal(index);
       card.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          openEditModal(index);
+          openOperatorModal(index);
         }
       };
 
@@ -700,201 +652,25 @@
   }
 
   // --- edit modal ----------------------------------------------------------
-
-  function openEditModal(index) {
-    editingIndex = index;
-    refreshModalFields();
-    modalOverlayEl.classList.remove("hidden");
-  }
-
-  function closeEditModal() {
-    editingIndex = -1;
-    modalOverlayEl.classList.add("hidden");
-  }
-
-  // Rebuilds the modal's own fields from the current roster entry --
-  // called both when the modal opens and after every field change (a
-  // phase change shifts the level field's valid range, for instance), so
-  // the modal never shows a stale control while it's open.
-  function refreshModalFields() {
-    if (editingIndex < 0 || !roster[editingIndex]) {
-      closeEditModal();
-      return;
-    }
-    const entry = roster[editingIndex];
+  //
+  // The actual modal (DOM, fields, current/target/mastery/module rows) is
+  // js/operator-edit-modal.js, shared as-is with the calendar page so
+  // "Add to planner" there opens this exact same card in place instead of
+  // navigating here. This is just the thin wiring: which roster index is
+  // being edited, and what to do when it changes or is removed.
+  function openOperatorModal(index) {
+    const entry = roster[index];
+    if (!entry) return;
     const op = charTable[entry.charId];
-    if (!op) {
-      closeEditModal();
-      return;
-    }
-    setAvatarIcon(modalIconEl, entry.charId, op.cnOnly);
-    modalIconEl.alt = "";
-    modalNameEl.textContent = op.name;
-    modalNameEl.parentNode
-      .querySelectorAll(".cnBadge")
-      .forEach((el) => el.remove());
-    if (op.cnOnly) modalNameEl.insertAdjacentElement("afterend", buildCnBadge(op));
-
-    modalStatesEl.innerHTML = "";
-    modalStatesEl.appendChild(buildStateFields(op, entry, "current"));
-    modalStatesEl.appendChild(buildStateFields(op, entry, "target"));
-
-    modalExtraEl.innerHTML = "";
-    const extra = buildExtraFields(op, entry);
-    if (extra) modalExtraEl.appendChild(extra);
-  }
-
-  modalCloseEl.addEventListener("click", closeEditModal);
-  modalOverlayEl.addEventListener("click", (e) => {
-    if (e.target === modalOverlayEl) closeEditModal();
-  });
-  modalRemoveEl.addEventListener("click", () => {
-    if (editingIndex >= 0) removeOperator(editingIndex);
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !modalOverlayEl.classList.contains("hidden")) {
-      closeEditModal();
-    }
-  });
-
-  // Every field change inside the modal goes through this: persist,
-  // refresh the card list (its status line may have changed), refresh
-  // the totals, and refresh the modal's own fields (a phase change moves
-  // the level field's valid range, for instance).
-  function onEditChange() {
-    saveRosterPref();
-    renderRoster();
-    renderSummary();
-    refreshModalFields();
-  }
-
-  // Mastery (per skill) and module (per module) rows -- each is its own
-  // independent current -> target rank, so they're rendered as compact
-  // "label [current] -> [target]" lines rather than folded into
-  // buildStateFields's two-column layout.
-  function buildExtraFields(op, entry) {
-    const masterySkills = (op.skills || []).filter((_, idx) => maxMastery(op, idx) > 0);
-    const modules = op.modules || [];
-    if (!masterySkills.length && !modules.length) return null;
-
-    const wrap = document.createElement("div");
-    wrap.className = "rosterRowExtra";
-
-    op.skills &&
-      op.skills.forEach((skill, idx) => {
-        const cap = maxMastery(op, idx);
-        if (!cap) return;
-        wrap.appendChild(
-          buildRankRow(`Skill ${idx + 1} Mastery`, entry, "mastery", idx, cap, (n) =>
-            n === 0 ? "None" : "M" + n,
-          ),
-        );
-      });
-
-    modules.forEach((mod) => {
-      const label = ("Module " + (mod.typeName2 || "")).trim();
-      wrap.appendChild(
-        buildRankRow(label, entry, "modules", mod.uniEquipId, 3, (n) =>
-          n === 0 ? "None" : "Stage " + n,
-        ),
-      );
+    if (!op) return;
+    OperatorEditModal.open(op, entry, {
+      onChange: () => {
+        saveRosterPref();
+        renderRoster();
+        renderSummary();
+      },
+      onRemove: () => removeOperator(index),
     });
-
-    return wrap;
-  }
-
-  function buildRankRow(label, entry, stateKey, subKey, max, formatFn) {
-    const row = document.createElement("div");
-    row.className = "rosterRowRank";
-    const labelEl = document.createElement("span");
-    labelEl.className = "rosterRowRankLabel";
-    labelEl.textContent = label;
-    row.appendChild(labelEl);
-
-    const buildSelect = (which) => {
-      const state = entry[which];
-      const sel = document.createElement("select");
-      for (let n = 0; n <= max; n++) {
-        const opt = document.createElement("option");
-        opt.value = String(n);
-        opt.textContent = formatFn(n);
-        if (n === (state[stateKey][subKey] || 0)) opt.selected = true;
-        sel.appendChild(opt);
-      }
-      sel.onchange = () => {
-        state[stateKey][subKey] = parseInt(sel.value, 10);
-        onEditChange();
-      };
-      return sel;
-    };
-
-    row.appendChild(buildSelect("current"));
-    const arrow = document.createElement("span");
-    arrow.className = "rosterRowRankArrow";
-    arrow.textContent = "→";
-    row.appendChild(arrow);
-    row.appendChild(buildSelect("target"));
-    return row;
-  }
-
-  function buildStateFields(op, entry, which) {
-    const state = entry[which];
-    const wrap = document.createElement("div");
-    wrap.className = "rosterRowState";
-    const label = document.createElement("div");
-    label.className = "rosterRowStateLabel";
-    label.textContent = which === "current" ? "Current" : "Target";
-    wrap.appendChild(label);
-
-    const fields = document.createElement("div");
-    fields.className = "rosterRowStateFields";
-
-    const phaseSelect = document.createElement("select");
-    for (let p = 0; p <= maxPhase(op); p++) {
-      const opt = document.createElement("option");
-      opt.value = String(p);
-      opt.textContent = "E" + p;
-      if (p === state.phase) opt.selected = true;
-      phaseSelect.appendChild(opt);
-    }
-    phaseSelect.onchange = () => {
-      state.phase = parseInt(phaseSelect.value, 10);
-      clampState(op, state);
-      onEditChange();
-    };
-    fields.appendChild(phaseSelect);
-
-    const levelInput = document.createElement("input");
-    levelInput.type = "number";
-    levelInput.min = "1";
-    levelInput.max = String(maxLevelFor(op, state.phase));
-    levelInput.value = String(state.level);
-    levelInput.onchange = () => {
-      const v = parseInt(levelInput.value, 10);
-      state.level = Number.isFinite(v) ? v : state.level;
-      clampState(op, state);
-      onEditChange();
-    };
-    fields.appendChild(levelInput);
-
-    if (hasSkills(op)) {
-      const skillSelect = document.createElement("select");
-      for (let s = 1; s <= 7; s++) {
-        const opt = document.createElement("option");
-        opt.value = String(s);
-        opt.textContent = "Sk.Lv " + s;
-        if (s === state.skillLevel) opt.selected = true;
-        skillSelect.appendChild(opt);
-      }
-      skillSelect.onchange = () => {
-        state.skillLevel = parseInt(skillSelect.value, 10);
-        onEditChange();
-      };
-      fields.appendChild(skillSelect);
-    }
-
-    wrap.appendChild(fields);
-    return wrap;
   }
 
   // --- rendering: summary --------------------------------------------------
@@ -1102,7 +878,7 @@
     renderSearchResults([]);
     const index = roster.findIndex((e) => e.charId === op.charId);
     if (index >= 0) {
-      openEditModal(index);
+      openOperatorModal(index);
     } else {
       searchInput.focus();
     }
