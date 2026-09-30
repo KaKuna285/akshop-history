@@ -773,15 +773,24 @@ fetch(extraDataUrl("banner_history.json"))
 			iconTooltipEl.style.top = pageY + "px";
 			iconTooltipEl.style.transform = "translate(-50%, calc(-100% - 14px))";
 		}
-		// a bar segment the user clicked on, pinned in place until they click
-		// it again, click elsewhere, or change a filter/sort/server/period
+		// A bar segment ("line") or portrait bubble the user clicked on, kept
+		// showing in place until they click it again, click elsewhere,
+		// change a filter/sort/server/period, or click the other kind of
+		// pinnable element (only one tooltip is ever shown at a time, so
+		// pinning one clears the other).
 		let pinnedGap = null;
+		let pinnedIcon = null;
 		opCanvas.addEventListener("mousemove", (e) => {
 			const hb = findHoveredIcon(e.offsetX, e.offsetY);
 			const overSegment = findHoveredBarSegment(e.offsetX, e.offsetY);
 			if (hb) {
 				showIconTooltip(hb, e.pageX, e.pageY);
 				opCanvas.style.cursor = "pointer";
+			} else if (pinnedIcon) {
+				// keep showing the pinned portrait's info while the mouse
+				// isn't over a portrait bubble, same idea as a pinned gap
+				showIconTooltip(pinnedIcon.hb, pinnedIcon.pageX, pinnedIcon.pageY);
+				opCanvas.style.cursor = overSegment ? "pointer" : "default";
 			} else if (pinnedGap) {
 				// keep showing the pinned gap while the mouse isn't over a
 				// portrait bubble, instead of hiding it on every small move
@@ -793,9 +802,22 @@ fetch(extraDataUrl("banner_history.json"))
 			}
 		});
 		opCanvas.addEventListener("mouseleave", () => {
-			if (!pinnedGap) hideIconTooltip();
+			if (!pinnedGap && !pinnedIcon) hideIconTooltip();
 		});
 		opCanvas.addEventListener("click", (e) => {
+			const hb = findHoveredIcon(e.offsetX, e.offsetY);
+			if (hb) {
+				if (pinnedIcon && pinnedIcon.hb === hb) {
+					// clicking the same portrait again unpins it
+					pinnedIcon = null;
+					hideIconTooltip();
+				} else {
+					pinnedIcon = { hb, pageX: e.pageX, pageY: e.pageY };
+					pinnedGap = null;
+					showIconTooltip(hb, e.pageX, e.pageY);
+				}
+				return;
+			}
 			const seg = findHoveredBarSegment(e.offsetX, e.offsetY);
 			if (seg) {
 				if (pinnedGap && pinnedGap.seg === seg) {
@@ -804,19 +826,22 @@ fetch(extraDataUrl("banner_history.json"))
 					hideIconTooltip();
 				} else {
 					pinnedGap = { seg, pageX: e.pageX, pageY: e.pageY };
+					pinnedIcon = null;
 					showBarGapTooltip(seg, e.pageX, e.pageY);
 				}
-			} else if (pinnedGap) {
+			} else if (pinnedGap || pinnedIcon) {
 				pinnedGap = null;
+				pinnedIcon = null;
 				hideIconTooltip();
 			}
 		});
 		// a click anywhere outside the chart entirely (the canvas's own
 		// click handler above only ever sees clicks that land on it) should
-		// also dismiss a pinned gap tooltip
+		// also dismiss a pinned gap/portrait tooltip
 		document.addEventListener("click", (e) => {
-			if (pinnedGap && !opCanvas.contains(e.target)) {
+			if ((pinnedGap || pinnedIcon) && !opCanvas.contains(e.target)) {
 				pinnedGap = null;
+				pinnedIcon = null;
 				hideIconTooltip();
 			}
 		});
@@ -984,10 +1009,11 @@ fetch(extraDataUrl("banner_history.json"))
 			};
 		});
 		function redrawCharts() {
-			// the rows/positions a pinned gap tooltip refers to may no
-			// longer exist (or mean something different) after a filter,
-			// sort, server or period change
+			// the rows/positions a pinned gap or portrait tooltip refers to
+			// may no longer exist (or mean something different) after a
+			// filter, sort, server or period change
 			pinnedGap = null;
+			pinnedIcon = null;
 			hideIconTooltip();
 			let subset = filterOperators(SHOP_DATA[selectedServer]);
 			barGraph.data.labels = subset.sort(labelSort).map((x) => x.op);
