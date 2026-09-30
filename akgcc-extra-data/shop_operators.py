@@ -4,6 +4,7 @@ import requests
 import re
 import json
 import time
+from datetime import datetime, timezone
 from pprint import pprint
 from urllib.parse import quote
 from html import unescape
@@ -257,4 +258,9 @@ get_operator_lists_prts()
 get_operator_lists_wiki()
 with open('./json/banner_history.json','w') as f:
     if NA_OPS and CN_OPS:
-        json.dump({'NA':NA_OPS,'CN':CN_OPS},f)
+        # generatedAt powers the "data updated" note on the shop history
+        # page (js/shoplist.js) -- a top-level key alongside NA/CN, same
+        # pattern events.py already uses for events.json. Consumers only
+        # ever read .NA/.CN off this object, so an extra top-level key is
+        # harmless to them.
+        json.dump({'NA':NA_OPS,'CN':CN_OPS,'generatedAt':datetime.now(timezone.utc).isoformat()},f)

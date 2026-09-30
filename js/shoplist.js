@@ -54,6 +54,16 @@ fetch(extraDataUrl("banner_history.json"))
 	.then((js) => {
 		SHOP_DATA.EN = js.NA;
 		SHOP_DATA.CN = js.CN;
+		// generatedAt is new as of this scraper patch -- cached data fetched
+		// before the next daily run picks it up won't have it yet, so this
+		// stays blank (rather than showing a broken/undefined date) until then.
+		if (js.generatedAt) {
+			const freshnessEl = document.getElementById("dataFreshness");
+			if (freshnessEl) {
+				const d = new Date(js.generatedAt);
+				freshnessEl.textContent = ` · Updated ${d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
+			}
+		}
 		return get_char_table(false, SERVERS.CN, true);
 	})
 	.then((js) => {

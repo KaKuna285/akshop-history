@@ -19,6 +19,7 @@
   const prevWeekBtn = document.getElementById("prevWeekBtn");
   const nextWeekBtn = document.getElementById("nextWeekBtn");
   const todayBtn = document.getElementById("todayBtn");
+  const dataFreshnessEl = document.getElementById("dataFreshness");
 
   const GRACE_DAYS = 30;
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -155,6 +156,67 @@
 
   function daysBetween(a, b) {
     return Math.round((b - a) / DAY_MS);
+  }
+
+  // Best-effort "this event looks tied to these new operators" match, used
+  // to power the planner links in the event preview panel (see
+  // showEventPreview() below). There's no scraped gacha-banner calendar to
+  // draw on -- events.py only scrapes story/side events, not headhunting
+  // banners -- but a new operator's EN release almost always lands on the
+  // same day as the event it debuts alongside, so matching by release-date
+  // proximity is a reasonable stand-in.
+  //
+  // Both events.json's globalStart ("...T17:00:00") and operator_release_
+  // dates.json's onlineTime ("...17:00:00", space-separated instead of "T")
+  // use the same plain, no-UTC-offset timestamp convention -- comparing just
+  // the Y-M-D portion (via Date.UTC, so this doesn't drift with whatever
+  // timezone the browser is in) avoids the ambiguity of parsing either one
+  // as a full timestamp.
+  function dayKeyFromTimestamp(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || "");
+    if (!m) return null;
+    return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY_MS);
+  }
+
+  const OPERATOR_MATCH_WINDOW_DAYS = 1;
+  // A real debut is 1-4 operators, occasionally more for a collab/
+  // anniversary batch -- this also happens to be exactly what filters out
+  // the one known false-positive case: EN's original Jan 2020 launch
+  // back-dated ~90 operators' onlineTime to the same couple of days as the
+  // catch-up "Opening Event", which would otherwise show as one event
+  // "debuting" nearly the entire early roster.
+  const OPERATOR_MATCH_MAX = 6;
+
+  // Mutates each matching event in `events`, setting ev.operators to
+  // [{charId, name, icon}, ...] -- the shape showEventPreview() already
+  // expects (that rendering existed before this matching did; it's what
+  // first suggested tying the two together).
+  function matchOperatorsToEvents(events, charTable) {
+    const byDay = new Map(); // dayNum -> [operator record, ...]
+    for (const op of Object.values(charTable)) {
+      const day = dayKeyFromTimestamp(op.onlineTime);
+      if (day == null) continue;
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push(op);
+    }
+    for (const ev of events) {
+      const day = dayKeyFromTimestamp(ev.globalStart);
+      if (day == null) continue;
+      const seen = new Set();
+      const matches = [];
+      for (let d = day - OPERATOR_MATCH_WINDOW_DAYS; d <= day + OPERATOR_MATCH_WINDOW_DAYS; d++) {
+        for (const op of byDay.get(d) || []) {
+          if (seen.has(op.charId)) continue;
+          seen.add(op.charId);
+          matches.push(op);
+        }
+      }
+      if (matches.length && matches.length <= OPERATOR_MATCH_MAX) {
+        ev.operators = matches
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((op) => ({ charId: op.charId, name: op.name, icon: uri_avatar(op.charId) }));
+      }
+    }
   }
 
   function countdownLabel(globalStartIso, now) {
@@ -334,9 +396,28 @@
       opsSection.appendChild(opsHeading);
       const opsList = document.createElement("div");
       opsList.className = "eventPreviewOperatorsList";
+      // Read fresh each time this panel opens (rather than once at load)
+      // so it reflects whatever was added/removed on the planner tab
+      // since the page loaded -- getPref() is cheap enough to call per
+      // chip build.
+      const rosterCharIds = new Set(
+        getPref("planner", "roster", [], (v) => Array.isArray(v))
+          .filter((e) => e && typeof e.charId === "string")
+          .map((e) => e.charId),
+      );
       ev.operators.forEach((op) => {
-        const chip = document.createElement("div");
-        chip.className = "eventPreviewOperatorChip";
+        const inPlanner = rosterCharIds.has(op.charId);
+        // A real <a> (clickable, keyboard-reachable, no JS needed to
+        // activate) when there's somewhere useful to go; a plain div --
+        // not a dead link to nowhere -- once it's already in the roster.
+        const chip = document.createElement(inPlanner ? "div" : "a");
+        chip.className = "eventPreviewOperatorChip" + (inPlanner ? " inPlanner" : "");
+        if (!inPlanner) {
+          chip.href = `/planner/?add=${encodeURIComponent(op.charId)}`;
+          chip.title = `Add ${op.name} to your planner roster`;
+        } else {
+          chip.title = `${op.name} is already in your planner roster`;
+        }
         if (op.icon) {
           const icon = document.createElement("img");
           icon.className = "eventPreviewOperatorIcon";
@@ -348,6 +429,10 @@
         name.className = "eventPreviewOperatorName";
         name.textContent = op.name;
         chip.appendChild(name);
+        const action = document.createElement("span");
+        action.className = "eventPreviewOperatorAction";
+        action.textContent = inPlanner ? "✓ In planner" : "+ Add to planner";
+        chip.appendChild(action);
         opsList.appendChild(chip);
       });
       opsSection.appendChild(opsList);
@@ -850,8 +935,26 @@
           ? `Current CN→Global lag used for estimates: ~${Math.round(lagDays)} days`
           : `Historical CN→Global lag: ~${Math.round(lagDays)} days (dataset average -- switches to the current lag after the next data refresh)`;
       }
+      // generatedAt is only as fresh as events.py's last successful daily
+      // run -- see the "Update banner history" GitHub Action.
+      if (data.generatedAt && dataFreshnessEl) {
+        dataFreshnessEl.textContent = ` · Updated ${fmtDate(data.generatedAt)}`;
+      }
 
       render();
+
+      // Best-effort operator-release matching (see matchOperatorsToEvents()
+      // above) for the "Add to planner" links in the preview panel.
+      // Deliberately fetched *after* the render above so a slow or failed
+      // character-data load never holds up the calendar itself -- anyone
+      // who opens the preview before this resolves just won't see operator
+      // chips on that one open.
+      try {
+        const charTable = await get_char_table(false, SERVERS.EN, true);
+        matchOperatorsToEvents(allEvents, charTable);
+      } catch (err) {
+        console.warn("Couldn't load operator release-date data for planner links:", err);
+      }
     } catch (err) {
       console.error("Failed to load events.json:", err);
       calendarViewRoot.style.display = "none";

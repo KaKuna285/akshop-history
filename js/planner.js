@@ -133,6 +133,7 @@
   const LMD_ITEM_ID = "4001";
   const EXP_ITEM_ID = "5001";
 
+  const planLinkStatusEl = document.getElementById("planLinkStatus");
   const tabBtnRoster = document.getElementById("tabBtnRoster");
   const tabBtnDepot = document.getElementById("tabBtnDepot");
   const tabPanelRoster = document.getElementById("tabPanelRoster");
@@ -536,6 +537,48 @@
     saveRosterPref();
     renderRoster();
     renderSummary();
+  }
+
+  // Deep-link support: /planner/?add=charId[,charId2,...], set by the
+  // calendar page's "Add to planner" links (js/calendar.js) next to an
+  // event's newly-released operators. Adds whichever charIds are
+  // recognized, switches to the Roster tab, leaves a short status note,
+  // and strips "add" from the URL so refreshing or bookmarking the page
+  // doesn't keep re-adding it on every load.
+  function applyAddFromLink() {
+    const params = new URLSearchParams(location.search);
+    const raw = params.get("add");
+    if (raw) {
+      const added = [];
+      const alreadyHad = [];
+      for (const charId of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
+        const op = charTable[charId];
+        if (!op) continue; // unknown/stale charId in the URL -- ignore silently
+        if (roster.some((e) => e.charId === charId)) {
+          alreadyHad.push(op.name);
+        } else {
+          addOperator(charId);
+          added.push(op.name);
+        }
+      }
+      if (added.length || alreadyHad.length) {
+        switchTab("roster");
+        const parts = [];
+        if (added.length) parts.push(`Added ${added.join(", ")} to your roster.`);
+        if (alreadyHad.length) parts.push(`Already in your roster: ${alreadyHad.join(", ")}.`);
+        planLinkStatusEl.textContent = parts.join(" ");
+        planLinkStatusEl.classList.remove("hidden");
+      }
+    }
+    if (params.has("add")) {
+      params.delete("add");
+      const newSearch = params.toString();
+      history.replaceState(
+        null,
+        "",
+        location.pathname + (newSearch ? `?${newSearch}` : "") + location.hash,
+      );
+    }
   }
 
   function removeOperator(index) {
@@ -1477,6 +1520,7 @@
       saveRosterPref();
       sanitizeDepot();
       saveDepotPref();
+      applyAddFromLink();
       searchInput.disabled = false;
       searchInput.placeholder = "Type a name...";
       depotSearchInput.disabled = false;

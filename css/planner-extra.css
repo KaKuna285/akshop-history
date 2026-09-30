@@ -172,6 +172,24 @@
   display: none;
 }
 
+/* Shown after arriving via a calendar "Add to planner" link (see
+   applyAddFromLink() in js/planner.js) -- a quick confirmation that the
+   operator(s) landed in the roster, since the tab switch alone could
+   otherwise look like an unexplained jump. */
+.planLinkStatus {
+  font-size: 0.85rem;
+  color: #f8d511;
+  background: rgba(248, 213, 17, 0.1);
+  border: 1px solid rgba(248, 213, 17, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: -4px 0 12px;
+}
+
+.planLinkStatus.hidden {
+  display: none;
+}
+
 /* Two-column layout: the "Add operator" search bar + operator cards on
    the left, the list-style "what you still need" summary on the right --
    always both present (even with an empty roster, so there's somewhere

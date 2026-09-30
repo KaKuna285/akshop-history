@@ -266,8 +266,31 @@
   align-items: center;
   gap: 6px;
   background: rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent;
   border-radius: 999px;
   padding: 3px 10px 3px 3px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* Only the "not yet in your planner" chips are real links (see
+   js/calendar.js) -- give those a pointer + gold hover to read as
+   actionable, matching the rest of the site's gold "do something" accent.
+   The "already in your planner" state is a plain, non-interactive div. */
+a.eventPreviewOperatorChip {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  a.eventPreviewOperatorChip:hover {
+    background: rgba(248, 213, 17, 0.12);
+    border-color: rgba(248, 213, 17, 0.4);
+  }
+}
+
+.eventPreviewOperatorChip.inPlanner {
+  background: rgba(109, 212, 126, 0.1);
 }
 
 .eventPreviewOperatorIcon {
@@ -282,6 +305,19 @@
 .eventPreviewOperatorName {
   font-size: 0.78rem;
   color: #eee;
+}
+
+.eventPreviewOperatorAction {
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+a.eventPreviewOperatorChip .eventPreviewOperatorAction {
+  color: #f8d511;
+}
+
+.eventPreviewOperatorChip.inPlanner .eventPreviewOperatorAction {
+  color: #6dd47e;
 }
 
 .eventPreviewLink {
@@ -312,6 +348,10 @@
 
 #pageCredit a:hover {
   color: #ccc;
+}
+
+.dataFreshness {
+  color: #666;
 }
 
 /* ---- Nav icon buttons (info / back), matching #homeButton's pattern of

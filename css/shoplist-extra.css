@@ -98,6 +98,10 @@
   color: #ccc;
 }
 
+.dataFreshness {
+  color: #666;
+}
+
 /* Give the Server/Show/Sort/Period filter buttons the same soft
    translucent-gold "active" treatment used elsewhere on the site
    (calendar's .viewToggleBtn.active, planner's .plannerTab.active)
