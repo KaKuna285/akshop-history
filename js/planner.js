@@ -1131,6 +1131,76 @@
     renderSummary();
   }
 
+  // Builds one editable depot row -- same icon/name layout as a Roster-tab
+  // material row, but with an amount you can actually change instead of a
+  // read-only shortfall figure. The count displays with thousands
+  // separators (large LMD/EXP totals are otherwise unreadable) and shows
+  // plain digits only while focused, so editing isn't fighting commas.
+  function buildDepotRow(id) {
+    const it = itemTable[id];
+    const displayName = (it && it.name) || id;
+    const row = document.createElement("div");
+    row.className = "depotRow";
+    const icon = document.createElement("img");
+    icon.className = "depotRowIcon";
+    setItemIcon(icon, it && it.iconId, it && it.cnOnly);
+    icon.alt = "";
+    row.appendChild(icon);
+    const nameWrap = document.createElement("span");
+    nameWrap.className = "depotRowNameWrap";
+    const name = document.createElement("span");
+    name.className = "depotRowName";
+    name.textContent = displayName;
+    nameWrap.appendChild(name);
+    if (it && it.cnOnly) nameWrap.appendChild(buildCnBadge(it));
+    row.appendChild(nameWrap);
+
+    const commit = (rawValue) => {
+      const digits = rawValue.replace(/[^0-9]/g, "");
+      const v = digits ? parseInt(digits, 10) : NaN;
+      if (Number.isFinite(v) && v > 0) {
+        depot[id] = v;
+      } else {
+        delete depot[id];
+      }
+      saveDepotPref();
+      renderDepot();
+      renderSummary();
+    };
+
+    const countInput = document.createElement("input");
+    countInput.type = "text";
+    countInput.inputMode = "numeric";
+    countInput.autocomplete = "off";
+    countInput.className = "depotRowCount";
+    countInput.setAttribute("aria-label", `Amount of ${displayName} you own`);
+    countInput.value = (depot[id] || 0).toLocaleString();
+    countInput.addEventListener("focus", () => {
+      countInput.value = String(depot[id] || 0);
+      countInput.select();
+    });
+    countInput.addEventListener("blur", () => {
+      countInput.value = (depot[id] || 0).toLocaleString();
+    });
+    countInput.onchange = () => commit(countInput.value);
+    row.appendChild(countInput);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "depotRowRemove";
+    removeBtn.setAttribute("aria-label", `Remove ${displayName}`);
+    removeBtn.textContent = "×";
+    removeBtn.onclick = () => {
+      delete depot[id];
+      saveDepotPref();
+      renderDepot();
+      renderSummary();
+    };
+    row.appendChild(removeBtn);
+
+    return row;
+  }
+
   function renderDepot() {
     depotListEl.innerHTML = "";
     const ids = Object.keys(depot);
@@ -1139,59 +1209,67 @@
       return;
     }
     depotEmptyEl.classList.add("hidden");
-    ids
-      .sort((a, b) => {
-        const nameA = (itemTable[a] && itemTable[a].name) || a;
-        const nameB = (itemTable[b] && itemTable[b].name) || b;
-        return nameA.localeCompare(nameB);
-      })
-      .forEach((id) => {
-        const it = itemTable[id];
-        const row = document.createElement("div");
-        row.className = "depotRow";
-        const icon = document.createElement("img");
-        icon.className = "depotRowIcon";
-        setItemIcon(icon, it && it.iconId, it && it.cnOnly);
-        icon.alt = "";
-        row.appendChild(icon);
-        const nameWrap = document.createElement("span");
-        nameWrap.className = "depotRowNameWrap";
-        const name = document.createElement("span");
-        name.className = "depotRowName";
-        name.textContent = (it && it.name) || id;
-        nameWrap.appendChild(name);
-        if (it && it.cnOnly) nameWrap.appendChild(buildCnBadge(it));
-        row.appendChild(nameWrap);
-        const countInput = document.createElement("input");
-        countInput.type = "number";
-        countInput.min = "0";
-        countInput.value = String(depot[id]);
-        countInput.onchange = () => {
-          const v = parseInt(countInput.value, 10);
-          if (Number.isFinite(v) && v > 0) {
-            depot[id] = v;
-          } else {
-            delete depot[id];
-          }
-          saveDepotPref();
-          renderDepot();
-          renderSummary();
-        };
-        row.appendChild(countInput);
-        const removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.className = "depotRowRemove";
-        removeBtn.setAttribute("aria-label", `Remove ${(it && it.name) || id}`);
-        removeBtn.textContent = "×";
-        removeBtn.onclick = () => {
-          delete depot[id];
-          saveDepotPref();
-          renderDepot();
-          renderSummary();
-        };
-        row.appendChild(removeBtn);
-        depotListEl.appendChild(row);
-      });
+
+    const byRarityThenName = (a, b) => {
+      const r = itemRarity(b) - itemRarity(a);
+      if (r !== 0) return r;
+      const nameA = (itemTable[a] && itemTable[a].name) || a;
+      const nameB = (itemTable[b] && itemTable[b].name) || b;
+      return nameA.localeCompare(nameB);
+    };
+
+    // Same grouping the Roster tab's "materials needed" list uses (see
+    // renderSummary/categorizeMaterial), plus LMD/EXP pulled to the very
+    // top -- they're just ordinary editable rows here (no dedicated tile
+    // the way the Roster tab gives them), but they still shouldn't get
+    // lost alphabetically in the middle of everything else.
+    const currencyIds = ids.filter((id) => id === LMD_ITEM_ID || id === EXP_ITEM_ID);
+    currencyIds.sort((a) => (a === LMD_ITEM_ID ? -1 : 1));
+    const buckets = { chip: [], skill: [], module: [], farm: [] };
+    for (const id of ids) {
+      if (id === LMD_ITEM_ID || id === EXP_ITEM_ID) continue;
+      buckets[categorizeMaterial(id)].push(id);
+    }
+    for (const key of Object.keys(buckets)) buckets[key].sort(byRarityThenName);
+
+    const appendHeading = (className, text) => {
+      const heading = document.createElement("div");
+      heading.className = className;
+      heading.textContent = text;
+      depotListEl.appendChild(heading);
+    };
+    const appendRows = (rowIds) => {
+      for (const id of rowIds) depotListEl.appendChild(buildDepotRow(id));
+    };
+
+    if (currencyIds.length) {
+      appendHeading("summaryCategoryHeading", "LMD & EXP");
+      appendRows(currencyIds);
+    }
+    if (buckets.chip.length) {
+      appendHeading("summaryCategoryHeading", "Chips");
+      appendRows(buckets.chip);
+    }
+    if (buckets.skill.length) {
+      appendHeading("summaryCategoryHeading", "Skill Summaries");
+      appendRows(buckets.skill);
+    }
+    if (buckets.module.length) {
+      appendHeading("summaryCategoryHeading", "Module Items");
+      appendRows(buckets.module);
+    }
+    if (buckets.farm.length) {
+      appendHeading("summaryCategoryHeading", "Farming Materials");
+      let lastRarity = null;
+      for (const id of buckets.farm) {
+        const rarity = itemRarity(id);
+        if (rarity !== lastRarity) {
+          appendHeading("summaryRarityHeading", rarity + 1 + "★");
+          lastRarity = rarity;
+        }
+        depotListEl.appendChild(buildDepotRow(id));
+      }
+    }
   }
 
   // --- depot search (mirrors the operator search above, over itemList) ---
@@ -1340,12 +1418,7 @@
       depotImportSummaryEl.textContent =
         `Fetched ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"} from ${who}. ` +
         `This will replace your current depot entirely -- anything you've tracked manually and ` +
-        `isn't in this list will be removed.` +
-        // TEMPORARY: surfaces the Worker's diagnostic block (key names and
-        // a couple of numeric fields only, see cloudflare/depot-import.js)
-        // so it can be copy-pasted back without needing devtools, while
-        // tracking down why LMD imports lower than the real balance.
-        (body._debug ? `\n\nDEBUG: ${JSON.stringify(body._debug)}` : "");
+        `isn't in this list will be removed.`;
       depotImportConfirmEl.classList.remove("hidden");
       setDepotImportStatus("");
     } catch (err) {

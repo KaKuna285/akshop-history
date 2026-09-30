@@ -282,26 +282,11 @@ function randomDeviceId() {
 }
 
 // Mimics the mobile client's Android-style device id triplet closely enough
-// for the login flow -- these only need to look plausible and be internally
-// consistent within one request, not match a real device.
-function randomAndroidDeviceIds() {
-  const digits = "0123456789";
-  let id2 = "86";
-  for (let i = 0; i < 13; i++) id2 += digits[Math.floor(Math.random() * 10)];
-  return [crypto.randomUUID().replace(/-/g, ""), id2, crypto.randomUUID().replace(/-/g, "")];
-}
-
-// TEMPORARY experiment: a real phone presents the SAME device id on every
-// login for a given account, but fetchDepot() was generating a brand new
-// random one on every single request -- which is a real, concrete
-// difference from how a legitimate client behaves, and a plausible reason
-// the game server might hand back a restricted/bootstrap view of the
-// account (near-empty inventory, a default starting gold figure) rather
-// than its real state, since it looks like a never-before-seen device
-// every time. This derives a stable id from the account email instead
-// (nothing persisted -- just a deterministic hash, so the same account
-// always presents the same "device" across separate requests, without
-// this Worker needing to remember anything).
+// for the login flow. A real phone presents the same device id on every
+// login for a given account, so this derives a stable one from the account
+// email (nothing persisted -- just a deterministic hash) instead of a fresh
+// random id per request, which would make every request look like a
+// never-before-seen device.
 async function stableAndroidDeviceIds(email) {
   const digest = await sha256Hex(`akshop-depot-import-device-id-v1:${email}`);
   const id1 = digest.slice(0, 32);
@@ -419,23 +404,7 @@ async function loadNetworkConfig() {
   if (!network || !network.gs || !network.u8) {
     throw new StepError("network config", "Couldn't read Arknights' server routing config.");
   }
-  // TEMPORARY diagnostic: this endpoint's shape has never actually been
-  // inspected directly (only inferred from arkprts's source) -- if
-  // "configs" holds more than one environment (e.g. a review/staging
-  // entry alongside the live one) and funcVer doesn't point at the real
-  // one, that would explain a fully self-consistent but wrong account
-  // view. Host names only, nothing account-specific.
-  const configsKeys = cfg?.configs ? Object.keys(cfg.configs) : null;
-  const allNetworks = {};
-  if (cfg?.configs) {
-    for (const key of Object.keys(cfg.configs)) {
-      allNetworks[key] = cfg.configs[key]?.network ?? null;
-    }
-  }
-  return {
-    network,
-    debug: { funcVer: cfg?.funcVer ?? null, configsKeys, allNetworks },
-  };
+  return network;
 }
 
 async function loadVersionConfig() {
@@ -521,10 +490,10 @@ const BATTLE_RECORD_EXP_VALUES = {
   "2004": 2000, // Strategic Battle Record
 };
 
-async function syncDataOnce(gsHost, uid, secret, seqnum) {
+async function getInventory(gsHost, uid, secret) {
   const resp = await fetch(`${gsHost}/account/syncData`, {
     method: "POST",
-    headers: { secret, seqnum: String(seqnum), uid, "Content-Type": "application/json" },
+    headers: { secret, seqnum: "2", uid, "Content-Type": "application/json" },
     body: JSON.stringify({ platform: 1 }),
   });
   const data = await parseJsonOrThrow(resp, "sync data");
@@ -532,45 +501,22 @@ async function syncDataOnce(gsHost, uid, secret, seqnum) {
   // "playerDataDelta" at the top level), and "inventory" is a flat
   // itemId -> count map directly on it.
   const user = data?.user ?? data;
-  return { user, delta: data?.playerDataDelta ?? null };
-}
-
-async function getInventory(gsHost, uid, secret) {
-  const { user, delta } = await syncDataOnce(gsHost, uid, secret, 2);
   if (!user || typeof user.inventory !== "object" || user.inventory == null) {
     throw new StepError("sync data", "Account data didn't include an inventory.");
   }
-  return { user, delta };
+  return user;
 }
 
 async function fetchDepot(email, code) {
   const emailToken = await submitEmailCode(email, code);
   const { channelUid, accessToken } = await getYostarToken(email, emailToken);
 
-  const [{ network, debug: networkDebug }, versions] = await Promise.all([
-    loadNetworkConfig(),
-    loadVersionConfig(),
-  ]);
-  // TEMPORARY experiment: see stableAndroidDeviceIds()'s comment above --
-  // was randomAndroidDeviceIds() (a fresh, never-before-seen device id on
-  // every single request).
+  const [network, versions] = await Promise.all([loadNetworkConfig(), loadVersionConfig()]);
   const deviceIds = await stableAndroidDeviceIds(email);
 
   const { uid, token: u8Token } = await getU8Token(network.u8, channelUid, accessToken, deviceIds);
   const secret = await getGameSecret(network.gs, uid, u8Token, versions, deviceIds);
-  const { user, delta } = await getInventory(network.gs, uid, secret);
-
-  // TEMPORARY diagnostic: fire a second syncData call (bumped seqnum) in
-  // the same session, purely to check whether a first sync after login
-  // returns a restricted/bootstrap view and a follow-up call reveals the
-  // account's real state. Never affects the depot actually returned below
-  // -- comparison numbers only, surfaced via _debug.
-  let secondSync = null;
-  try {
-    secondSync = await syncDataOnce(network.gs, uid, secret, 3);
-  } catch (err) {
-    secondSync = { error: err instanceof Error ? err.message : String(err) };
-  }
+  const user = await getInventory(network.gs, uid, secret);
 
   // LMD isn't part of "inventory" at all -- it's tracked as its own
   // currency field, status.gold -- so it's merged in here under the same
@@ -592,46 +538,9 @@ async function fetchDepot(email, code) {
   }
   if (expTotal > 0) depot["5001"] = expTotal;
 
-  // --- TEMPORARY diagnostics -------------------------------------------
-  // The gold figure above has been coming back lower than what's actually
-  // showing in-game (e.g. 10000 vs a real 33000), which smells like a
-  // stale/base snapshot that a "playerDataDelta" patch is meant to be
-  // applied on top of. This block reports ONLY key names and the specific
-  // numeric fields needed to check that theory -- never full delta
-  // contents, email, code, or session secrets -- and gets removed once
-  // the real shape is confirmed.
-  const debug = {
-    networkFuncVer: networkDebug.funcVer,
-    networkConfigsKeys: networkDebug.configsKeys,
-    networkAllNetworks: networkDebug.allNetworks,
-    hasDelta: !!delta,
-    deltaTopLevelKeys: delta && typeof delta === "object" ? Object.keys(delta) : null,
-    deltaModifiedTopLevelKeys:
-      delta && typeof delta.modified === "object" && delta.modified
-        ? Object.keys(delta.modified)
-        : null,
-    deltaModifiedStatusKeys:
-      delta && typeof delta?.modified?.status === "object" && delta.modified.status
-        ? Object.keys(delta.modified.status)
-        : null,
-    statusGoldFromUser: user?.status?.gold ?? null,
-    statusGoldFromDeltaModified: delta?.modified?.status?.gold ?? null,
-    deltaModifiedInventoryKeys:
-      delta && typeof delta?.modified?.inventory === "object" && delta.modified.inventory
-        ? Object.keys(delta.modified.inventory)
-        : null,
-    inventoryKeyCountFirstSync: Object.keys(user.inventory || {}).length,
-    secondSyncError: secondSync?.error ?? null,
-    secondSyncGold: secondSync?.user?.status?.gold ?? null,
-    secondSyncInventoryKeyCount: secondSync?.user?.inventory
-      ? Object.keys(secondSync.user.inventory).length
-      : null,
-  };
-
   return {
     depot,
     nickname: user?.status?.nickName ?? user?.status?.nickname ?? null,
     level: user?.status?.level ?? null,
-    _debug: debug,
   };
 }

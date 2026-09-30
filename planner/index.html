@@ -125,13 +125,16 @@
             discarded. EN (Yostar) accounts only.
           </p>
           <div class="depotImportRow">
-            <label for="depotImportKey">Access key</label>
-            <input type="password" id="depotImportKey" autocomplete="off" />
-          </div>
-          <div class="depotImportRow">
             <label for="depotImportEmail">Account email</label>
             <input type="email" id="depotImportEmail" autocomplete="off" />
           </div>
+          <details class="depotImportAdvanced">
+            <summary>Access key (only if one's been set up)</summary>
+            <div class="depotImportRow">
+              <label for="depotImportKey">Access key</label>
+              <input type="password" id="depotImportKey" autocomplete="off" />
+            </div>
+          </details>
           <div class="depotImportActions">
             <button type="button" id="depotImportSendCode">
               Send code

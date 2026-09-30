@@ -453,14 +453,33 @@
   white-space: nowrap;
 }
 
-.depotRow input[type="number"] {
-  width: 70px;
+/* Text (not number) input so large LMD/EXP totals show with thousands
+   separators instead of being squeezed behind a native spinner -- see
+   buildDepotRow() in planner.js, which swaps in plain digits while the
+   field is focused so editing isn't fighting commas. */
+.depotRowCount {
+  width: 6.5em;
+  flex: 0 0 auto;
   background: #1c1c1c;
-  color: #eee;
+  color: #f8d511;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
   border: 1px solid #555;
   border-radius: 4px;
-  padding: 4px 6px;
+  padding: 4px 8px;
   font-size: 0.85rem;
+}
+
+.depotRowCount:focus {
+  color: #eee;
+  font-weight: normal;
+  border-color: #f8d511;
+  outline: none;
+}
+
+#depotList > .summaryCategoryHeading:first-child {
+  margin-top: 0;
 }
 
 .depotRowRemove {
@@ -721,6 +740,29 @@
 
 .depotImportRow.hidden {
   display: none;
+}
+
+/* The access key only matters when the deployed Worker has ACCESS_KEY_HASH
+   set (see cloudflare/depot-import.js) -- most setups don't, so it's
+   tucked behind its own collapsed disclosure instead of sitting in the
+   main flow above the (always-needed) email field. */
+.depotImportAdvanced {
+  margin: -4px 0 0;
+}
+
+.depotImportAdvanced summary {
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.depotImportAdvanced summary:hover {
+  color: #ccc;
+}
+
+.depotImportAdvanced .depotImportRow {
+  margin-top: 8px;
 }
 
 .depotImportRow label {
