@@ -12,7 +12,6 @@
    a plain block wouldn't overflow from this alone, but it's cheap
    insurance against a descendant with unbreakable content (long text,
    etc.) actually forcing it wider. */
-#topNav,
 .btnPanel,
 #chartLegend,
 #chartDiv {
