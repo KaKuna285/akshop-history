@@ -1,0 +1,71 @@
+/* Extra styling for the home/hub page. Kept separate from style2.css
+   (shared across pages) so it only affects this page and is easy to
+   find/tweak, matching the convention used by the other pages'
+   -extra.css files.
+
+   This page used to have its own completely bespoke inline stylesheet
+   instead of the shared reset.css/style.css/style2.css bundle every
+   other page uses. It's been migrated onto that shared bundle so the
+   whole site shares one layout/font/color system -- this file now only
+   holds what's actually specific to the project-list layout below
+   #topNav. */
+
+body {
+  padding: 2.5rem 20px 3rem;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.wrap h1 {
+  margin: 0 0 6px;
+  font-size: 1.8rem;
+  color: var(--main-text-color);
+}
+
+.subtitle {
+  color: var(--light-text-color);
+  margin: 0 0 32px;
+  font-size: 0.95rem;
+}
+
+.projects {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.projects a {
+  display: block;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+@media (hover: hover) {
+  .projects a:hover {
+    border-color: #f8d511;
+    background: rgba(248, 213, 17, 0.06);
+  }
+}
+
+.projects .name {
+  font-weight: bold;
+  font-size: 1.05rem;
+  color: #eee;
+}
+
+.projects .desc {
+  color: var(--light-text-color);
+  font-size: 0.88rem;
+  margin-top: 4px;
+}

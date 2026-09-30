@@ -98,3 +98,33 @@
 #pageCredit a:hover {
   color: #ccc;
 }
+
+/* Give the Server/Show/Sort/Period filter buttons the same soft
+   translucent-gold "active" treatment used elsewhere on the site
+   (calendar's .viewToggleBtn.active, planner's .plannerTab.active)
+   instead of the base .button class's plain white-border /
+   black-on-white-when-active look -- that mismatch was the actual
+   cause of this page reading as visually different from the rest of
+   the site. Scoped to .btnPanel so it never touches the home/about
+   icon buttons, which also use .button. */
+.btnPanel .button {
+  border-color: rgba(255, 255, 255, 0.25);
+  border-radius: 0.4em;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+@media (hover: hover) {
+  .btnPanel .button:not(.disabled):hover {
+    color: #eee;
+    background: rgba(255, 255, 255, 0.1);
+    text-shadow: none;
+  }
+}
+
+.btnPanel .button:not(.disabled):active,
+.btnPanel .button.checked {
+  color: #f8d511;
+  background: rgba(248, 213, 17, 0.14);
+  border-color: rgba(248, 213, 17, 0.45);
+  text-shadow: none;
+}

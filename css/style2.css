@@ -37,6 +37,57 @@ html {
   flex-grow: 1;
 }
 
+/* Persistent cross-page navigation, shown in #topNav's nav-right on every
+   page so switching between features doesn't require detouring through
+   the home page. Shared here (rather than in a page's own -extra.css)
+   since the same markup/behavior is reused identically on every page. */
+.siteNav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 0.6rem;
+}
+
+.siteNav a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3em 0.65em;
+  border-radius: 0.4em;
+  font-size: 0.85rem;
+  line-height: 1.2rem;
+  color: var(--light-text-color, #999);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+@media (hover: hover) {
+  .siteNav a:hover {
+    color: #eee;
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
+
+.siteNav a.current {
+  color: #f8d511;
+  background: rgba(248, 213, 17, 0.12);
+  font-weight: bold;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .siteNav a.current:hover {
+    color: #f8d511;
+    background: rgba(248, 213, 17, 0.12);
+  }
+}
+
+@media (max-width: 720px) {
+  .siteNav {
+    display: none;
+  }
+}
+
 /* create caret */
 #chartjs-tooltip::after {
   content: "";
