@@ -419,7 +419,23 @@ async function loadNetworkConfig() {
   if (!network || !network.gs || !network.u8) {
     throw new StepError("network config", "Couldn't read Arknights' server routing config.");
   }
-  return network;
+  // TEMPORARY diagnostic: this endpoint's shape has never actually been
+  // inspected directly (only inferred from arkprts's source) -- if
+  // "configs" holds more than one environment (e.g. a review/staging
+  // entry alongside the live one) and funcVer doesn't point at the real
+  // one, that would explain a fully self-consistent but wrong account
+  // view. Host names only, nothing account-specific.
+  const configsKeys = cfg?.configs ? Object.keys(cfg.configs) : null;
+  const allNetworks = {};
+  if (cfg?.configs) {
+    for (const key of Object.keys(cfg.configs)) {
+      allNetworks[key] = cfg.configs[key]?.network ?? null;
+    }
+  }
+  return {
+    network,
+    debug: { funcVer: cfg?.funcVer ?? null, configsKeys, allNetworks },
+  };
 }
 
 async function loadVersionConfig() {
@@ -531,7 +547,10 @@ async function fetchDepot(email, code) {
   const emailToken = await submitEmailCode(email, code);
   const { channelUid, accessToken } = await getYostarToken(email, emailToken);
 
-  const [network, versions] = await Promise.all([loadNetworkConfig(), loadVersionConfig()]);
+  const [{ network, debug: networkDebug }, versions] = await Promise.all([
+    loadNetworkConfig(),
+    loadVersionConfig(),
+  ]);
   // TEMPORARY experiment: see stableAndroidDeviceIds()'s comment above --
   // was randomAndroidDeviceIds() (a fresh, never-before-seen device id on
   // every single request).
@@ -582,6 +601,9 @@ async function fetchDepot(email, code) {
   // contents, email, code, or session secrets -- and gets removed once
   // the real shape is confirmed.
   const debug = {
+    networkFuncVer: networkDebug.funcVer,
+    networkConfigsKeys: networkDebug.configsKeys,
+    networkAllNetworks: networkDebug.allNetworks,
     hasDelta: !!delta,
     deltaTopLevelKeys: delta && typeof delta === "object" ? Object.keys(delta) : null,
     deltaModifiedTopLevelKeys:
