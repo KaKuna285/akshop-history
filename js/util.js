@@ -427,6 +427,251 @@ async function fixedJson(res) {
     );
 }
 
+// The per-rarity/phase/level EXP+LMD curve and the per-rarity/phase Elite
+// promotion LMD cost -- used alongside calcOperatorCost() below. Used by
+// both the planner page (its own roster) and the operator page (a single
+// operator's "cost to fully max" table), so it lives here rather than
+// being fetched twice with two copies of this same normalization.
+async function loadGameConst(server) {
+  const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/gamedata_const.json`);
+  const json = await fixedJson(res);
+  return {
+    characterExpMap: json.characterExpMap || [],
+    characterUpgradeCostMap: json.characterUpgradeCostMap || [],
+    evolveGoldCost: json.evolveGoldCost || [],
+  };
+}
+
+// Material/LMD/EXP names, icons and rarity -- itemId -> { name, iconId,
+// rarity, ... }. Same reasoning as loadGameConst() above.
+async function loadItemTable(server) {
+  const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/item_table.json`);
+  const json = await fixedJson(res);
+  return json.items || json;
+}
+
+// Routes a cost list (as found on an evolveCost/lvlUpCost/itemCost entry)
+// into a running total -- a GOLD-type entry (id "4001") is LMD and goes
+// into cost.lmd directly rather than the material list, since a module's
+// itemCost mixes its LMD cost in as a normal list entry instead of using
+// a separate LMD-only field the way Elite promotion costs do.
+function addCosts(cost, list) {
+  if (!list) return;
+  for (const { id, count, type } of list) {
+    if (type === "GOLD") {
+      cost.lmd += count;
+    } else {
+      cost.materials[id] = (cost.materials[id] || 0) + count;
+    }
+  }
+}
+
+// The LMD/EXP/materials needed to take one operator from `current` to
+// `target` (both { phase, level, skillLevel, mastery: {skillIdx: rank},
+// modules: {uniEquipId: stage} }, see the shared edit modal's
+// defaultState()/defaultTargetState()/maxState()). gameConst is a
+// loadGameConst() result. Shared by the planner page (summed across its
+// whole roster) and the operator page (a single E0/Lv1 -> everything-maxed
+// total).
+function calcOperatorCost(op, current, target, gameConst) {
+  const cost = { lmd: 0, exp: 0, materials: {} };
+  const rarity = op.rarity; // already remapped to a 0-5 int by get_char_table()
+
+  // Elite promotions crossed. phases[p].evolveCost is the cost to
+  // promote INTO phase p (so phase 0 is always null); evolveGoldCost is
+  // the matching LMD-only cost, indexed [rarity][p - 1].
+  for (let p = current.phase + 1; p <= target.phase; p++) {
+    const goldRow = gameConst.evolveGoldCost[rarity];
+    const gold = goldRow ? goldRow[p - 1] : undefined;
+    if (typeof gold === "number" && gold > 0) cost.lmd += gold;
+    const phaseData = op.phases[p];
+    if (phaseData) addCosts(cost, phaseData.evolveCost);
+  }
+
+  // Operator level, across every phase the change passes through. The
+  // per-level EXP/LMD curve is shared across all operators of any
+  // rarity -- only how far into it a given operator can go (each
+  // phase's own maxLevel) differs.
+  for (let p = current.phase; p <= target.phase; p++) {
+    const phaseData = op.phases[p];
+    if (!phaseData) continue;
+    const startLevel = p === current.phase ? current.level : 1;
+    const endLevel = p === target.phase ? target.level : phaseData.maxLevel;
+    const expRow = gameConst.characterExpMap[p] || [];
+    const lmdRow = gameConst.characterUpgradeCostMap[p] || [];
+    for (let lvl = startLevel; lvl < endLevel; lvl++) {
+      const e = expRow[lvl - 1];
+      const l = lmdRow[lvl - 1];
+      if (typeof e === "number" && e > 0) cost.exp += e;
+      if (typeof l === "number" && l > 0) cost.lmd += l;
+    }
+  }
+
+  // Skill level (1-7), shared across every skill the operator has at
+  // once. allSkillLvlup[i] is the cost to go from skill level i+1 to
+  // i+2, so index 0..5 covers levels 1->7. Operators with no skills at
+  // all (a handful of very low rarities) have nothing here.
+  if (op.allSkillLvlup && op.allSkillLvlup.length) {
+    for (let lvl = current.skillLevel; lvl < target.skillLevel; lvl++) {
+      const entry = op.allSkillLvlup[lvl - 1];
+      if (entry) addCosts(cost, entry.lvlUpCost);
+    }
+  }
+
+  // Skill mastery (M1-M3), per individual skill. Each skill's own
+  // levelUpCostCond[m] is the cost to go from mastery m to m+1 (index
+  // 0 = M1, 1 = M2, 2 = M3).
+  if (op.skills) {
+    op.skills.forEach((skill, skillIdx) => {
+      if (!skill.levelUpCostCond) return;
+      const curM = (current.mastery && current.mastery[skillIdx]) || 0;
+      const tgtM = (target.mastery && target.mastery[skillIdx]) || 0;
+      for (let m = curM; m < tgtM; m++) {
+        addCosts(cost, skill.levelUpCostCond[m] && skill.levelUpCostCond[m].levelUpCost);
+      }
+    });
+  }
+
+  // Module stages, per module. itemCost is keyed by the STAGE REACHED
+  // as a string ("1", "2", "3"), so going from stage s to s+1 uses
+  // itemCost[String(s + 1)].
+  if (op.modules) {
+    op.modules.forEach((mod) => {
+      const curS = (current.modules && current.modules[mod.uniEquipId]) || 0;
+      const tgtS = (target.modules && target.modules[mod.uniEquipId]) || 0;
+      for (let s = curS + 1; s <= tgtS; s++) {
+        addCosts(cost, mod.itemCost && mod.itemCost[String(s)]);
+      }
+    });
+  }
+
+  return cost;
+}
+
+// --- shop/banner history (banner_history.json) -----------------------------
+// Shared by the store page (shoplist.js, across every operator at once) and
+// the operator page (one operator at a time), so the raw-data normalization
+// and the shop-debut prediction math can't drift between the two.
+
+// Normalizes one server's raw banner_history.json entries (keyed by
+// operator NAME, as scraped off the in-game shop) in place: resolves each
+// entry's charId via charIdMap, flags isKernel from that server's own char
+// table, parses/sorts its banner and shop dates, and preloads its avatar
+// image. Entries whose name doesn't resolve to a known charId are dropped
+// (a stale/removed name, or the odd "APRIL FOOLS" joke entry).
+//
+// Returns a derived charId -> entry index of what's left -- charId is the
+// key every other part of the site already uses, whereas the scraper's
+// raw output is keyed by name only because that's what's shown in-game.
+function normalizeShopHistory(servdata, charTableForServer) {
+  const byCharId = {};
+  for (const [op, data] of Object.entries(servdata)) {
+    const name = htmlDecode(op);
+    data.op = SHORT_NAMES[name] || name;
+    data.op = GAMEPRESS_NAME_MAP[data.op] || data.op;
+    data.charId = charIdMap[data.op];
+    if (data.charId == undefined) {
+      if (!data.op.includes("APRIL FOOLS")) console.log("Operator not found:", data.op);
+      delete servdata[op];
+      continue;
+    }
+    data.banner.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+    data.isKernel = charTableForServer[data.charId]?.classicPotentialItemId != null;
+    const img = new Image();
+    img.src = uri_avatar(data.charId);
+    data.img = img;
+    // Use the true minimum banner date rather than trusting banner[0]
+    // after the sort above: a single malformed/unparseable date string
+    // anywhere in the array makes Array.sort's comparisons with NaN
+    // unreliable, which can silently leave a later (e.g. rerun) date in
+    // slot 0.
+    data.first = Math.min(...data.banner.map((b) => Date.parse(b.date)));
+    data.shop = data.shop
+      .map((entry) => ({ ...entry, date: Date.parse(entry.date) }))
+      .sort((a, b) => a.date - b.date);
+    byCharId[data.charId] = data;
+  }
+  return byCharId;
+}
+
+// Predicts a Standard-pool operator's shop debut from a fixed weekly
+// cadence per (remapped) rarity. 4* operators never get added to the
+// shop at all, so they're deliberately left out of this map.
+const SHOP_DEBUT_CADENCE_WEEKS = { 5: 6, 4: 5 };
+
+// Standard-pool (non-Kernel, non-Limited) operators of a given remapped
+// rarity, on one server. The anchor date is when the shop cadence last
+// actually ticked forward -- i.e. the most recent FIRST shop appearance
+// among ops that have already been shopped -- not any operator's
+// original character-release date. (A never-shopped operator can easily
+// have been released more recently than the last operator actually added
+// to the shop, and using their release date as the anchor pulls the
+// whole prediction off by however early/late that operator happens to
+// be.) Also returns the "queue" of ops that have never appeared in the
+// shop yet, oldest-released first -- those are presumably next in line,
+// one cadence-length apart: the longest-waiting one is expected
+// `cadence` weeks after the anchor, the next one 2x`cadence`, and so on.
+// De-duped by charId in case the source data lists the same operator
+// under more than one name/alias.
+//
+// shopDataForServer/charTableForServer: one server's normalizeShopHistory()
+// input (or output -- only Object.values() is used, so either the
+// name-keyed or charId-keyed form works) and that server's own char table.
+function getStandardPoolPipeline(rarity, shopDataForServer, charTableForServer) {
+  let anchorDate = -Infinity;
+  let anchorOp = null;
+  const seen = new Set();
+  const waiting = [];
+  for (const data of Object.values(shopDataForServer)) {
+    if (data.isKernel) continue;
+    if (charTableForServer[data.charId]?.isLimited) continue;
+    if (charTableForServer[data.charId]?.rarity !== rarity) continue;
+    if (seen.has(data.charId)) continue;
+    seen.add(data.charId);
+    if (data.shop.length) {
+      // data.shop[].date is already a numeric timestamp by this point
+      // (normalizeShopHistory() above), so this is a plain min over
+      // numbers -- NOT another Date.parse.
+      const firstShopDate = Math.min(...data.shop.map((s) => s.date));
+      if (firstShopDate > anchorDate) {
+        anchorDate = firstShopDate;
+        anchorOp = data.op;
+      }
+    } else {
+      waiting.push(data);
+    }
+  }
+  waiting.sort((a, b) => a.first - b.first);
+  return { latestRelease: anchorDate, latestOp: anchorOp, waiting };
+}
+
+// The full predicted-debut computation for one operator, built on top of
+// getStandardPoolPipeline() above. opInfo needs charId, rarity (remapped),
+// isKernel, isLimited and hasShopHistory. Returns null when there's
+// nothing to predict (already in the shop, a 4*/Kernel/Limited op, or no
+// same-rarity anchor to predict from yet), otherwise { predictedDate,
+// position, anchorOp, anchorDate }.
+function predictShopDebut(opInfo, shopDataForServer, charTableForServer) {
+  if (
+    opInfo.hasShopHistory ||
+    opInfo.isKernel ||
+    opInfo.isLimited ||
+    SHOP_DEBUT_CADENCE_WEEKS[opInfo.rarity] == null
+  ) {
+    return null;
+  }
+  const cadenceMs = SHOP_DEBUT_CADENCE_WEEKS[opInfo.rarity] * 7 * 24 * 60 * 60 * 1000;
+  const { latestRelease, latestOp, waiting } = getStandardPoolPipeline(
+    opInfo.rarity,
+    shopDataForServer,
+    charTableForServer,
+  );
+  if (latestOp == null || !isFinite(latestRelease)) return null;
+  let position = waiting.findIndex((d) => d.charId === opInfo.charId) + 1;
+  if (position <= 0) position = 1; // shouldn't happen, but stay safe
+  return { predictedDate: latestRelease + position * cadenceMs, position, anchorOp: latestOp, anchorDate: latestRelease };
+}
+
 function thumbnail_tooltip(chart_canvas, even_rows_only = false) {
   // Works only with this specific custom tooltip CSS.
   return function f(context) {

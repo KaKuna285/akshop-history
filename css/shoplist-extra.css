@@ -74,6 +74,28 @@
   pointer-events: none;
 }
 
+/* Lifts pointer-events back on once a portrait/bar tooltip is pinned (see
+   showIconTooltip()/hideIconTooltip() in js/shoplist.js) -- the only way
+   the "View operator page" link inside it can ever actually be clicked,
+   since the box otherwise has to stay click-through so it never blocks
+   hovering/clicking the chart underneath it. */
+#chartjs-tooltip.pinned {
+  pointer-events: auto;
+}
+
+.tooltipOperatorPageLink {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82em;
+  color: #6fb3ff;
+  opacity: 0.9;
+}
+
+.tooltipOperatorPageLink:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 @media (max-width: 720px) {
   #chartLegend .legendHint {
     margin-left: 0;

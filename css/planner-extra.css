@@ -277,6 +277,24 @@
   color: #e55;
 }
 
+/* Small "view operator page" link, shared look between a roster card and
+   a search-result row (see .operatorSearchResultDetails below) -- just a
+   circled-i glyph so it doesn't compete with the card's own name/remove
+   button for attention. */
+.operatorCardDetails,
+.operatorSearchResultDetails {
+  flex: 0 0 auto;
+  color: #999;
+  font-size: 0.95rem;
+  text-decoration: none;
+  padding: 4px 4px;
+}
+
+.operatorCardDetails:hover,
+.operatorSearchResultDetails:hover {
+  color: #6fb3ff;
+}
+
 #plannerSummary {
   flex: 1 1 380px;
   min-width: 0;

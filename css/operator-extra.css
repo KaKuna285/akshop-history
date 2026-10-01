@@ -1,0 +1,391 @@
+/* Styling for the per-operator hub page. Follows the same dark
+   translucent-card look as css/planner-extra.css/css/calendar-extra.css
+   so this feels like the same site -- kept in its own file so it only
+   affects this page. (.cnBadge and .iconMissing are shared with the
+   edit-modal component and already come from css/operator-edit-modal.css,
+   already linked on this page -- not redefined here.) */
+
+#operatorJumpBar,
+#operatorStatus,
+#operatorContent,
+#pageCredit {
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#operatorJumpBar {
+  margin-top: 16px;
+  margin-bottom: 20px;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#operatorJumpBar label {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+#operatorJumpSearchWrap {
+  position: relative;
+}
+
+#operatorJumpSearch {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1c1c1c;
+  color: #eee;
+  font-size: 0.95rem;
+}
+
+#operatorJumpResults {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #2c2c2c;
+  border: 1px solid #555;
+  border-radius: 6px;
+  z-index: 20;
+}
+
+#operatorJumpResults.hidden {
+  display: none;
+}
+
+/* .operatorSearchResult/.operatorSearchResultIcon/.operatorSearchResultName/
+   .operatorSearchResultRarity -- same class names (and markup) as the
+   planner page's own search box, but defined fresh here since the two
+   pages don't share a stylesheet (see css/calendar-extra.css's own
+   .eventPreviewOperatorChip for the same "each page styles its own copy"
+   convention). */
+.operatorSearchResult {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.operatorSearchResult:hover,
+.operatorSearchResult.highlighted {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.operatorSearchResultIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.operatorSearchResultName {
+  font-size: 0.88rem;
+  color: #eee;
+}
+
+.operatorSearchResultRarity {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.operatorStatus {
+  text-align: center;
+  color: #777;
+  padding: 40px 16px;
+  font-size: 0.95rem;
+}
+
+.operatorStatus.hidden {
+  display: none;
+}
+
+#operatorContent.hidden {
+  display: none;
+}
+
+#operatorContent {
+  padding: 0 16px 40px;
+}
+
+#opHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.opIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+#opHeaderInfo {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#opNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#opName {
+  font-size: 1.3rem;
+  margin: 0;
+  color: #eee;
+}
+
+#opMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.opBadge {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  color: #ccc;
+}
+
+.opRarityBadge {
+  color: #f8d511;
+  border-color: rgba(248, 213, 17, 0.35);
+}
+
+.opPoolBadge.opPoolKernel {
+  color: #6fb3ff;
+  border-color: rgba(111, 179, 255, 0.4);
+}
+
+.opPoolBadge.opPoolLimited {
+  color: #ff9f43;
+  border-color: rgba(255, 159, 67, 0.4);
+}
+
+.opAddToPlannerBtn {
+  flex: 0 0 auto;
+  background: rgba(248, 213, 17, 0.12);
+  border: 1px solid rgba(248, 213, 17, 0.4);
+  color: #f8d511;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.opAddToPlannerBtn:hover {
+  background: rgba(248, 213, 17, 0.2);
+}
+
+.opAddToPlannerBtn.inPlanner {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ccc;
+}
+
+.opSection {
+  margin-bottom: 20px;
+}
+
+.opSectionHeading {
+  font-size: 1rem;
+  margin: 0 0 10px;
+  color: #eee;
+}
+
+.opInfoRows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opInfoRow {
+  display: flex;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.opInfoLabel {
+  color: #999;
+  flex: 0 0 130px;
+}
+
+.opInfoValue {
+  color: #eee;
+}
+
+.opInfoValue a {
+  color: #6fb3ff;
+}
+
+.opShopNote,
+.opShopPrediction {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.opShopPredictionDate {
+  color: #f8d511;
+  font-weight: bold;
+}
+
+.opShopPredictionDetail {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: #999;
+}
+
+.opShopList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opShopRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.opShopDate {
+  color: #eee;
+  font-weight: bold;
+  flex: 0 0 auto;
+}
+
+.opShopGap {
+  color: #999;
+  text-align: right;
+}
+
+#opCostTotals {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 12px;
+}
+
+.opCostTotal {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+.opCostTotalLabel {
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #999;
+}
+
+.opCostTotalValue {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #f8d511;
+}
+
+#opCostMaterials {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opCostMaterialRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 6px 12px 6px 6px;
+}
+
+.opCostMaterialIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.opCostMaterialNameWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.opCostMaterialName {
+  font-size: 0.85rem;
+  color: #eee;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opCostMaterialCount {
+  font-size: 0.85rem;
+  color: #f8d511;
+  font-weight: bold;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 560px) {
+  #opHeader {
+    flex-wrap: wrap;
+  }
+
+  .opAddToPlannerBtn {
+    flex: 1 1 100%;
+  }
+
+  .opInfoRow {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .opInfoLabel {
+    flex: none;
+  }
+}

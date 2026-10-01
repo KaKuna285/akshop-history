@@ -26,9 +26,10 @@
   // table, so that list is built here by filtering). Unlike every other
   // cost source on this page, a module's itemCost list embeds its LMD cost
   // directly as a normal entry (id "4001", type "GOLD") instead of a
-  // separate LMD-only table -- addCosts() below is what routes a
-  // GOLD-type entry into the LMD total rather than the material list, so
-  // that one difference doesn't need special-casing anywhere else.
+  // separate LMD-only table -- addCosts() (in util.js, alongside
+  // calcOperatorCost()) is what routes a GOLD-type entry into the LMD
+  // total rather than the material list, so that one difference doesn't
+  // need special-casing anywhere else.
   //
   // Roster entries render as compact cards on the left of the Roster tab;
   // clicking one opens the edit modal (current/target phase, level, skill
@@ -192,21 +193,15 @@
   // --- data loading -----------------------------------------------------
 
   async function loadData() {
-    const [chars, constRes, itemRes, equipRes] = await Promise.all([
+    const [chars, const_, items, equipRes] = await Promise.all([
       get_char_table(false, SERVER, false),
-      fetch(`${DATA_BASE[SERVER]}/gamedata/excel/gamedata_const.json`),
-      fetch(`${DATA_BASE[SERVER]}/gamedata/excel/item_table.json`),
+      loadGameConst(SERVER),
+      loadItemTable(SERVER),
       fetch(`${DATA_BASE[SERVER]}/gamedata/excel/uniequip_table.json`),
     ]);
     charTable = chars;
-    const constJson = await fixedJson(constRes);
-    gameConst = {
-      characterExpMap: constJson.characterExpMap || [],
-      characterUpgradeCostMap: constJson.characterUpgradeCostMap || [],
-      evolveGoldCost: constJson.evolveGoldCost || [],
-    };
-    const itemJson = await fixedJson(itemRes);
-    itemTable = itemJson.items || itemJson;
+    gameConst = const_;
+    itemTable = items;
     const equipJson = await fixedJson(equipRes);
     const equipDict = equipJson.equipDict || equipJson;
 
@@ -291,104 +286,17 @@
   }
 
   // --- cost calculation ---------------------------------------------------
-
-  // Most cost lists on this page are materials-only (LMD tracked
-  // separately), but a module's itemCost mixes its LMD cost directly in
-  // as a normal entry (id "4001", type "GOLD") -- routing that into `cost
-  // .lmd` here, rather than the material list, keeps every other caller
-  // (elite promotion, skill level, mastery) unaware of that difference.
-  function addCosts(cost, list) {
-    if (!list) return;
-    for (const { id, count, type } of list) {
-      if (type === "GOLD") {
-        cost.lmd += count;
-      } else {
-        cost.materials[id] = (cost.materials[id] || 0) + count;
-      }
-    }
-  }
-
-  function calcOperatorCost(op, current, target) {
-    const cost = { lmd: 0, exp: 0, materials: {} };
-    const rarity = op.rarity; // already remapped to a 0-5 int by get_char_table()
-
-    // Elite promotions crossed. phases[p].evolveCost is the cost to
-    // promote INTO phase p (so phase 0 is always null); evolveGoldCost is
-    // the matching LMD-only cost, indexed [rarity][p - 1].
-    for (let p = current.phase + 1; p <= target.phase; p++) {
-      const goldRow = gameConst.evolveGoldCost[rarity];
-      const gold = goldRow ? goldRow[p - 1] : undefined;
-      if (typeof gold === "number" && gold > 0) cost.lmd += gold;
-      const phaseData = op.phases[p];
-      if (phaseData) addCosts(cost, phaseData.evolveCost);
-    }
-
-    // Operator level, across every phase the change passes through. The
-    // per-level EXP/LMD curve is shared across all operators of any
-    // rarity -- only how far into it a given operator can go (each
-    // phase's own maxLevel) differs.
-    for (let p = current.phase; p <= target.phase; p++) {
-      const phaseData = op.phases[p];
-      if (!phaseData) continue;
-      const startLevel = p === current.phase ? current.level : 1;
-      const endLevel = p === target.phase ? target.level : phaseData.maxLevel;
-      const expRow = gameConst.characterExpMap[p] || [];
-      const lmdRow = gameConst.characterUpgradeCostMap[p] || [];
-      for (let lvl = startLevel; lvl < endLevel; lvl++) {
-        const e = expRow[lvl - 1];
-        const l = lmdRow[lvl - 1];
-        if (typeof e === "number" && e > 0) cost.exp += e;
-        if (typeof l === "number" && l > 0) cost.lmd += l;
-      }
-    }
-
-    // Skill level (1-7), shared across every skill the operator has at
-    // once. allSkillLvlup[i] is the cost to go from skill level i+1 to
-    // i+2, so index 0..5 covers levels 1->7. Operators with no skills at
-    // all (a handful of very low rarities) have nothing here.
-    if (op.allSkillLvlup && op.allSkillLvlup.length) {
-      for (let lvl = current.skillLevel; lvl < target.skillLevel; lvl++) {
-        const entry = op.allSkillLvlup[lvl - 1];
-        if (entry) addCosts(cost, entry.lvlUpCost);
-      }
-    }
-
-    // Skill mastery (M1-M3), per individual skill. Each skill's own
-    // levelUpCostCond[m] is the cost to go from mastery m to m+1 (index
-    // 0 = M1, 1 = M2, 2 = M3).
-    if (op.skills) {
-      op.skills.forEach((skill, skillIdx) => {
-        if (!skill.levelUpCostCond) return;
-        const curM = (current.mastery && current.mastery[skillIdx]) || 0;
-        const tgtM = (target.mastery && target.mastery[skillIdx]) || 0;
-        for (let m = curM; m < tgtM; m++) {
-          addCosts(cost, skill.levelUpCostCond[m] && skill.levelUpCostCond[m].levelUpCost);
-        }
-      });
-    }
-
-    // Module stages, per module. itemCost is keyed by the STAGE REACHED
-    // as a string ("1", "2", "3"), so going from stage s to s+1 uses
-    // itemCost[String(s + 1)].
-    if (op.modules) {
-      op.modules.forEach((mod) => {
-        const curS = (current.modules && current.modules[mod.uniEquipId]) || 0;
-        const tgtS = (target.modules && target.modules[mod.uniEquipId]) || 0;
-        for (let s = curS + 1; s <= tgtS; s++) {
-          addCosts(cost, mod.itemCost && mod.itemCost[String(s)]);
-        }
-      });
-    }
-
-    return cost;
-  }
+  // addCosts()/calcOperatorCost() now live in util.js -- shared with the
+  // operator page's own "cost to fully max" table -- so calcOperatorCost()
+  // here takes gameConst explicitly rather than closing over this page's
+  // own module-level variable.
 
   function calcRosterTotals() {
     const totals = { lmd: 0, exp: 0, materials: {} };
     for (const entry of roster) {
       const op = charTable[entry.charId];
       if (!op) continue;
-      const cost = calcOperatorCost(op, entry.current, entry.target);
+      const cost = calcOperatorCost(op, entry.current, entry.target, gameConst);
       totals.lmd += cost.lmd;
       totals.exp += cost.exp;
       for (const [id, count] of Object.entries(cost.materials)) {
@@ -628,6 +536,17 @@
       card.appendChild(info);
       card.title = formatCardTooltip(op, entry);
 
+      const detailsLink = document.createElement("a");
+      detailsLink.className = "operatorCardDetails";
+      detailsLink.href = `/operator/?id=${encodeURIComponent(entry.charId)}`;
+      detailsLink.title = `View ${op.name}'s operator page`;
+      detailsLink.setAttribute("aria-label", `View ${op.name}'s operator page`);
+      detailsLink.textContent = "ⓘ";
+      // Otherwise this bubbles up to the card's own onclick below and
+      // opens the edit modal instead of following the link.
+      detailsLink.onclick = (e) => e.stopPropagation();
+      card.appendChild(detailsLink);
+
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
       removeBtn.className = "operatorCardRemove";
@@ -866,6 +785,16 @@
       row.appendChild(name);
       if (op.cnOnly) row.appendChild(buildCnBadge(op));
       row.appendChild(rarity);
+      const detailsLink = document.createElement("a");
+      detailsLink.className = "operatorSearchResultDetails";
+      detailsLink.href = `/operator/?id=${encodeURIComponent(op.charId)}`;
+      detailsLink.title = `View ${op.name}'s operator page`;
+      detailsLink.setAttribute("aria-label", `View ${op.name}'s operator page`);
+      detailsLink.textContent = "ⓘ";
+      // Otherwise this bubbles up to the row's own onclick below and adds
+      // the operator to the roster instead of following the link.
+      detailsLink.onclick = (e) => e.stopPropagation();
+      row.appendChild(detailsLink);
       row.onclick = () => selectSearchResult(op);
       searchResultsEl.appendChild(row);
     });

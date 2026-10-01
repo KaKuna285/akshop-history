@@ -124,6 +124,30 @@ const OperatorEditModal = (function () {
       modules: {},
     };
   }
+  // The fully-maxed state for an operator: max Elite phase at its own max
+  // level, skill level 7 (if the operator has skills at all), every skill
+  // at its own mastery cap (M3, or fewer if a skill's levelUpCostCond is
+  // shorter), and every module at stage 3. Used as the "target" state for
+  // an E0/Lv1 -> everything-maxed cost total (see calcOperatorCost() in
+  // util.js), e.g. for the operator page's "cost to fully max" table.
+  function maxState(op) {
+    const phase = maxPhase(op);
+    const mastery = {};
+    (op.skills || []).forEach((skill, idx) => {
+      mastery[idx] = maxMastery(op, idx);
+    });
+    const modules = {};
+    (op.modules || []).forEach((mod) => {
+      modules[mod.uniEquipId] = 3;
+    });
+    return {
+      phase,
+      level: maxLevelFor(op, phase),
+      skillLevel: hasSkills(op) ? 7 : 1,
+      mastery,
+      modules,
+    };
+  }
 
   // --- field builders ------------------------------------------------------
 
@@ -386,6 +410,7 @@ const OperatorEditModal = (function () {
     loadCharTable,
     defaultState,
     defaultTargetState,
+    maxState,
     maxPhase,
     hasSkills,
   };

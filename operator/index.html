@@ -1,0 +1,118 @@
+<html>
+  <head>
+    <title>Arknights Operator Details</title>
+    <meta charset="UTF-8" />
+    <meta
+      name="description"
+      content="One operator's release dates, shop history (with predicted debut if they haven't hit the shop yet), and the full LMD/EXP/materials cost to take them from Elite 0 Level 1 to fully maxed."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ak.athansson.com/operator/" />
+    <meta property="og:title" content="Operator Details" />
+    <meta
+      property="og:description"
+      content="One operator's release dates, shop history (with predicted debut if they haven't hit the shop yet), and the full LMD/EXP/materials cost to take them from Elite 0 Level 1 to fully maxed."
+    />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link type="text/css" href="/css/reset.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style2.css" rel="stylesheet" />
+    <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
+    <link type="text/css" href="/css/operator-extra.css" rel="stylesheet" />
+    <link type="text/css" href="/css/operator-edit-modal.css" rel="stylesheet" />
+    <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/prefs.js"></script>
+    <script type="text/javascript" src="/js/util.js"></script>
+  </head>
+  <body>
+    <div id="topNav">
+      <div class="nav-left">
+        <a id="pageTitle">Operator Details</a>
+      </div>
+      <div class="nav-right">
+        <nav class="siteNav" aria-label="Site navigation">
+          <a href="/store/">Shop History</a>
+          <a href="/calendar/">Calendar</a>
+          <a href="/planner/">Planner</a>
+        </nav>
+        <a class="rightButton button iconButton" href="/" id="homeButton"></a>
+      </div>
+    </div>
+
+    <div id="operatorJumpBar">
+      <label for="operatorJumpSearch">Jump to operator</label>
+      <div id="operatorJumpSearchWrap">
+        <input
+          type="text"
+          id="operatorJumpSearch"
+          placeholder="Type a name..."
+          autocomplete="off"
+        />
+        <div id="operatorJumpResults" class="hidden"></div>
+      </div>
+    </div>
+
+    <div id="operatorStatus" class="operatorStatus">Loading operator data&hellip;</div>
+
+    <div id="operatorContent" class="hidden">
+      <div id="opHeader">
+        <img id="opIcon" class="opIcon" alt="" />
+        <div id="opHeaderInfo">
+          <div id="opNameRow">
+            <h1 id="opName"></h1>
+          </div>
+          <div id="opMeta">
+            <span id="opRarityBadge" class="opBadge opRarityBadge"></span>
+            <span id="opClassBadge" class="opBadge"></span>
+            <span id="opNumberBadge" class="opBadge"></span>
+            <span id="opPoolBadge" class="opBadge"></span>
+          </div>
+        </div>
+        <button type="button" id="opAddToPlannerBtn" class="opAddToPlannerBtn">
+          + Add to planner
+        </button>
+      </div>
+
+      <div class="opSection" id="opReleaseSection">
+        <h2 class="opSectionHeading">Release</h2>
+        <div id="opReleaseInfo" class="opInfoRows"></div>
+      </div>
+
+      <div class="opSection" id="opShopSection">
+        <h2 class="opSectionHeading">Shop history</h2>
+        <div id="opShopInfo"></div>
+      </div>
+
+      <div class="opSection" id="opCostSection">
+        <h2 class="opSectionHeading">Cost to fully max (from Elite 0, Level 1)</h2>
+        <div id="opCostTotals">
+          <div class="opCostTotal">
+            <span class="opCostTotalLabel">LMD</span>
+            <span class="opCostTotalValue" id="opCostLmd">0</span>
+          </div>
+          <div class="opCostTotal">
+            <span class="opCostTotalLabel">EXP</span>
+            <span class="opCostTotalValue" id="opCostExp">0</span>
+          </div>
+        </div>
+        <div id="opCostMaterials"></div>
+      </div>
+    </div>
+
+    <div id="pageCredit">
+      Operator data from
+      <a href="https://github.com/Kengxxiao/ArknightsGameData_YoStar" target="_blank" rel="noopener"
+        >ArknightsGameData</a
+      >
+    </div>
+
+    <!-- The edit modal (current/target Elite/level/skill/mastery/module) is
+         shared with the planner and calendar pages -- js/operator-edit-
+         modal.js injects it into <body> itself on first use. -->
+
+    <script type="text/javascript" src="/js/operator-edit-modal.js"></script>
+    <script type="text/javascript" src="/js/operator-page.js"></script>
+  </body>
+</html>

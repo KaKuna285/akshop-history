@@ -90,43 +90,18 @@ fetch(extraDataUrl("banner_history.json"))
 			return Math.min(...subset.map((op) => op.first));
 		}
 		var shownrarities = new Set([5]);
-		for (const [serv, servdata] of Object.entries(SHOP_DATA)) {
-			for (const [op, data] of Object.entries(servdata)) {
-				let name = htmlDecode(op);
-				data.op = SHORT_NAMES[name] || name;
-				data.op = GAMEPRESS_NAME_MAP[data.op] || data.op;
-				data.charId = charIdMap[data.op];
-				if (data.charId == undefined) {
-					if (!data.op.includes("APRIL FOOLS"))
-						console.log("Operator not found:", data.op);
-					delete servdata[op];
-				} else {
-					data.banner.sort(
-						(a, b) => Date.parse(a.date) - Date.parse(b.date),
-					);
-					data.isKernel =
-						OP_DATA[serv][data.charId]?.classicPotentialItemId !=
-						null;
-					const img = new Image();
-					img.src = uri_avatar(data.charId);
-					data.img = img;
-					// Use the true minimum banner date rather than trusting
-					// banner[0] after the sort above: a single malformed/
-					// unparseable date string anywhere in the array makes
-					// Array.sort's comparisons with NaN unreliable, which can
-					// silently leave a later (e.g. rerun) date in slot 0.
-					data.first = Math.min(
-						...data.banner.map((b) => Date.parse(b.date)),
-					);
-					data.shop = data.shop
-						.map((entry) => ({
-							...entry,
-							date: Date.parse(entry.date),
-						}))
-						.sort((a, b) => a.date - b.date);
-				}
+			// Normalization (charId resolution, isKernel flag, date parsing,
+			// avatar preload) now lives in util.js's normalizeShopHistory(),
+			// shared with the operator page -- SHOP_DATA_BY_CHARID isn't used
+			// by this page yet, but keeping it around costs nothing and saves
+			// a second pass if a future change here needs charId lookups too.
+			const SHOP_DATA_BY_CHARID = {};
+			for (const [serv, servdata] of Object.entries(SHOP_DATA)) {
+				SHOP_DATA_BY_CHARID[serv] = normalizeShopHistory(
+					servdata,
+					OP_DATA[serv],
+				);
 			}
-		}
 		function filterOperators(servdata) {
 			// return a subset of servdata according to active filters
 			return Object.values(servdata).filter(
@@ -601,50 +576,8 @@ fetch(extraDataUrl("banner_history.json"))
 			}
 			return best;
 		}
-		// Standard-pool (non-Kernel, non-Limited) operators of a given
-		// remapped rarity, on the currently selected server. The anchor date
-		// is when the shop cadence last actually ticked forward -- i.e. the
-		// most recent FIRST shop appearance among ops that have already been
-		// shopped -- not any operator's original character-release date.
-		// (A never-shopped operator can easily have been released more
-		// recently than the last operator actually added to the shop, and
-		// using their release date as the anchor pulls the whole prediction
-		// off by however early/late that operator happens to be.)
-		// Also returns the "queue" of ops that have never appeared in the
-		// shop yet, oldest-released first -- those are presumably next in
-		// line, one cadence-length apart: the longest-waiting one is
-		// expected `cadence` weeks after the anchor, the next one
-		// 2x`cadence`, and so on. De-duped by charId in case the source data
-		// lists the same operator under more than one name/alias.
-		function getStandardPoolPipeline(rarity) {
-			let anchorDate = -Infinity;
-			let anchorOp = null;
-			const seen = new Set();
-			const waiting = [];
-			for (const data of Object.values(SHOP_DATA[selectedServer])) {
-				if (data.isKernel) continue;
-				if (operatorData[data.charId]?.isLimited) continue;
-				if (operatorData[data.charId]?.rarity !== rarity) continue;
-				if (seen.has(data.charId)) continue;
-				seen.add(data.charId);
-				if (data.shop.length) {
-					// data.shop[].date is already a numeric timestamp by this
-					// point (converted during initial setup above), so this
-					// is a plain min over numbers -- NOT another Date.parse.
-					const firstShopDate = Math.min(
-						...data.shop.map((s) => s.date),
-					);
-					if (firstShopDate > anchorDate) {
-						anchorDate = firstShopDate;
-						anchorOp = data.op;
-					}
-				} else {
-					waiting.push(data);
-				}
-			}
-			waiting.sort((a, b) => a.first - b.first);
-			return { latestRelease: anchorDate, latestOp: anchorOp, waiting };
-		}
+		// Standard-pool debut prediction now lives in util.js, shared with
+		// the operator page (getStandardPoolPipeline()/predictShopDebut()).
 		function showIconTooltip(hb, pageX, pageY) {
 			const dateStr = isNaN(hb.date)
 				? "Unknown date"
@@ -679,55 +612,64 @@ fetch(extraDataUrl("banner_history.json"))
 			}
 
 			// Standard-pool 5*/6* operators who have never appeared in the
-			// shop yet: predict a debut date from a fixed weekly cadence.
+			// shop yet: predict a debut date from a fixed weekly cadence,
+			// shared with the operator page via util.js's predictShopDebut().
 			// (4* operators never get added to the shop, so no prediction.)
-			const SHOP_DEBUT_CADENCE_WEEKS = { 5: 6, 4: 5 }; // rarity(remapped): weeks
 			let predictionHtml = "";
-			if (
-				hb.first &&
-				!hb.hasShopHistory &&
-				!hb.isKernel &&
-				!hb.isLimited &&
-				SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] != null
-			) {
-				const cadenceMs =
-					SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] * 7 * 24 * 60 * 60 * 1000;
-				const { latestRelease, latestOp, waiting } =
-					getStandardPoolPipeline(hb.rarity);
-				if (latestOp == null || !isFinite(latestRelease)) {
+			if (hb.first) {
+				const prediction = predictShopDebut(
+					hb,
+					SHOP_DATA[selectedServer],
+					operatorData,
+				);
+				if (
+					prediction == null &&
+					!hb.hasShopHistory &&
+					!hb.isKernel &&
+					!hb.isLimited &&
+					SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] != null
+				) {
 					// No same-rarity Standard-pool operator has ever been
 					// shopped yet on this server, so there's nothing to
 					// anchor a prediction to.
 					predictionHtml =
 						'<span style="opacity:0.7">No same-rarity Standard-pool shop debut yet to predict from</span>';
-				} else {
-					// position in the queue of never-shopped ops, oldest
-					// first; 1st gets +1 cadence, 2nd gets +2 cadence, etc.
-					let position =
-						waiting.findIndex((d) => d.charId === hb.charId) + 1;
-					if (position <= 0) position = 1; // shouldn't happen, but stay safe
-					const predictedDate = new Date(
-						latestRelease + position * cadenceMs,
-					);
-					const predictedStr = predictedDate.toLocaleDateString(undefined, {
+				} else if (prediction != null) {
+					const predictedStr = new Date(
+						prediction.predictedDate,
+					).toLocaleDateString(undefined, {
 						year: "numeric",
 						month: "short",
 						day: "numeric",
 					});
-					const anchorStr = new Date(latestRelease).toLocaleDateString(
-						undefined,
-						{ year: "numeric", month: "short", day: "numeric" },
-					);
+					const anchorStr = new Date(
+						prediction.anchorDate,
+					).toLocaleDateString(undefined, {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+					});
 					predictionHtml =
 						`<span style="opacity:0.8">Predicted shop debut: ~${predictedStr}</span>` +
-						`<span style="opacity:0.55;font-size:0.82em;">#${position} in line · anchored to ${latestOp}'s shop debut (${anchorStr})</span>`;
+						`<span style="opacity:0.55;font-size:0.82em;">#${prediction.position} in line · anchored to ${prediction.anchorOp}'s shop debut (${anchorStr})</span>`;
 				}
 			}
 
 			const kindHtml = kind ? `<span>${kind}</span>` : "";
 
+			// Only actually clickable once the tooltip is pinned (see the
+			// ".pinned" rule in css/shoplist-extra.css, which is what lifts
+			// the box's usual pointer-events:none) -- same "click to lock it
+			// in place, then interact with it" flow the pin feature itself
+			// already trained people on, rather than a link that vanishes
+			// out from under the cursor on the next mousemove.
+			const operatorPageLink = hb.charId
+				? `<a href="/operator/?id=${encodeURIComponent(hb.charId)}" class="tooltipOperatorPageLink">View operator page →</a>`
+				: "";
+
 			iconTooltipEl.className = "";
 			iconTooltipEl.classList.add("xcenter", "ybottom");
+			iconTooltipEl.classList.toggle("pinned", !!(pinnedIcon && pinnedIcon.hb === hb));
 			iconTooltipEl.innerHTML =
 				'<div style="display:flex;align-items:center;gap:8px;">' +
 				`<img src="${uri_avatar(hb.charId)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` +
@@ -736,6 +678,7 @@ fetch(extraDataUrl("banner_history.json"))
 				kindHtml +
 				`<span style="opacity:0.8">${dateStr}</span>` +
 				predictionHtml +
+				operatorPageLink +
 				"</div></div>";
 			iconTooltipEl.style.left = pageX + "px";
 			iconTooltipEl.style.top = pageY + "px";
@@ -743,6 +686,7 @@ fetch(extraDataUrl("banner_history.json"))
 		}
 		function hideIconTooltip() {
 			iconTooltipEl.classList.add("hidden");
+			iconTooltipEl.classList.remove("pinned");
 			opCanvas.style.cursor = "default";
 		}
 		function daysBetween(startDate, endDate) {
