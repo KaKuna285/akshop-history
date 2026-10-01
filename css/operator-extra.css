@@ -14,6 +14,27 @@
   margin-right: auto;
 }
 
+/* Matches the other pages' (#pageCredit) muted-link treatment -- this
+   page's own #pageCredit only had the shared max-width/centering rule
+   above, so its link was falling back to the browser's default bright
+   blue/purple instead. */
+#pageCredit {
+  margin-top: 16px;
+  margin-bottom: 24px;
+  padding: 0 16px;
+  font-size: 0.75rem;
+  color: #777;
+  text-align: center;
+}
+
+#pageCredit a {
+  color: #999;
+}
+
+#pageCredit a:hover {
+  color: #ccc;
+}
+
 #operatorJumpBar {
   margin-top: 16px;
   margin-bottom: 20px;
@@ -228,6 +249,19 @@
   padding: 0 16px 40px;
 }
 
+#opBackLink {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #999;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+#opBackLink:hover {
+  color: #ccc;
+  text-decoration: underline;
+}
+
 #opHeader {
   display: flex;
   align-items: center;
@@ -429,6 +463,25 @@
   font-size: 0.82rem;
   font-weight: bold;
   color: #eee;
+}
+
+/* Elite/Module/Stage are a handful of discrete options each, so they're
+   small dropdowns rather than sliders -- styled to match .opFilterGroup
+   select's dropdowns elsewhere on this page, but sized to sit in a
+   .opStatsSliderRow alongside the Level slider's own label width. */
+.opStatsSelect {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1c1c1c;
+  color: #eee;
+  font-size: 0.82rem;
+}
+
+.opStatsNote {
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 2px;
 }
 
 /* --- Stats ------------------------------------------------------------- */

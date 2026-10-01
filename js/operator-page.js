@@ -63,6 +63,7 @@
   const rarityFilterEl = document.getElementById("opFilterRarity");
   const sortByEl = document.getElementById("opSortBy");
   const contentEl = document.getElementById("operatorContent");
+  const backLinkEl = document.getElementById("opBackLink");
   const iconEl = document.getElementById("opIcon");
   const nameEl = document.getElementById("opName");
   const rarityBadgeEl = document.getElementById("opRarityBadge");
@@ -207,21 +208,29 @@
   // Skill/talent/module descriptions reference their own numeric
   // parameters as "{key}" or "{key:format}" tokens, resolved against a
   // "blackboard" array of { key, value } pairs living alongside that same
-  // description -- and wrap emphasized words in the game's own
-  // "<@ba.something>...</>" rich-text markup, which isn't real HTML.
-  // Strips the markup down to plain text and fills in every token this
-  // can resolve; leaves one it can't (an unusual key, or an entirely
-  // separate templating convention some newer skills use) exactly as
-  // written rather than silently dropping it, so a miss is visible
-  // instead of quietly wrong.
+  // description -- and wrap emphasized words in the game's own rich-text
+  // markup, which isn't real HTML. That markup isn't always "<@ba....>":
+  // some skills use "<$ba....>" instead (same meaning, different sigil --
+  // e.g. Ascalon's S3 uses "<@ba.vup>" for one clause but plain "<$...>"
+  // elsewhere), so this strips any "<...>...</>" -style tag generically
+  // rather than special-casing one sigil. Token keys aren't always plain
+  // identifiers either -- some reference a specific sub-effect with an
+  // "@" in the key itself (e.g. "{attack@hp_ratio:0%}", a literal
+  // blackboard key "attack@hp_ratio", not a scope prefix to strip -- see
+  // Ascalon's S3 for a real example), so "@" is allowed in the token-key
+  // character class too. Fills in every token this can resolve; leaves
+  // one it can't (an unrecognized key, or an entirely separate
+  // templating convention some newer skills use) exactly as written
+  // rather than silently dropping it, so a miss is visible instead of
+  // quietly wrong.
   function formatDescription(text, blackboard) {
     if (!text) return "";
-    let out = text.replace(/<@[^>]*>/g, "").replace(/<\/>/g, "");
+    let out = text.replace(/<\/?[^>]+>/g, "");
     const bbMap = {};
     (blackboard || []).forEach((b) => {
       if (b && b.key) bbMap[String(b.key).toLowerCase()] = b.value;
     });
-    out = out.replace(/\{(-?)([a-zA-Z0-9_.]+)(:([^}]+))?\}/g, (whole, neg, key, _m, fmt) => {
+    out = out.replace(/\{(-?)([a-zA-Z0-9_.@]+)(:([^}]+))?\}/g, (whole, neg, key, _m, fmt) => {
       const v = bbMap[key.toLowerCase()];
       if (v == null) return whole;
       const signed = neg ? -v : v;
@@ -349,7 +358,14 @@
     battleEquipTable = battleEquip;
 
     operatorList = Object.values(charTable)
-      .map((op) => ({ charId: op.charId, name: op.name, rarity: op.rarity, cnOnly: op.cnOnly, profession: op.profession }))
+      .map((op) => ({
+        charId: op.charId,
+        name: op.name,
+        rarity: op.rarity,
+        cnOnly: op.cnOnly,
+        profession: op.profession,
+        onlineTime: op.onlineTime,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     // Best-effort CN merge, same reasoning (and same "never let a slow
@@ -445,14 +461,125 @@
     ["DEF", "def", (v) => Math.round(v).toLocaleString()],
     ["RES", "magicResistance", (v) => Math.round(v) + "%"],
     ["Redeploy Cost (DP)", "cost", (v) => String(Math.round(v))],
+    ["Redeploy Time (sec)", "respawnTime", (v) => String(Math.round(v))],
     ["Block", "blockCnt", (v) => String(Math.round(v))],
     ["Attack Interval", "baseAttackTime", (v) => Math.round(v * 100) / 100 + "s"],
   ];
 
-  // Two linked range sliders (Elite phase, then level within that phase)
-  // drive a single live-updating stats column, rather than a fixed
-  // E0-vs-max-Elite comparison -- so any level/Elite combination can be
-  // previewed, not just the two endpoints.
+  // potentialRanks' attribute-type codes -> this file's own stat-row
+  // keys. Confirmed real shape (via a community mirror of the same game
+  // data, since the raw data itself is too large to fetch directly in
+  // this environment): a plain numeric potential (type "BUFF") carries
+  // `buff.attributes.attributeModifiers[]`, each a flat
+  // `{attributeType, formulaItem: "ADDITION", value}` -- a "CUSTOM" rank
+  // (e.g. "Improves Talent") has `buff: null` and isn't a stat delta at
+  // all, so it's simply skipped here (its effect is already covered by
+  // the Talents/Potential upgrades sections above). ATTACK_SPEED is
+  // deliberately left unmapped -- turning a percentage attack-speed
+  // buff back into a change in displayed Attack Interval needs the
+  // game's own frame-rounding formula, which isn't confirmed, so a rare
+  // potential that touches it just doesn't show up here rather than
+  // risking a wrong number.
+  const POTENTIAL_ATTR_TO_STAT_KEY = {
+    MAX_HP: "maxHp",
+    ATK: "atk",
+    DEF: "def",
+    MAGIC_RESISTANCE: "magicResistance",
+    COST: "cost",
+    RESPAWN_TIME: "respawnTime",
+  };
+
+  // Every stats view on this page assumes max Potential (Potential 6 --
+  // all 5 upgrade ranks applied, same assumption OperatorEditModal's own
+  // maxState() makes for the planner/calendar pages), so every BUFF-type
+  // rank's modifiers are summed once per operator rather than offered as
+  // a togglable option.
+  function potentialStatBonuses(op) {
+    const totals = {};
+    (op.potentialRanks || []).forEach((rank) => {
+      const modifiers = rank && rank.buff && rank.buff.attributes && rank.buff.attributes.attributeModifiers;
+      if (!Array.isArray(modifiers)) return;
+      modifiers.forEach((mod) => {
+        if (!mod || !mod.attributeType || typeof mod.value !== "number") return;
+        const key = POTENTIAL_ATTR_TO_STAT_KEY[mod.attributeType];
+        if (!key) return;
+        totals[key] = (totals[key] || 0) + mod.value;
+      });
+    });
+    return totals;
+  }
+
+  // battle_equip_table.json's own snake_case attributeBlackboard keys ->
+  // this file's stat-row keys (a sibling of MODULE_STAT_LABELS above,
+  // which maps the same keys to a *display* label for the Modules
+  // section rather than a row to add onto).
+  const MODULE_ATTR_TO_STAT_KEY = {
+    max_hp: "maxHp",
+    atk: "atk",
+    def: "def",
+    magic_resistance: "magicResistance",
+    res: "magicResistance",
+    cost: "cost",
+    respawn_time: "respawnTime",
+    block_cnt: "blockCnt",
+  };
+
+  // A module stage's attributeBlackboard is that stage's *total* bonus,
+  // not incremental on top of the stage before it (matches how
+  // renderModuleStage() above already treats it) -- so this looks up
+  // exactly one phase (by its own equipLevel, not array index, in case a
+  // module's phases are ever sparse) rather than summing across stages.
+  function moduleStatBonuses(uniEquipId, stage) {
+    const totals = {};
+    if (!uniEquipId || !stage) return totals;
+    const equipData = battleEquipTable[uniEquipId];
+    const phases = (equipData && Array.isArray(equipData.phases) && equipData.phases) || [];
+    const phase = phases.find((ph) => ph && ph.equipLevel === stage);
+    if (!phase) return totals;
+    (phase.attributeBlackboard || []).forEach((b) => {
+      if (!b || !b.key || typeof b.value !== "number") return;
+      const key = MODULE_ATTR_TO_STAT_KEY[b.key];
+      if (!key) return;
+      totals[key] = (totals[key] || 0) + b.value;
+    });
+    return totals;
+  }
+
+  // Rebuilds the Stage dropdown's own options from whichever module is
+  // currently selected, rather than assuming every module goes to stage
+  // 3 -- real coverage varies, and this way a module missing from
+  // battleEquipTable (a fetch gap, or a CN-only one not covered by the
+  // best-effort CN merge) just leaves the dropdown at "None" instead of
+  // offering stages that don't actually have data.
+  function populateStageOptions(stageSelect, uniEquipId) {
+    stageSelect.innerHTML = "";
+    const noneOpt = document.createElement("option");
+    noneOpt.value = "0";
+    noneOpt.textContent = "None";
+    stageSelect.appendChild(noneOpt);
+    const equipData = uniEquipId && battleEquipTable[uniEquipId];
+    const phases = (equipData && Array.isArray(equipData.phases) && equipData.phases) || [];
+    const levels = phases
+      .filter((ph) => ph && typeof ph.equipLevel === "number")
+      .map((ph) => ph.equipLevel)
+      .sort((a, b) => a - b);
+    levels.forEach((lvl) => {
+      const opt = document.createElement("option");
+      opt.value = String(lvl);
+      opt.textContent = `Stage ${lvl}`;
+      stageSelect.appendChild(opt);
+    });
+    stageSelect.value = "0";
+    stageSelect.disabled = !uniEquipId || !levels.length;
+  }
+
+  // An Elite dropdown, a Level slider, and (when the operator has any)
+  // a Module + Stage dropdown drive a single live-updating stats column,
+  // rather than a fixed E0-vs-max-Elite comparison -- so any level/
+  // Elite/module combination can be previewed, not just the two
+  // endpoints. Elite only ever has 2-4 discrete options, so it's a
+  // dropdown rather than a slider; Level can run to 90, where a slider
+  // reads better than a 90-option dropdown.
   function renderStats(op) {
     statsInfoEl.innerHTML = "";
     const phases = (op.phases || []).filter((ph) => ph && ph.attributesKeyFrames && ph.attributesKeyFrames.length);
@@ -461,34 +588,75 @@
       return;
     }
 
+    const potentialBonuses = potentialStatBonuses(op);
+    const modules = (op.modules || []).filter(Boolean);
+
     const controls = document.createElement("div");
     controls.className = "opStatsControls";
 
-    function buildSliderRow(labelText) {
+    function buildRow(labelText, extraClass) {
       const row = document.createElement("div");
-      row.className = "opStatsSliderRow";
+      row.className = "opStatsSliderRow" + (extraClass ? " " + extraClass : "");
       const label = document.createElement("label");
       label.textContent = labelText;
-      const slider = document.createElement("input");
-      slider.type = "range";
-      slider.className = "opStatsSlider";
-      const value = document.createElement("span");
-      value.className = "opStatsSliderValue";
       row.appendChild(label);
-      row.appendChild(slider);
-      row.appendChild(value);
       controls.appendChild(row);
-      return { slider, value };
+      return row;
     }
 
-    const eliteCtrl = buildSliderRow("Elite");
-    eliteCtrl.slider.min = "0";
-    eliteCtrl.slider.max = String(phases.length - 1);
-    eliteCtrl.slider.step = "1";
-    eliteCtrl.slider.disabled = phases.length <= 1;
+    const eliteRow = buildRow("Elite", "opStatsEliteRow");
+    const eliteSelect = document.createElement("select");
+    eliteSelect.className = "opStatsSelect";
+    phases.forEach((ph, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `Elite ${i}`;
+      eliteSelect.appendChild(opt);
+    });
+    eliteSelect.disabled = phases.length <= 1;
+    eliteRow.appendChild(eliteSelect);
 
-    const levelCtrl = buildSliderRow("Level");
-    levelCtrl.slider.step = "1";
+    const levelRow = buildRow("Level", "opStatsLevelRow");
+    const levelSlider = document.createElement("input");
+    levelSlider.type = "range";
+    levelSlider.className = "opStatsSlider";
+    levelSlider.step = "1";
+    const levelValue = document.createElement("span");
+    levelValue.className = "opStatsSliderValue";
+    levelRow.appendChild(levelSlider);
+    levelRow.appendChild(levelValue);
+
+    let moduleSelect = null;
+    let stageSelect = null;
+    if (modules.length) {
+      const moduleRow = buildRow("Module", "opStatsModuleRow");
+      moduleSelect = document.createElement("select");
+      moduleSelect.className = "opStatsSelect";
+      const noneOpt = document.createElement("option");
+      noneOpt.value = "";
+      noneOpt.textContent = "None";
+      moduleSelect.appendChild(noneOpt);
+      modules.forEach((mod) => {
+        const opt = document.createElement("option");
+        opt.value = mod.uniEquipId || "";
+        opt.textContent = mod.typeName2 ? `${mod.typeName2} — ${mod.uniEquipName || ""}` : mod.uniEquipName || mod.uniEquipId || "Module";
+        moduleSelect.appendChild(opt);
+      });
+      moduleRow.appendChild(moduleSelect);
+
+      const stageRow = buildRow("Stage", "opStatsStageRow");
+      stageSelect = document.createElement("select");
+      stageSelect.className = "opStatsSelect";
+      populateStageOptions(stageSelect, "");
+      stageRow.appendChild(stageSelect);
+    }
+
+    const note = document.createElement("div");
+    note.className = "opStatsNote";
+    note.textContent = modules.length
+      ? "Stats assume max Potential (6). Pick a module and stage above to add its stat bonus too."
+      : "Stats assume max Potential (6).";
+    controls.appendChild(note);
 
     statsInfoEl.appendChild(controls);
 
@@ -517,8 +685,9 @@
     table.appendChild(tbody);
     statsInfoEl.appendChild(table);
 
-    // Starts at max Elite, max level -- same view the page used to show
-    // (fixed) as its "after" column, so the default look doesn't change.
+    // Starts at max Elite, max level, no module equipped -- same view
+    // the page used to show (fixed) as its "after" column, so the
+    // default look doesn't change.
     let eliteIdx = phases.length - 1;
     let level = phases[eliteIdx].attributesKeyFrames[phases[eliteIdx].attributesKeyFrames.length - 1].level;
 
@@ -528,29 +697,41 @@
       const kf1 = kfs[kfs.length - 1];
       level = Math.min(Math.max(level, kf0.level), kf1.level);
 
-      eliteCtrl.slider.value = String(eliteIdx);
-      eliteCtrl.value.textContent = `Elite ${eliteIdx}`;
-      levelCtrl.slider.min = String(kf0.level);
-      levelCtrl.slider.max = String(kf1.level);
-      levelCtrl.slider.disabled = kf1.level === kf0.level;
-      levelCtrl.slider.value = String(level);
-      levelCtrl.value.textContent = `Lv${level}`;
+      eliteSelect.value = String(eliteIdx);
+      levelSlider.min = String(kf0.level);
+      levelSlider.max = String(kf1.level);
+      levelSlider.disabled = kf1.level === kf0.level;
+      levelSlider.value = String(level);
+      levelValue.textContent = `Lv${level}`;
       headValue.textContent = `Elite ${eliteIdx}, Lv${level}`;
 
+      const modBonuses = moduleSelect ? moduleStatBonuses(moduleSelect.value, parseInt(stageSelect.value, 10)) : {};
+
       OP_STATS_ROWS.forEach(([, key, fmt], i) => {
-        const v = interpolateStat(kf0, kf1, level, key);
+        let v = interpolateStat(kf0, kf1, level, key);
+        if (v != null) {
+          if (potentialBonuses[key]) v += potentialBonuses[key];
+          if (modBonuses[key]) v += modBonuses[key];
+        }
         valueCells[i].textContent = v == null ? "—" : fmt(v);
       });
     }
 
-    eliteCtrl.slider.addEventListener("input", () => {
-      eliteIdx = parseInt(eliteCtrl.slider.value, 10);
+    eliteSelect.addEventListener("change", () => {
+      eliteIdx = parseInt(eliteSelect.value, 10);
       update();
     });
-    levelCtrl.slider.addEventListener("input", () => {
-      level = parseInt(levelCtrl.slider.value, 10);
+    levelSlider.addEventListener("input", () => {
+      level = parseInt(levelSlider.value, 10);
       update();
     });
+    if (moduleSelect) {
+      moduleSelect.addEventListener("change", () => {
+        populateStageOptions(stageSelect, moduleSelect.value);
+        update();
+      });
+      stageSelect.addEventListener("change", update);
+    }
 
     update();
   }
@@ -738,11 +919,21 @@
       stage.appendChild(statsLine);
     }
 
+    // Real battle_equip_table.json data isn't as uniform as the examples
+    // used to build this against -- a part can be null, a bundle can be
+    // present with candidates missing or not actually an array, and so
+    // on. Every level here is guarded so one oddly-shaped part only
+    // skips that one part rather than throwing and (since this runs
+    // inside the modules.forEach in renderModules(), and a thrown error
+    // there aborts the whole loop after modulesInfoEl was already
+    // cleared) silently blanking the entire Modules section.
     (phase.parts || []).forEach((part) => {
+      if (!part) return;
       [part.addOrOverrideTalentDataBundle, part.overrideTraitDataBundle].forEach((bundle) => {
         const candidates = bundle && bundle.candidates;
-        if (!candidates) return;
+        if (!Array.isArray(candidates)) return;
         candidates.forEach((cand) => {
+          if (!cand) return;
           const text = cand.description || cand.upgradeDescription || cand.additionalDescription;
           if (!text) return;
           const effect = document.createElement("div");
@@ -758,44 +949,60 @@
 
   function renderModules(op) {
     modulesInfoEl.innerHTML = "";
-    const modules = op.modules || [];
+    const modules = (op.modules || []).filter(Boolean);
     if (!modules.length) {
       modulesInfoEl.appendChild(textNote("No modules."));
       return;
     }
     modules.forEach((mod) => {
-      const row = document.createElement("div");
-      row.className = "opModuleRow";
-      const heading = document.createElement("div");
-      heading.className = "opModuleHeading";
-      if (mod.typeName2) {
-        const code = document.createElement("span");
-        code.className = "opModuleCode";
-        code.textContent = mod.typeName2;
-        heading.appendChild(code);
-      }
-      const name = document.createElement("span");
-      name.className = "opModuleName";
-      name.textContent = mod.uniEquipName || "";
-      heading.appendChild(name);
-      row.appendChild(heading);
-      if (mod.uniEquipDesc) {
-        const desc = document.createElement("div");
-        desc.className = "opModuleDescription";
-        desc.textContent = formatDescription(mod.uniEquipDesc, null);
-        row.appendChild(desc);
-      }
+      // Each module is rendered independently and defensively -- real
+      // battle_equip_table.json data has more shape variance than any
+      // handful of examples can cover, and one module failing to parse
+      // should never take the rest of this section down with it (see the
+      // comment in renderModuleStage() above for the failure mode this
+      // guards against).
+      try {
+        const row = document.createElement("div");
+        row.className = "opModuleRow";
+        const heading = document.createElement("div");
+        heading.className = "opModuleHeading";
+        if (mod.typeName2) {
+          const code = document.createElement("span");
+          code.className = "opModuleCode";
+          code.textContent = mod.typeName2;
+          heading.appendChild(code);
+        }
+        const name = document.createElement("span");
+        name.className = "opModuleName";
+        name.textContent = mod.uniEquipName || "";
+        heading.appendChild(name);
+        row.appendChild(heading);
+        if (mod.uniEquipDesc) {
+          const desc = document.createElement("div");
+          desc.className = "opModuleDescription";
+          desc.textContent = formatDescription(mod.uniEquipDesc, null);
+          row.appendChild(desc);
+        }
 
-      const equipData = battleEquipTable[mod.uniEquipId];
-      const phases = (equipData && equipData.phases) || [];
-      if (phases.length) {
-        const stageList = document.createElement("div");
-        stageList.className = "opModuleStageList";
-        phases.forEach((phase) => stageList.appendChild(renderModuleStage(phase)));
-        row.appendChild(stageList);
-      }
+        const equipData = battleEquipTable[mod.uniEquipId];
+        const phases = (equipData && Array.isArray(equipData.phases) && equipData.phases) || [];
+        if (phases.length) {
+          const stageList = document.createElement("div");
+          stageList.className = "opModuleStageList";
+          phases.forEach((phase) => {
+            if (phase) stageList.appendChild(renderModuleStage(phase));
+          });
+          row.appendChild(stageList);
+        }
 
-      modulesInfoEl.appendChild(row);
+        modulesInfoEl.appendChild(row);
+      } catch (err) {
+        console.warn("Couldn't render module", mod && mod.uniEquipId, err);
+        const fallback = document.createElement("div");
+        fallback.className = "opModuleRow";
+        fallback.appendChild(textNote(`${(mod && mod.uniEquipName) || "A module"} (couldn't load full details).`));
+        modulesInfoEl.appendChild(fallback);
+      }
     });
   }
 
@@ -942,6 +1149,27 @@
     }
   }
 
+  // Ascending by EN release date (oldest first), with operators that
+  // have no onlineTime yet (CN-only, not yet released on EN) sorted to
+  // the end rather than clumped at the start the way a missing/zero
+  // timestamp would sort by default. Shared by the standalone "Release
+  // date" sort option and as the rarity sort's tie-break, so both read
+  // the same way once release date enters the picture.
+  function compareByReleaseDate(a, b) {
+    // onlineTime arrives as a "YYYY-MM-DD HH:MM:SS"-style string (see
+    // fmtDate() above, which parses it the same way) rather than an
+    // already-numeric timestamp, so it needs `new Date(...)` before it's
+    // comparable at all -- a bare `a.onlineTime - b.onlineTime` would
+    // just be NaN - NaN for every pair. An unparseable or missing value
+    // sorts to the end, same as a release-date-less operator being
+    // excluded from "Not yet released on EN" elsewhere on this page.
+    const at = a.onlineTime ? new Date(a.onlineTime).getTime() : NaN;
+    const bt = b.onlineTime ? new Date(b.onlineTime).getTime() : NaN;
+    const aVal = isNaN(at) ? Infinity : at;
+    const bVal = isNaN(bt) ? Infinity : bt;
+    return aVal - bVal || a.name.localeCompare(b.name);
+  }
+
   function renderGrid() {
     gridEl.innerHTML = "";
     const classVal = classFilterEl.value;
@@ -952,7 +1180,9 @@
       return true;
     });
     if (sortByEl.value === "rarity") {
-      list = list.slice().sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name));
+      list = list.slice().sort((a, b) => b.rarity - a.rarity || compareByReleaseDate(a, b));
+    } else if (sortByEl.value === "release") {
+      list = list.slice().sort(compareByReleaseDate);
     } // else already name-sorted, same order operatorList itself is built in
 
     if (!list.length) {
@@ -989,7 +1219,11 @@
 
   classFilterEl.addEventListener("change", renderGrid);
   rarityFilterEl.addEventListener("change", renderGrid);
-  sortByEl.addEventListener("change", renderGrid);
+  sortByEl.value = getPref("operator", "sortBy", sortByEl.value, (v) => v === "name" || v === "rarity" || v === "release");
+  sortByEl.addEventListener("change", () => {
+    setPref("operator", "sortBy", sortByEl.value);
+    renderGrid();
+  });
 
   // --- jump-to-operator search (mirrors planner.js's own operator
   // search box -- same markup/behavior, but selecting a result re-renders
@@ -1060,6 +1294,22 @@
 
   document.addEventListener("click", (e) => {
     if (!jumpResultsEl.contains(e.target) && e.target !== jumpInput) renderJumpResults([]);
+  });
+
+  // "<- All operators": re-renders the landing/browse state in place,
+  // the same way picking a different operator via the jump box does,
+  // instead of a full page reload -- and drops "?id=" from the URL so a
+  // refresh afterward lands back on the browse grid too, not the
+  // operator just left.
+  backLinkEl.addEventListener("click", (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams(location.search);
+    if (params.has("id")) {
+      params.delete("id");
+      const qs = params.toString();
+      history.replaceState(null, "", qs ? "?" + qs : location.pathname);
+    }
+    renderOperator(null);
   });
 
   // Back/forward between two operators (both via the jump box, or a
