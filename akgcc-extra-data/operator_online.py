@@ -55,6 +55,19 @@ def scrape_PRTS():
     LINKAGE = '联动寻访'
     LIMITED = '限定寻访'
     LIMITED_OBTAIN_METHODS = [LINKAGE, LIMITED]
+    # The other two gacha-pool keywords PRTS wiki's own obtainMethod field
+    # uses (confirmed via an independent open-source scraper hitting the
+    # exact same char_obtain Cargo table, plus PRTS's own recruitment-rules
+    # docs -- prts.wiki itself is robots.txt-blocked to this project's own
+    # fetch tooling, same restriction noted elsewhere in this file) --
+    # '标准寻访' (standard headhunting) and '中坚寻访' (kernel/"intermediate"
+    # pool, though this site also derives Kernel status independently from
+    # character_table.json's own classicPotentialItemId field, which is the
+    # one actually used for the Kernel badge). Listed here only so
+    # NOT_IN_GACHA_POOL below can tell "not currently offered through *any*
+    # known gacha pool" apart from "just not limited/collab" -- see that
+    # comment for why this matters.
+    STANDARD_OBTAIN_METHODS = ['标准寻访', '中坚寻访']
     limit = 500
     offset = 0
     # you can use CO.obtainMethod to list limited operators
@@ -72,10 +85,37 @@ def scrape_PRTS():
         pages = r.json()['cargoquery']
         for page in pages:
             charId = page['title']['charId']
-            obtain = page['title']['obtainMethod']
+            # A real obtainMethod value can be a SINGLE method (e.g. just
+            # "限定寻访") or a "、"-joined list of several (confirmed on a
+            # real operator page: Civilight Eterna's own obtain-method
+            # field reads "公开招募、中坚寻访" -- both standard recruitment
+            # AND kernel pool at once). `obtain in LIMITED_OBTAIN_METHODS`
+            # is an exact-equality check against the whole string, so it
+            # silently failed to match "限定寻访" as *part of* any compound
+            # value -- misclassifying every operator whose obtainMethod
+            # lists limited/collab alongside anything else as NOT limited,
+            # which then fell through to the site's default "Standard
+            # pool" badge. Checking containment of each known keyword
+            # instead of exact-list membership handles both the
+            # single-value and compound-value cases.
+            obtain = page['title']['obtainMethod'] or ''
             online = page['title']['cnOnlineTime']
-            limited = obtain in LIMITED_OBTAIN_METHODS
-            DATA[charId] = {'cnOnlineTime':online, 'isLimited': limited}
+            limited = any(method in obtain for method in LIMITED_OBTAIN_METHODS)
+            # An operator whose obtainMethod contains NONE of the four
+            # known gacha-pool keywords (standard/kernel/limited/collab)
+            # isn't currently offered through any gacha pool at all --
+            # most commonly because they were only ever given out through
+            # an event's activity rewards/shop. Surfaced as its own field
+            # (rather than silently left to default to "Standard pool" on
+            # the frontend, which was the actual bug reported) so
+            # operator-page.js can show something more accurate than a
+            # guess. A blank/unrecognized obtainMethod (e.g. this field
+            # itself failed to come through) intentionally does NOT set
+            # this -- "we don't know" should keep falling back to the
+            # existing default, not get relabeled on missing data.
+            known_methods = LIMITED_OBTAIN_METHODS + STANDARD_OBTAIN_METHODS
+            not_in_gacha_pool = bool(obtain) and not any(method in obtain for method in known_methods)
+            DATA[charId] = {'cnOnlineTime': online, 'isLimited': limited, 'notInGachaPool': not_in_gacha_pool}
         offset += limit
         if len(pages) < limit:
             break

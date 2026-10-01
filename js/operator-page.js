@@ -1187,6 +1187,17 @@
     } else if (op.isLimited) {
       poolClass = "opPoolLimited";
       poolLabel = "Limited pool";
+    } else if (op.notInGachaPool) {
+      // Set by operator_online.py's scrape_PRTS() when PRTS wiki's own
+      // obtainMethod data for this operator doesn't contain ANY of the
+      // standard/kernel/limited/collab gacha-pool keywords -- in practice
+      // almost always an operator who was only ever given out through a
+      // past event's activity rewards/shop, never through any actual
+      // gacha banner. This used to silently fall through to "Standard
+      // pool" (the unconditional default below) for lack of any other
+      // category, which is what was actually being reported as wrong.
+      poolClass = "opPoolEvent";
+      poolLabel = "Event-obtained";
     }
     poolBadgeEl.textContent = poolLabel;
     poolBadgeEl.className = "opBadge opPoolBadge " + poolClass;

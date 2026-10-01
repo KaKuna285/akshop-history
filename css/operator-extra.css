@@ -330,6 +330,11 @@
   border-color: rgba(255, 159, 67, 0.4);
 }
 
+.opPoolBadge.opPoolEvent {
+  color: #a7e36f;
+  border-color: rgba(167, 227, 111, 0.4);
+}
+
 .opAddToPlannerBtn {
   flex: 0 0 auto;
   background: rgba(248, 213, 17, 0.12);

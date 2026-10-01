@@ -383,6 +383,14 @@ async function get_char_table(
     for (const [charId, data] of Object.entries(extra_chardata)) {
       if (json[charId]) {
         json[charId].isLimited = data.isLimited ?? false;
+        // See operator_online.py's scrape_PRTS() for what this means and
+        // how it's derived -- "not currently offered through any known
+        // gacha pool" (most often: obtained only through a past event's
+        // activity rewards/shop), as opposed to just "not limited/collab".
+        // Left unset (not even `false`) when the upstream data doesn't
+        // know either way, same "absence means uncertain, not disproven"
+        // reasoning as the onlineTime/cnOnlineTime fields right below.
+        if (data.notInGachaPool) json[charId].notInGachaPool = true;
         if (data.onlineTime != null) json[charId].onlineTime = data.onlineTime;
         if (data.cnOnlineTime != null)
           json[charId].cnOnlineTime = data.cnOnlineTime;
