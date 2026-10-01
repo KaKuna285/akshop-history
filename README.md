@@ -182,11 +182,29 @@ out of the `?id=` URL in the address bar) and looks like:
 `onlineTime` accepts either a plain `YYYY-MM-DD` or the full
 `YYYY-MM-DD HH:MM:SS` the wiki's own dates use; `source` and `note` are
 optional and are for whoever next edits this file - the site itself only
-reads `onlineTime`. Same rule as the event overrides above: a manual
-entry only fills in a date the automated scrape didn't already find, and
-is silently ignored for any operator the scrape *did* find a confirmed
-Global date for, so there's no risk of a stale manual entry quietly
-overriding a real update later.
+reads `onlineTime`.
+
+Unlike the event overrides above, an operator override here **always**
+wins, even over an onlineTime the scrape did find. That's a deliberate
+difference: an event override only ever fills a gap because a
+wiki-confirmed event date is reliably correct once it exists, but the
+operator scrape has been confirmed live to sometimes pick up the wrong
+data entirely for a shared name - e.g. an alternate version of an
+operator (Amiya's various alters) landing on the base operator's charId.
+A hand-verified entry in `operator_overrides.json` needs to be able to
+correct that, not just fill a blank, so there's no "silently ignored"
+case here - whatever's in the file is what ships. This also means it's
+worth double-checking the charId before adding an entry (the `?id=` URL
+again), since a typo'd charId will silently attach the date to the
+wrong operator instead of failing loudly.
+
+Separately, `operator_online.py` also corrects one specific wiki data
+error at the source rather than through the override file: the wiki
+records the entire Day 1 operator roster's Global release as
+`2020-02-05 17:00:00` (confirmed live, ~90 operators, all the same exact
+timestamp), but Arknights' actual EN/Global launch date is January 16,
+2020. Any onlineTime that exactly matches that one wrong wiki value is
+corrected in bulk rather than needing ~90 individual override entries.
 
 `events.py` also pulls each event's banner art, shown when you click an
 event to open its preview panel - the wiki filename comes from `image`,

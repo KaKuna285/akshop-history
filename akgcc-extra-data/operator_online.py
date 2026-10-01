@@ -304,13 +304,21 @@ def load_operator_overrides(path=OPERATOR_OVERRIDES_PATH):
     can produce a date from data that isn't there. This file is the
     fallback for exactly that gap.
 
-    Same "hand-edited JSON, starts out empty, fills in only what the
-    scrape couldn't find, never overrides what the scrape DID find"
-    pattern events.py already uses for event dates via its own sibling
-    overrides.json -- see load_overrides() there and the matching
-    README.md section this mirrors. To use: open the operator's page on
-    the site and copy their charId out of the `?id=` URL, then add an
-    entry here, e.g.:
+    Same "hand-edited JSON, starts out empty" shape events.py already
+    uses for event dates via its own sibling overrides.json -- see
+    load_overrides() there and the matching README.md section this
+    mirrors -- but with one deliberate difference in priority: an
+    operator override here ALWAYS wins over whatever the scrape found,
+    even an onlineTime the scrape DID set. events.py's event overrides
+    never clobber a wiki-confirmed date, because there a "confirmed"
+    date is reliably correct once it exists. Here that assumption
+    doesn't hold -- the scrape has been confirmed live to sometimes pick
+    up the wrong operator entirely for a shared name/version (e.g. an
+    Amiya alternate version's page data landing on base Amiya's charId),
+    so a hand-verified override needs to be able to correct a wrong
+    scraped value, not just fill in a missing one. To use: open the
+    operator's page on the site and copy their charId out of the `?id=`
+    URL, then add an entry here, e.g.:
 
         {
           "char_4064_rockr": {
@@ -344,20 +352,42 @@ def load_operator_overrides(path=OPERATOR_OVERRIDES_PATH):
     return overrides
 
 
+# arknights.wiki.gg's EventServerDetails records the Global startTime
+# shared by the entire Day 1 operator roster (confirmed live: ~90
+# distinct operators, every one of them this exact same timestamp) as
+# "2020-02-05 17:00:00" -- but Arknights' actual EN/Global launch date
+# is January 16, 2020 (confirmed by the site maintainer). Rather than
+# hand-entering ~90 individual operator_overrides.json entries for
+# every Day 1 operator to fix one shared wrong wiki value, this
+# corrects that one specific value wherever it's found, in bulk, right
+# at the source. If the wiki ever fixes its own data, this becomes a
+# silent no-op (nothing will match WRONG_LAUNCH_DATE any more) rather
+# than something that needs to be remembered and removed.
+WRONG_LAUNCH_DATE = "2020-02-05 17:00:00"
+CORRECT_LAUNCH_DATE = "2020-01-16 00:00:00"
+
+
 scrape_PRTS()
 scrape_wiki() # must call AFTER scrape_PRTS as it will update DATA (and relies on it being filled)
 
-# Manual overrides apply last, and only fill in an onlineTime the scrape
-# didn't already find -- a fallback for data the wiki doesn't have, never
-# a way to silently second-guess data it does have.
+_launch_date_corrected = 0
+for _entry in DATA.values():
+    if _entry.get('onlineTime') == WRONG_LAUNCH_DATE:
+        _entry['onlineTime'] = CORRECT_LAUNCH_DATE
+        _launch_date_corrected += 1
+print(f"Corrected {_launch_date_corrected} operator(s) from the known-wrong wiki launch date")
+
+# Manual overrides apply last and always win, even over an onlineTime
+# the scrape DID set -- see load_operator_overrides()'s docstring for
+# why that's the right default here (unlike events.py's event
+# overrides, which never clobber a confirmed date).
 _operator_overrides = load_operator_overrides()
 _overrides_applied = 0
 for _charid, _online_time in _operator_overrides.items():
     _entry = DATA.setdefault(_charid, {})
-    if not _entry.get('onlineTime'):
-        _entry['onlineTime'] = _online_time
-        _overrides_applied += 1
-print(f"Applied {_overrides_applied} manual operator release-date override(s) out of {len(_operator_overrides)} defined")
+    _entry['onlineTime'] = _online_time
+    _overrides_applied += 1
+print(f"Applied {_overrides_applied} manual operator release-date override(s)")
 
 with open('./json/operator_release_dates.json','w') as f:
     json.dump(DATA,f)
