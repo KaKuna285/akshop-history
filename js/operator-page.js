@@ -1,17 +1,20 @@
 (function () {
   // Per-operator hub page: release dates (EN/CN + the event it likely
-  // debuted alongside, best-effort), stats at Elite 0 and at max Elite,
-  // talents, potential upgrades, skills at every level and mastery rank,
+  // debuted alongside, best-effort), stats with Elite/level sliders,
+  // talents, potential upgrades, skills with a Lv1-M3 slider per skill,
   // and modules -- plus an "Add to planner" button wired to the same
-  // shared edit modal the planner and calendar pages use.
+  // shared edit modal the planner and calendar pages use. Landing state
+  // (no operator picked yet) shows the whole roster as a filterable,
+  // sortable grid of boxes instead of a bare prompt -- see the "browsable
+  // grid" section below.
   //
   // Routing is a plain `?id=charId` query string (no build-time page
   // generation on this static site) -- same deep-link convention as the
   // planner's own `?add=charId`. Picking a different operator from the
-  // jump-search box or a "released alongside" link re-renders in place
-  // (history.replaceState, not a real navigation) rather than reloading
-  // the page, since every data source below is already loaded for every
-  // operator at once.
+  // jump-search box, the browse grid, or a "released alongside" link
+  // re-renders in place (history.replaceState, not a real navigation)
+  // rather than reloading the page, since every data source below is
+  // already loaded for every operator at once.
   //
   // Data sources:
   //   - OperatorEditModal.loadCharTable() (operator-edit-modal.js): EN+CN
@@ -54,6 +57,11 @@
   const jumpInput = document.getElementById("operatorJumpSearch");
   const jumpResultsEl = document.getElementById("operatorJumpResults");
   const statusEl = document.getElementById("operatorStatus");
+  const browseEl = document.getElementById("operatorBrowse");
+  const gridEl = document.getElementById("operatorGrid");
+  const classFilterEl = document.getElementById("opFilterClass");
+  const rarityFilterEl = document.getElementById("opFilterRarity");
+  const sortByEl = document.getElementById("opSortBy");
   const contentEl = document.getElementById("operatorContent");
   const iconEl = document.getElementById("opIcon");
   const nameEl = document.getElementById("opName");
@@ -341,7 +349,7 @@
     battleEquipTable = battleEquip;
 
     operatorList = Object.values(charTable)
-      .map((op) => ({ charId: op.charId, name: op.name, rarity: op.rarity, cnOnly: op.cnOnly }))
+      .map((op) => ({ charId: op.charId, name: op.name, rarity: op.rarity, cnOnly: op.cnOnly, profession: op.profession }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     // Best-effort CN merge, same reasoning (and same "never let a slow
@@ -834,15 +842,24 @@
     const op = charId ? charTable[charId] : null;
     if (!op) {
       contentEl.classList.add("hidden");
-      statusEl.classList.remove("hidden");
-      statusEl.textContent = charId
-        ? `Couldn't find an operator with id "${charId}".`
-        : "Search for an operator above to see their details.";
+      if (charId) {
+        // A bad/unknown "?id=" -- show the error in place of the browse
+        // grid rather than alongside it.
+        browseEl.classList.add("hidden");
+        statusEl.classList.remove("hidden");
+        statusEl.textContent = `Couldn't find an operator with id "${charId}".`;
+      } else {
+        // Landing state: no operator picked yet -- show the full
+        // browsable grid instead of a bare prompt.
+        statusEl.classList.add("hidden");
+        browseEl.classList.remove("hidden");
+      }
       document.title = "Arknights Operator Details";
       return;
     }
 
     statusEl.classList.add("hidden");
+    browseEl.classList.add("hidden");
     contentEl.classList.remove("hidden");
     document.title = `${op.name} – Arknights Operator Details`;
 
@@ -888,6 +905,91 @@
     renderJumpResults([]);
     window.scrollTo({ top: 0 });
   }
+
+  // --- browsable grid (landing state) -------------------------------------
+  // The whole roster as individual boxes -- portrait, name, and a border/
+  // label tinted by rarity (see the opRarity1-6 classes in operator-
+  // extra.css) -- with a class/rarity filter and a sort order, shown in
+  // place of the old bare "search for an operator above" prompt. The jump
+  // search box above stays a separate, independent quick-jump; this is a
+  // browse-everything view for when you don't already know who you're
+  // looking for.
+
+  // Canonical in-game class ordering (Vanguard first, as in the game's own
+  // deploy-list ordering) -- anything unrecognized just sorts after these,
+  // alphabetically, rather than being dropped.
+  const CLASS_ORDER = ["Vanguard", "Guard", "Defender", "Sniper", "Caster", "Medic", "Supporter", "Specialist"];
+  function classSortKey(cls) {
+    const i = CLASS_ORDER.indexOf(cls);
+    return i === -1 ? CLASS_ORDER.length : i;
+  }
+
+  function populateGridFilters() {
+    const classes = Array.from(new Set(operatorList.map((op) => op.profession).filter(Boolean))).sort(
+      (a, b) => classSortKey(a) - classSortKey(b) || a.localeCompare(b),
+    );
+    classes.forEach((cls) => {
+      const opt = document.createElement("option");
+      opt.value = cls;
+      opt.textContent = cls;
+      classFilterEl.appendChild(opt);
+    });
+    for (let r = 6; r >= 1; r--) {
+      const opt = document.createElement("option");
+      opt.value = String(r);
+      opt.textContent = `${r}★`;
+      rarityFilterEl.appendChild(opt);
+    }
+  }
+
+  function renderGrid() {
+    gridEl.innerHTML = "";
+    const classVal = classFilterEl.value;
+    const rarityVal = rarityFilterEl.value;
+    let list = operatorList.filter((op) => {
+      if (classVal && op.profession !== classVal) return false;
+      if (rarityVal && String(op.rarity + 1) !== rarityVal) return false;
+      return true;
+    });
+    if (sortByEl.value === "rarity") {
+      list = list.slice().sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name));
+    } // else already name-sorted, same order operatorList itself is built in
+
+    if (!list.length) {
+      gridEl.appendChild(textNote("No operators match these filters."));
+      return;
+    }
+
+    list.forEach((op) => {
+      const item = document.createElement("a");
+      item.className = `opGridItem opRarity${op.rarity + 1}`;
+      item.href = `?id=${encodeURIComponent(op.charId)}`;
+      item.onclick = (e) => {
+        e.preventDefault();
+        renderOperator(op.charId);
+      };
+
+      const imgWrap = document.createElement("div");
+      imgWrap.className = "opGridItemImgWrap";
+      const img = document.createElement("img");
+      img.alt = "";
+      img.loading = "lazy";
+      setAvatarIcon(img, op.charId, op.cnOnly);
+      imgWrap.appendChild(img);
+      item.appendChild(imgWrap);
+
+      const nameEl2 = document.createElement("div");
+      nameEl2.className = "opGridItemName";
+      nameEl2.textContent = op.name;
+      item.appendChild(nameEl2);
+
+      gridEl.appendChild(item);
+    });
+  }
+
+  classFilterEl.addEventListener("change", renderGrid);
+  rarityFilterEl.addEventListener("change", renderGrid);
+  sortByEl.addEventListener("change", renderGrid);
 
   // --- jump-to-operator search (mirrors planner.js's own operator
   // search box -- same markup/behavior, but selecting a result re-renders
@@ -969,7 +1071,11 @@
   });
 
   loadData()
-    .then(() => renderOperator(charIdFromUrl()))
+    .then(() => {
+      populateGridFilters();
+      renderGrid();
+      renderOperator(charIdFromUrl());
+    })
     .catch((err) => {
       console.error("Failed to load operator page data:", err);
       statusEl.textContent = "Couldn't load operator data. Please try refreshing.";

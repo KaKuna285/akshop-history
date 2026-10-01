@@ -57,6 +57,31 @@
 
     <div id="operatorStatus" class="operatorStatus">Loading operator data&hellip;</div>
 
+    <div id="operatorBrowse" class="hidden">
+      <div id="operatorFilters">
+        <div class="opFilterGroup">
+          <label for="opFilterClass">Class</label>
+          <select id="opFilterClass">
+            <option value="">All classes</option>
+          </select>
+        </div>
+        <div class="opFilterGroup">
+          <label for="opFilterRarity">Rarity</label>
+          <select id="opFilterRarity">
+            <option value="">All rarities</option>
+          </select>
+        </div>
+        <div class="opFilterGroup">
+          <label for="opSortBy">Sort by</label>
+          <select id="opSortBy">
+            <option value="name">Name</option>
+            <option value="rarity">Rarity</option>
+          </select>
+        </div>
+      </div>
+      <div id="operatorGrid"></div>
+    </div>
+
     <div id="operatorContent" class="hidden">
       <div id="opHeader">
         <img id="opIcon" class="opIcon" alt="" />

@@ -110,6 +110,116 @@
   display: none;
 }
 
+/* --- Browsable roster grid (landing state) ------------------------------ */
+
+#operatorBrowse {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+}
+
+#operatorBrowse.hidden {
+  display: none;
+}
+
+#operatorFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.opFilterGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opFilterGroup label {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.opFilterGroup select {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1c1c1c;
+  color: #eee;
+  font-size: 0.85rem;
+}
+
+/* Rarity colors as commonly documented for Arknights' own tier-1 through
+   tier-6 banners (Aceship's AN-EN-Tags recruitment-tool CSS, the same
+   community-maintained asset family this site's icons already draw from
+   via ASSET_SOURCE.ACESHIP in util.js) -- a custom property per rarity so
+   both the grid item's border and its name strip pick it up from one
+   place. */
+.opRarity1 {
+  --rarity-color: #9f9f9f;
+}
+.opRarity2 {
+  --rarity-color: #dce537;
+}
+.opRarity3 {
+  --rarity-color: #00b2f6;
+}
+.opRarity4 {
+  --rarity-color: #dbb1db;
+}
+.opRarity5 {
+  --rarity-color: #ffae00;
+}
+.opRarity6 {
+  --rarity-color: #ff6600;
+}
+
+#operatorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 10px;
+}
+
+.opGridItem {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  text-decoration: none;
+  border: 2px solid var(--rarity-color, #555);
+  background: rgba(255, 255, 255, 0.04);
+  transition: transform 0.1s ease;
+}
+
+.opGridItem:hover {
+  transform: scale(1.05);
+  z-index: 1;
+}
+
+.opGridItemImgWrap {
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.opGridItemImgWrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.opGridItemName {
+  background: var(--rarity-color, #555);
+  color: #1a1a1a;
+  font-weight: bold;
+  font-size: 0.68rem;
+  text-align: center;
+  padding: 3px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 #operatorContent.hidden {
   display: none;
 }
@@ -571,6 +681,15 @@
 
   .opStatsSliderRow label {
     flex: 0 0 36px;
+  }
+
+  #operatorGrid {
+    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+    gap: 8px;
+  }
+
+  .opFilterGroup select {
+    font-size: 0.8rem;
   }
 
   .opStatsSliderValue {
