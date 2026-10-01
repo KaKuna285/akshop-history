@@ -120,59 +120,132 @@ def scrape_PRTS():
         if len(pages) < limit:
             break
     return DATA
+def wiki_cargo_query(url, headers, tables, fields, where=None):
+    """Paginated Cargo query helper -- every scrape_wiki() sub-fetch below
+    follows the exact same `limit`/`offset` loop operator_online.py and
+    events.py both already hand-roll per query, just factored out once
+    this function needed three of them instead of one."""
+    rows = []
+    limit = 500
+    offset = 0
+    while True:
+        params = {
+            "action": "cargoquery",
+            "tables": tables,
+            "fields": fields,
+            "format": "json",
+            "limit": limit,
+            "offset": offset,
+        }
+        if where:
+            params["where"] = where
+        r = http_get(url, params=params, headers=headers)
+        page_rows = r.json().get("cargoquery", [])
+        for row in page_rows:
+            rows.append(row["title"])
+        offset += limit
+        if len(page_rows) < limit:
+            break
+    return rows
+
+
 def scrape_wiki():
     # update the prts.wiki data with global release dates from arknights.wiki.gg/
     # while it is possible to get limited status and some CN dates from the wiki, those only come from prts for now.
     # https://arknights.wiki.gg/wiki/Special:CargoTables
     #
-    # join_on uses "O.operator", not "O.name" (a real bug this comment is
-    # fixing) -- the Operators table's own display-name field is
-    # "operator", confirmed by events.py's fetch_event_operators(), which
-    # hand-verified this exact table's schema against the live wiki (see
-    # that function's own docstring: Special:CargoTables is itself
-    # robots.txt-blocked, same as api.php direct browsing, so it had to
-    # be checked by hand rather than introspected). "O.name" isn't used
-    # anywhere else in this project and most likely isn't the right
-    # field -- joining OperatorFiles.name against it would only line up
-    # by coincidence for an operator whose two differently-maintained
-    # name fields (across two separately-maintained Cargo tables) happen
-    # to match exactly, which fits the symptom this was fixing: this
-    # join was silently producing zero rows -- so a missing onlineTime,
-    # not a wrong one -- for operators whose name has any of the quirks
-    # that make two independently-kept name fields more likely to drift
-    # (quote marks, stylized characters like "Mon3tr", collab/event-only
-    # names), while a plain name usually matched fine either way. Could
-    # not re-verify this live (this project's own fetch tooling is
-    # blocked by the same robots.txt rule), so if operator_release_dates
-    # .json's onlineTime coverage doesn't visibly improve after this
-    # merges, check this step's own Action log first.
+    # REWRITTEN from a single three-table Cargo-side join (`tables:
+    # "Operators=O,OperatorFiles=F,EventServerDetails=S", join_on:
+    # "O.event=S.event,F.name=O.operator"`) to three separate fetches
+    # joined here in Python instead. The single-query version fixed one
+    # real bug earlier (that join_on used "O.name", when the Operators
+    # table's actual display-name field is "operator" -- confirmed via
+    # events.py's fetch_event_operators(), which hand-verified this exact
+    # schema since Special:CargoTables is itself robots.txt-blocked to
+    # this project's own tooling) but after a full data refresh with that
+    # fix live, onlineTime was STILL missing for the same kind of
+    # operator: every one of them confirmed (via notInGachaPool, see
+    # scrape_PRTS() above) to be event-obtained rather than gacha-pool.
+    # That points at the OTHER join condition instead: "O.event=S.event"
+    # is a second exact-string match, this time between the Operators
+    # table's own freeform event-name field and EventServerDetails' own
+    # (two more independently-maintained Cargo tables), and Cargo's
+    # server-side join has no tolerance for incidental formatting drift
+    # between them (whitespace, e.g.). events.py already had to work
+    # around exactly this: group_operators_by_event() explicitly
+    # `.strip()`s Operators.event before using it as a join key of its
+    # own, specifically because (per its own comment) "incidental
+    # leading/trailing whitespace on one side (but not the other) would
+    # otherwise be an easy way for an operator to silently fail to match
+    # up" -- the exact silent-zero-rows failure mode this function kept
+    # hitting. events.py does that matching in Python, across separately
+    # fetched tables, rather than trusting a single Cargo-side join to
+    # get it right; this function now does the same, reusing the same
+    # proven shape (fetch Operators' event links and EventServerDetails'
+    # per-event timings separately, normalize, join here) instead of
+    # inventing a different approach. Still unverified live (this
+    # project's own fetch tooling remains blocked by the wiki's
+    # robots.txt) -- if onlineTime coverage for event-obtained operators
+    # still doesn't improve after this merges, the remaining suspects are
+    # EventServerDetails simply not having a `server LIKE 'global'` row
+    # yet for that operator's specific event (nothing to join to, not a
+    # join bug), or a *case* difference in the event name rather than
+    # whitespace (str.strip() alone wouldn't catch that).
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
     url = "https://arknights.wiki.gg/api.php"
-    limit = 500
-    offset = 0
-    params = {
-        "action": "cargoquery",
-        "tables": "Operators=O,OperatorFiles=F,EventServerDetails=S",
-        "fields": "S.startTime=start,F.id=charId",
-        "join_on": "O.event=S.event,F.name=O.operator",
-        "format": "json",
-        "where": "F.id IS NOT NULL AND S.startTime IS NOT NULL AND S.server LIKE 'global'",
-    }
-    while 1:
-        params['limit'] = limit
-        params['offset'] = offset
-        r = http_get(url, params=params, headers=headers)
-        pages = r.json()['cargoquery']
-        for page in pages:
-            charId = page['title']['charId']
-            online = page['title']['start']
-            if charId in DATA:
-                DATA[charId]['onlineTime'] = online
-        offset += limit
-        if len(pages) < limit:
-            break
+
+    # OperatorFiles: display name -> charId (same F.id/F.name fields the
+    # old single-query version used, just fetched on its own now).
+    file_rows = wiki_cargo_query(
+        url, headers, "OperatorFiles=F", "F.name=name,F.id=charId",
+        where="F.id IS NOT NULL",
+    )
+    name_to_charid = {}
+    for row in file_rows:
+        name = (row.get("name") or "").strip()
+        charid = row.get("charId")
+        if name and charid:
+            name_to_charid[name] = charid
+
+    # Operators: operator name -> event it was introduced/granted through
+    # (same O.operator/O.event fields events.py's own fetch_event_operators()
+    # already trusts -- see that function's docstring in events.py).
+    op_rows = wiki_cargo_query(
+        url, headers, "Operators=O", "O.operator=operator,O.event=event",
+        where="O.event IS NOT NULL AND O.event != ''",
+    )
+    operator_event = {}
+    for row in op_rows:
+        name = (row.get("operator") or "").strip()
+        event = (row.get("event") or "").strip()
+        if name and event:
+            operator_event[name] = event
+
+    # EventServerDetails: event -> its Global server's startTime.
+    event_rows = wiki_cargo_query(
+        url, headers, "EventServerDetails=S", "S.event=event,S.startTime=start,S.server=server",
+    )
+    event_global_start = {}
+    for row in event_rows:
+        event = (row.get("event") or "").strip()
+        server = (row.get("server") or "").strip().lower()
+        start = row.get("start")
+        if event and server == "global" and start:
+            event_global_start[event] = start
+
+    # Join in Python, same as events.py's own event<->operator matching.
+    for name, charid in name_to_charid.items():
+        event = operator_event.get(name)
+        if not event:
+            continue
+        start = event_global_start.get(event)
+        if not start:
+            continue
+        if charid in DATA:
+            DATA[charid]['onlineTime'] = start
+
     return DATA
 scrape_PRTS()
 scrape_wiki() # must call AFTER scrape_PRTS as it will update DATA (and relies on it being filled)
