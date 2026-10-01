@@ -145,13 +145,10 @@ const AccountSync = (function () {
       '<div id="accountSyncForm">' +
         '<p class="accountSyncNotice">' +
           "This logs in the same way the game's mobile app does, using a " +
-          "one-time code Yostar emails to your account, and reads your " +
-          "current inventory and operator roster once. It is not an " +
-          "official Hypergryph or Yostar integration. Nothing about your " +
-          "account -- not your email, not the code, not any session " +
-          "token -- is stored anywhere; it's used once to fetch your " +
-          "depot and roster and then discarded. EN (Yostar) accounts " +
-          "only." +
+          "one-time code Yostar emails to your account. It is not an " +
+          "official Hypergryph or Yostar integration. Nothing about " +
+          "your account login details gets stored on the server after " +
+          "the import." +
         "</p>" +
         '<div class="accountSyncRow">' +
           '<label for="accountSyncEmail">Account email</label>' +
