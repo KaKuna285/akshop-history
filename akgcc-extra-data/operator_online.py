@@ -2,6 +2,7 @@ import requests
 import re
 import json
 import time
+from datetime import datetime
 from pprint import pprint
 from urllib.parse import quote
 from html import unescape
@@ -120,6 +121,25 @@ def scrape_PRTS():
         if len(pages) < limit:
             break
     return DATA
+# Strips quote characters (straight and the curly/smart variants) before
+# an operator's display name is used as a cross-table join key.
+# Confirmed live: OperatorFiles.name for Justice Knight is the literal
+# string '"Justice Knight"' (embedded quote characters -- her in-game
+# display name is itself quoted) while Operators.operator for the same
+# operator is the plain 'Justice Knight'. An exact-string join between
+# those two fields silently fails to match them up, so Justice Knight's
+# event (and therefore her onlineTime) never gets found even though
+# EventServerDetails has a perfectly good Global date for her event
+# ("Near Light") -- confirmed live via a direct query. Stripping quotes
+# from both sides before joining fixes this without needing to know in
+# advance which operators' names happen to include them.
+_QUOTE_CHARS = str.maketrans('', '', '"“”‘’\'')
+
+
+def normalize_name(name):
+    return (name or '').translate(_QUOTE_CHARS).strip()
+
+
 def wiki_cargo_query(url, headers, tables, fields, where=None):
     """Paginated Cargo query helper -- every scrape_wiki() sub-fetch below
     follows the exact same `limit`/`offset` loop operator_online.py and
@@ -204,7 +224,7 @@ def scrape_wiki():
     )
     name_to_charid = {}
     for row in file_rows:
-        name = (row.get("name") or "").strip()
+        name = normalize_name(row.get("name"))
         charid = row.get("charId")
         if name and charid:
             name_to_charid[name] = charid
@@ -218,7 +238,7 @@ def scrape_wiki():
     )
     operator_event = {}
     for row in op_rows:
-        name = (row.get("operator") or "").strip()
+        name = normalize_name(row.get("operator"))
         event = (row.get("event") or "").strip()
         if name and event:
             operator_event[name] = event
@@ -247,7 +267,97 @@ def scrape_wiki():
             DATA[charid]['onlineTime'] = start
 
     return DATA
+
+
+OPERATOR_OVERRIDES_PATH = "./operator_overrides.json"
+
+
+def parse_date(s):
+    """Lenient date parsing for hand-entered override dates -- accepts a
+    plain 'YYYY-MM-DD' (most people filling this in by hand won't know or
+    care about the exact server-reset hour) as well as the full
+    'YYYY-MM-DD HH:MM:SS' format the wiki's own Cargo startTime values
+    arrive in, so operator_release_dates.json stays consistent either
+    way. Mirrors events.py's own parse_date()."""
+    if not s:
+        return None
+    s = str(s).strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d %H:%M:%S", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    print(f"Could not parse date: {s!r}")
+    return None
+
+
+def load_operator_overrides(path=OPERATOR_OVERRIDES_PATH):
+    """Manually-pinned EN/Global release dates (onlineTime), keyed by
+    charId, for operators the wiki's own event-tracking data doesn't
+    cover. Confirmed live this didn't come from a join bug for most of
+    them: several real operators (Conviction, Highmore, Kestrel, Shalem,
+    Tin Man, U-Official, Valarqvin) have a perfectly correctly-populated
+    `Operators.event` value, but EventServerDetails has ZERO rows at all
+    for any of those event names -- the wiki simply doesn't model
+    activity-reward/shop-obtained operators' release timing the same way
+    it models gacha-banner operators, so there is no join-logic fix that
+    can produce a date from data that isn't there. This file is the
+    fallback for exactly that gap.
+
+    Same "hand-edited JSON, starts out empty, fills in only what the
+    scrape couldn't find, never overrides what the scrape DID find"
+    pattern events.py already uses for event dates via its own sibling
+    overrides.json -- see load_overrides() there and the matching
+    README.md section this mirrors. To use: open the operator's page on
+    the site and copy their charId out of the `?id=` URL, then add an
+    entry here, e.g.:
+
+        {
+          "char_4064_rockr": {
+            "onlineTime": "2024-06-01 16:00:00",
+            "source": "Yostar patch notes / personal observation",
+            "note": "optional, for whoever edits this file next"
+          }
+        }
+
+    `source` and `note` are optional and purely documentation for future
+    editors of this file -- they are not read by the site itself, only
+    `onlineTime` is. Hand-edited, and optional -- a missing or unreadable
+    file just means no overrides today, not a crash.
+    """
+    try:
+        with open(path) as f:
+            raw = json.load(f)
+    except FileNotFoundError:
+        return {}
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Could not read {path} (ignoring operator overrides): {exc}")
+        return {}
+
+    overrides = {}
+    for charid, ov in raw.items():
+        start = parse_date(ov.get("onlineTime"))
+        if not start:
+            print(f"Skipping operator override for {charid!r}: no usable onlineTime")
+            continue
+        overrides[charid] = start.strftime("%Y-%m-%d %H:%M:%S")
+    return overrides
+
+
 scrape_PRTS()
 scrape_wiki() # must call AFTER scrape_PRTS as it will update DATA (and relies on it being filled)
+
+# Manual overrides apply last, and only fill in an onlineTime the scrape
+# didn't already find -- a fallback for data the wiki doesn't have, never
+# a way to silently second-guess data it does have.
+_operator_overrides = load_operator_overrides()
+_overrides_applied = 0
+for _charid, _online_time in _operator_overrides.items():
+    _entry = DATA.setdefault(_charid, {})
+    if not _entry.get('onlineTime'):
+        _entry['onlineTime'] = _online_time
+        _overrides_applied += 1
+print(f"Applied {_overrides_applied} manual operator release-date override(s) out of {len(_operator_overrides)} defined")
+
 with open('./json/operator_release_dates.json','w') as f:
     json.dump(DATA,f)

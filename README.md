@@ -154,6 +154,40 @@ nothing to anchor an end date to otherwise), and never overrides an
 actual wiki-confirmed date once the wiki catches up - confirmed always
 wins.
 
+`akgcc-extra-data/operator_online.py` has an equivalent, sibling
+mechanism for individual operators' EN/Global release dates:
+`akgcc-extra-data/operator_overrides.json` (also starts out as just
+`{}`). It exists because some operators are given out through an
+event's activity rewards, shop, or as an outright gift rather than
+through a gacha banner - and for several of those, confirmed live,
+arknights.wiki.gg's `EventServerDetails` Cargo table has *zero* rows at
+all for their event, under any server. That's not a join bug on this
+project's side to fix; the wiki simply never recorded a Global date for
+that event in the table this pipeline reads, so there is nothing for
+any amount of join-logic to find. For exactly those operators,
+`operator_overrides.json` lets a release date be entered by hand. It's
+keyed by `charId` (open the operator's page on the site and copy the id
+out of the `?id=` URL in the address bar) and looks like:
+
+```json
+{
+  "char_4064_rockr": {
+    "onlineTime": "2024-06-01 16:00:00",
+    "source": "Yostar patch notes / personal observation",
+    "note": "optional, for whoever edits this file next"
+  }
+}
+```
+
+`onlineTime` accepts either a plain `YYYY-MM-DD` or the full
+`YYYY-MM-DD HH:MM:SS` the wiki's own dates use; `source` and `note` are
+optional and are for whoever next edits this file - the site itself only
+reads `onlineTime`. Same rule as the event overrides above: a manual
+entry only fills in a date the automated scrape didn't already find, and
+is silently ignored for any operator the scrape *did* find a confirmed
+Global date for, so there's no risk of a stale manual entry quietly
+overriding a real update later.
+
 `events.py` also pulls each event's banner art, shown when you click an
 event to open its preview panel - the wiki filename comes from `image`,
 just another field on the same `EventServerDetails` Cargo table already
