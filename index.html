@@ -22,6 +22,10 @@
     <link type="text/css" href="/css/style2.css" rel="stylesheet" />
     <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
     <link type="text/css" href="/css/home-extra.css" rel="stylesheet" />
+    <link type="text/css" href="/css/account-sync.css" rel="stylesheet" />
+    <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/prefs.js"></script>
+    <script type="text/javascript" src="/js/account-sync.js"></script>
   </head>
   <body>
     <div id="topNav">
@@ -32,14 +36,25 @@
         <nav class="siteNav" aria-label="Site navigation">
           <a href="/store/">Shop History</a>
           <a href="/calendar/">Calendar</a>
-          <a href="/operator/">Operators</a>
           <a href="/planner/">Planner</a>
+          <a href="/operator/">Operator</a>
         </nav>
       </div>
     </div>
     <div class="wrap">
       <h1>Arknights Projects</h1>
       <p class="subtitle">A small hub for Arknights tools running on this domain.</p>
+
+      <div id="accountSync" class="hidden">
+        <h2 class="accountSyncHeading">Sync your Arknights account</h2>
+        <p class="accountSyncIntro">
+          Connect your EN (Yostar) account once from here to automatically
+          import your depot inventory into the Operator Planner, instead of
+          entering materials by hand. Right now this only snapshots your
+          depot -- syncing your actual operator roster is planned next.
+        </p>
+        <div id="accountSyncMount"></div>
+      </div>
 
       <!--
         To add a new project later: copy one <li>...</li> block below,
@@ -68,16 +83,6 @@
           </a>
         </li>
         <li>
-          <a href="/operator/">
-            <div class="name">Operator Details</div>
-            <div class="desc">
-              Browse any operator's EN/Global release date, stats at every
-              Elite stage, talents, potential upgrades, skills at every level
-              and mastery, and modules.
-            </div>
-          </a>
-        </li>
-        <li>
           <a href="/planner/">
             <div class="name">Operator Planner</div>
             <div class="desc">
@@ -88,7 +93,26 @@
             </div>
           </a>
         </li>
+        <li>
+          <a href="/operator/">
+            <div class="name">Operator Details</div>
+            <div class="desc">
+              Browse any operator's EN/Global release date, stats at every
+              Elite stage, talents, potential upgrades, skills at every level
+              and mastery, and modules.
+            </div>
+          </a>
+        </li>
       </ul>
     </div>
+    <script type="text/javascript">
+      // Matches the old depotImport-block convention it replaces: stays
+      // hidden entirely (not just an empty form) on a fork that hasn't
+      // deployed its own cloudflare/depot-import.js Worker yet.
+      if (typeof DEPOT_IMPORT_ENDPOINT !== "undefined" && DEPOT_IMPORT_ENDPOINT) {
+        document.getElementById("accountSync").classList.remove("hidden");
+      }
+      AccountSync.mount(document.getElementById("accountSyncMount"));
+    </script>
   </body>
 </html>
