@@ -384,6 +384,69 @@
   color: #ccc;
 }
 
+/* --- "Maxed" / "Your stats" toggle (owned operators only) -------------- */
+
+.opStatsViewToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.opStatsViewToggle.hidden {
+  display: none;
+}
+
+.opStatsViewLabel {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.opStatsViewBtn {
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ccc;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.opStatsViewBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #eee;
+}
+
+.opStatsViewBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.opStatsViewBtnActive {
+  background: rgba(248, 213, 17, 0.15);
+  border-color: rgba(248, 213, 17, 0.5);
+  color: #f8d511;
+}
+
+/* Generic "not reached yet" de-emphasis, shared by the Potential-upgrade
+   rows and Module stages below the "Your stats" toggle -- same greyed-
+   out-not-hidden spirit as .opGridItem.opGreyedOut on the browse grid,
+   but a plain class since it's applied to a handful of different element
+   types rather than just one. */
+.opValueLocked {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+}
+
+.opModuleEquippedBadge {
+  font-size: 0.68rem;
+  color: #f8d511;
+  background: rgba(248, 213, 17, 0.12);
+  border: 1px solid rgba(248, 213, 17, 0.35);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
 .opSection {
   margin-bottom: 20px;
 }

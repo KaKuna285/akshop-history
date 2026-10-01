@@ -76,6 +76,9 @@
   const factionBadgeEl = document.getElementById("opFactionBadge");
   const poolBadgeEl = document.getElementById("opPoolBadge");
   const addToPlannerBtn = document.getElementById("opAddToPlannerBtn");
+  const statsViewToggleEl = document.getElementById("opStatsViewToggle");
+  const statsViewMaxedBtn = document.getElementById("opStatsViewMaxed");
+  const statsViewOwnedBtn = document.getElementById("opStatsViewOwned");
   const releaseInfoEl = document.getElementById("opReleaseInfo");
   const statsInfoEl = document.getElementById("opStatsInfo");
   const talentsInfoEl = document.getElementById("opTalentsInfo");
@@ -92,6 +95,65 @@
   let currentCharId = null;
   let jumpHighlighted = -1;
   let jumpResults = [];
+
+  // --- "Maxed" / "Your stats" toggle --------------------------------------
+  // Whether to show the fully-maxed state (the page's long-standing
+  // default) or this operator's actual synced progress in the Stats/
+  // Potentials/Skills/Modules sections below. `statsView` is the user's
+  // last choice (persisted, so picking "Your stats" once keeps it picked
+  // for the next operator too); `currentIsOwned`/`currentProgress` are
+  // refreshed for whichever operator is currently on screen, by
+  // renderOperator() below, since a stale `true`/non-null here from a
+  // previously-viewed operator would wrongly offer "Your stats" for one
+  // that isn't actually owned (or isn't the same owned operator the
+  // progress data belongs to).
+  let statsView = getPref("operator", "statsView", "maxed", (v) => v === "maxed" || v === "owned");
+  let currentIsOwned = false;
+  let currentProgress = null; // this operator's synced progress, or null
+
+  // "Your stats" only ever actually applies when the operator is owned
+  // *and* the synced data includes this operator's progress (an older
+  // sync, from before ownedOperatorProgress existed, still has a roster
+  // but no per-operator detail) -- otherwise this silently falls back to
+  // "Maxed" without changing the stored preference, so switching to a
+  // different owned-with-progress operator still remembers "Your stats".
+  function effectiveView() {
+    return currentIsOwned && currentProgress && statsView === "owned" ? "owned" : "maxed";
+  }
+
+  function getAccountProgress(charId) {
+    if (typeof AccountSync === "undefined" || !AccountSync.getOperatorProgress) return null;
+    return AccountSync.getOperatorProgress(charId);
+  }
+
+  function updateStatsViewToggle() {
+    if (!currentIsOwned) {
+      statsViewToggleEl.classList.add("hidden");
+      return;
+    }
+    statsViewToggleEl.classList.remove("hidden");
+    statsViewOwnedBtn.disabled = !currentProgress;
+    statsViewOwnedBtn.title = currentProgress
+      ? ""
+      : "This sync didn't include detailed progress for this operator -- re-sync your account from the home page to use this.";
+    const view = effectiveView();
+    statsViewMaxedBtn.classList.toggle("opStatsViewBtnActive", view === "maxed");
+    statsViewOwnedBtn.classList.toggle("opStatsViewBtnActive", view === "owned");
+  }
+
+  function setStatsView(view) {
+    statsView = view;
+    setPref("operator", "statsView", view);
+    updateStatsViewToggle();
+    const op = charTable && charTable[currentCharId];
+    if (op) renderStatDependentSections(op);
+  }
+
+  statsViewMaxedBtn.addEventListener("click", () => setStatsView("maxed"));
+  statsViewOwnedBtn.addEventListener("click", () => {
+    if (statsViewOwnedBtn.disabled) return;
+    setStatsView("owned");
+  });
 
   // --- best-effort id -> display name lookups (see the file header for
   // why these are reconstructed rather than fetched) -----------------------
@@ -529,12 +591,17 @@
     RESPAWN_TIME: "respawnTime",
   };
 
-  // Every stats view on this page assumes max Potential (Potential 6 --
-  // all 5 upgrade ranks applied, same assumption OperatorEditModal's own
-  // maxState() makes for the planner/calendar pages), so every BUFF-type
-  // rank's modifiers are summed once per operator rather than offered as
-  // a togglable option.
-  function potentialStatBonuses(op) {
+  // The default (and, before the "Your stats" toggle existed, only) view
+  // on this page assumes max Potential (Potential 6 -- all 5 upgrade
+  // ranks applied, same assumption OperatorEditModal's own maxState()
+  // makes for the planner/calendar pages). "Your stats" instead caps this
+  // at however many ranks the synced account actually has (capRank --
+  // potentialRank from the sync, 0-5): passing it in limits how many of
+  // potentialRanks' entries get summed, since potentialRanks[i] is
+  // exactly the effect of reaching Potential (i+2), so the first capRank
+  // entries are the ones actually unlocked. Omitting capRank (the
+  // "Maxed" view) keeps the original always-sum-everything behavior.
+  function potentialStatBonuses(op, capRank) {
     const totals = {};
     // Guarded the same way as the battle_equip_table.json-sourced fields
     // below (formatDescription()'s comment has the confirmed real-world
@@ -542,7 +609,9 @@
     // pipeline, so an empty potentialRanks could plausibly hit the same
     // "{}" -instead-of-"[]" quirk even though it hasn't been directly
     // observed here.
-    (Array.isArray(op.potentialRanks) ? op.potentialRanks : []).forEach((rank) => {
+    const ranks = Array.isArray(op.potentialRanks) ? op.potentialRanks : [];
+    const limit = typeof capRank === "number" ? Math.max(0, Math.min(capRank, ranks.length)) : ranks.length;
+    ranks.slice(0, limit).forEach((rank) => {
       const modifiers = rank && rank.buff && rank.buff.attributes && rank.buff.attributes.attributeModifiers;
       if (!Array.isArray(modifiers)) return;
       modifiers.forEach((mod) => {
@@ -632,7 +701,7 @@
   // endpoints. Elite only ever has 2-4 discrete options, so it's a
   // dropdown rather than a slider; Level can run to 90, where a slider
   // reads better than a 90-option dropdown.
-  function renderStats(op) {
+  function renderStats(op, view, progress) {
     statsInfoEl.innerHTML = "";
     // Same defensive Array.isArray guard as potentialStatBonuses() above, for the same reason.
     const phases = (Array.isArray(op.phases) ? op.phases : []).filter((ph) => ph && ph.attributesKeyFrames && ph.attributesKeyFrames.length);
@@ -641,7 +710,11 @@
       return;
     }
 
-    const potentialBonuses = potentialStatBonuses(op);
+    const owned = view === "owned" && !!progress;
+    const potentialBonuses = potentialStatBonuses(
+      op,
+      owned && typeof progress.potentialRank === "number" ? progress.potentialRank : undefined,
+    );
     const modules = (op.modules || []).filter(Boolean);
 
     const controls = document.createElement("div");
@@ -706,7 +779,9 @@
 
     const note = document.createElement("div");
     note.className = "opStatsNote";
-    note.textContent = modules.length
+    note.textContent = owned
+      ? "Showing your synced Elite/level/potential/module progress. Adjust any control above to preview a different state."
+      : modules.length
       ? "Stats assume max Potential (6). Pick a module and stage above to add its stat bonus too."
       : "Stats assume max Potential (6).";
     controls.appendChild(note);
@@ -738,11 +813,38 @@
     table.appendChild(tbody);
     statsInfoEl.appendChild(table);
 
-    // Starts at max Elite, max level, no module equipped -- same view
-    // the page used to show (fixed) as its "after" column, so the
-    // default look doesn't change.
+    // "Maxed" (the default, and the only option before this toggle
+    // existed): max Elite, max level, no module equipped. "Your stats":
+    // this operator's actual synced Elite phase/level, clamped into
+    // whatever range is valid here in case the synced snapshot is stale
+    // (e.g. a level recorded before a since-released Elite phase raised
+    // the level cap).
     let eliteIdx = phases.length - 1;
+    if (owned && typeof progress.evolvePhase === "number") {
+      eliteIdx = Math.max(0, Math.min(progress.evolvePhase, phases.length - 1));
+    }
     let level = phases[eliteIdx].attributesKeyFrames[phases[eliteIdx].attributesKeyFrames.length - 1].level;
+    if (owned && typeof progress.level === "number") {
+      const kfs0 = phases[eliteIdx].attributesKeyFrames;
+      level = Math.max(kfs0[0].level, Math.min(progress.level, kfs0[kfs0.length - 1].level));
+    }
+
+    // "Your stats" also starts the Module/Stage dropdowns on whichever
+    // module is actually equipped (Arknights only applies one module's
+    // effect at a time, even when several are leveled up -- see
+    // cloudflare/depot-import.js's extractOwnedOperatorProgress()
+    // comment on `currentEquip`), at the stage it's actually reached.
+    if (owned && moduleSelect && progress.currentEquip) {
+      const equipped = modules.find((m) => m.uniEquipId === progress.currentEquip);
+      if (equipped) {
+        moduleSelect.value = equipped.uniEquipId;
+        populateStageOptions(stageSelect, equipped.uniEquipId);
+        const reached = progress.modules && progress.modules[equipped.uniEquipId];
+        if (reached && stageSelect.querySelector(`option[value="${reached}"]`)) {
+          stageSelect.value = String(reached);
+        }
+      }
+    }
 
     function update() {
       const kfs = phases[eliteIdx].attributesKeyFrames;
@@ -827,16 +929,23 @@
     });
   }
 
-  function renderPotentials(op) {
+  function renderPotentials(op, view, progress) {
     potentialsInfoEl.innerHTML = "";
     const ranks = op.potentialRanks || [];
     if (!ranks.length) {
       potentialsInfoEl.appendChild(textNote("No potential upgrades."));
       return;
     }
+    // "Your stats": grey out (not hide -- same convention as the browse
+    // grid's owned/not-owned filter) any rank beyond the account's actual
+    // potentialRank, since potentialRanks[i] is the rank reached at
+    // Potential (i+2) -- see potentialStatBonuses()'s own comment above.
+    const unlockedCount =
+      view === "owned" && progress && typeof progress.potentialRank === "number" ? progress.potentialRank : null;
     ranks.forEach((rank, i) => {
       const row = document.createElement("div");
       row.className = "opPotentialRow";
+      if (unlockedCount != null && i >= unlockedCount) row.classList.add("opValueLocked");
       const label = document.createElement("span");
       label.className = "opPotentialLabel";
       label.textContent = `Potential ${i + 2}`;
@@ -867,13 +976,30 @@
   // non-masterable skill), rather than a fixed list of every level at
   // once -- mirrors the Elite/Level sliders in renderStats() above, and
   // keeps a 10-level masterable skill from dominating the page.
-  function renderSkills(op) {
+  function renderSkills(op, view, progress) {
     skillsInfoEl.innerHTML = "";
     const refs = Array.isArray(op.skills) ? op.skills : [];
     if (!refs.length) {
       skillsInfoEl.appendChild(textNote("No skills."));
       return;
     }
+
+    // "Your stats": the account's overall Skill Level (1-7, shared by
+    // every skill slot until it reaches 7) plus, once it has, each
+    // skill's own independent mastery rank (specializeLevel, 0-3) --
+    // matched by skillId rather than array position, in case the synced
+    // `skills` order ever doesn't line up with this operator's own
+    // `op.skills` order. See skillLevelLabel() above for how a slider
+    // index maps back to "Lv<n>"/"M<n>".
+    const owned = view === "owned" && !!progress;
+    const mainSkillLvl = owned && typeof progress.mainSkillLvl === "number" ? progress.mainSkillLvl : null;
+    const specializeBySkillId = {};
+    if (owned && Array.isArray(progress.skills)) {
+      progress.skills.forEach((s) => {
+        if (s && s.skillId) specializeBySkillId[s.skillId] = s.specializeLevel || 0;
+      });
+    }
+
     refs.forEach((ref, idx) => {
       const data = skillTable[ref.skillId];
       const levels = data && data.levels;
@@ -941,9 +1067,20 @@
 
       slider.addEventListener("input", () => update(parseInt(slider.value, 10)));
 
-      // Defaults to the highest mastery rank, same "show the best state
-      // first" default as the stats sliders above.
-      update(levels.length - 1);
+      // "Maxed" defaults to the highest mastery rank, same "show the
+      // best state first" default as the stats sliders above. "Your
+      // stats" instead defaults to this skill's actual Lv/mastery --
+      // below Skill Level 7, every skill shares the same level; at 7,
+      // each skill's own mastery rank (0 if none yet) takes over, per
+      // skillLevelLabel()'s Lv1-7/M1-3 indexing.
+      let defaultIndex = levels.length - 1;
+      if (mainSkillLvl != null) {
+        defaultIndex =
+          mainSkillLvl < 7
+            ? Math.min(mainSkillLvl - 1, levels.length - 1)
+            : Math.min(6 + (specializeBySkillId[ref.skillId] || 0), levels.length - 1);
+      }
+      update(defaultIndex);
       skillsInfoEl.appendChild(block);
     });
   }
@@ -1019,13 +1156,14 @@
     return stage;
   }
 
-  function renderModules(op) {
+  function renderModules(op, view, progress) {
     modulesInfoEl.innerHTML = "";
     const modules = (op.modules || []).filter(Boolean);
     if (!modules.length) {
       modulesInfoEl.appendChild(textNote("No modules."));
       return;
     }
+    const owned = view === "owned" && !!progress;
     modules.forEach((mod) => {
       // Each module is rendered independently and defensively -- real
       // battle_equip_table.json data has more shape variance than any
@@ -1048,6 +1186,18 @@
         name.className = "opModuleName";
         name.textContent = mod.uniEquipName || "";
         heading.appendChild(name);
+
+        // "Your stats": Arknights only applies one module's effect at a
+        // time even when several are leveled up (see this file's own
+        // renderStats() comment on `currentEquip`) -- flagging which one
+        // here avoids the Stage greying-out below (which is purely about
+        // level reached) being mistaken for "this one's active".
+        if (owned && progress.currentEquip && progress.currentEquip === mod.uniEquipId) {
+          const badge = document.createElement("span");
+          badge.className = "opModuleEquippedBadge";
+          badge.textContent = "Equipped";
+          heading.appendChild(badge);
+        }
 
         // The flavor-text description (uniEquipDesc) is lore, not
         // gameplay-relevant numbers -- those live in the per-stage
@@ -1087,8 +1237,17 @@
         if (phases.length) {
           const stageList = document.createElement("div");
           stageList.className = "opModuleStageList";
+          // "Your stats": grey out (not hide) any stage beyond what the
+          // account has actually reached for this module -- a module
+          // never unlocked at all (not in progress.modules) greys out
+          // every stage, same as `reached` defaulting to 0 everywhere
+          // else on this page.
+          const reached = owned && progress.modules ? progress.modules[mod.uniEquipId] || 0 : null;
           phases.forEach((phase) => {
-            if (phase) stageList.appendChild(renderModuleStage(phase));
+            if (!phase) return;
+            const stageEl = renderModuleStage(phase);
+            if (reached != null && phase.equipLevel > reached) stageEl.classList.add("opValueLocked");
+            stageList.appendChild(stageEl);
           });
           row.appendChild(stageList);
         }
@@ -1141,6 +1300,19 @@
       onClose: () => refreshAddToPlannerButton(op),
     });
   });
+
+  // Re-renders exactly the four sections the "Maxed"/"Your stats" toggle
+  // affects -- Release and Talents don't depend on it (a talent's own
+  // unlock conditions are shown as plain text either way, not a live
+  // preview), so they're left out of both this and renderOperator()'s
+  // own full-page render below.
+  function renderStatDependentSections(op) {
+    const view = effectiveView();
+    renderStats(op, view, currentProgress);
+    renderPotentials(op, view, currentProgress);
+    renderSkills(op, view, currentProgress);
+    renderModules(op, view, currentProgress);
+  }
 
   function renderOperator(charId) {
     currentCharId = charId;
@@ -1204,12 +1376,14 @@
     poolBadgeEl.textContent = poolLabel;
     poolBadgeEl.className = "opBadge opPoolBadge " + poolClass;
 
+    const ownedSet = getOwnedSet();
+    currentIsOwned = !!(ownedSet && ownedSet.has(op.charId));
+    currentProgress = currentIsOwned ? getAccountProgress(op.charId) : null;
+    updateStatsViewToggle();
+
     renderReleaseInfo(op);
-    renderStats(op);
     renderTalents(op);
-    renderPotentials(op);
-    renderSkills(op);
-    renderModules(op);
+    renderStatDependentSections(op);
     refreshAddToPlannerButton(op);
 
     const params = new URLSearchParams(location.search);

@@ -1,11 +1,13 @@
 // Cloudflare Worker: one-shot Arknights (EN/Yostar) account sync, used by
 // the home page's "Sync your Arknights account" section (js/account-sync.js)
-// and, downstream, the Operator Planner (/planner/) and the owned/not-owned
-// filter on the operator browser (/operator/). Given an account email and
-// the one-time code Yostar emails to it, this logs in exactly the way the
-// mobile client does, reads the account's current item inventory and
-// operator roster once, and returns them. Nothing about the account is kept
-// anywhere afterwards.
+// and, downstream, the Operator Planner (/planner/), the owned/not-owned
+// filter on the operator browser (/operator/), and that same page's "Your
+// stats" toggle (per-operator Elite/level/potential/skill/module progress).
+// Given an account email and the one-time code Yostar emails to it, this
+// logs in exactly the way the mobile client does, reads the account's
+// current item inventory and operator roster (including each owned
+// operator's own progress) once, and returns them. Nothing about the
+// account is kept anywhere afterwards.
 //
 // This is an independent JavaScript implementation of the login/session
 // protocol documented by the ArkPRTS project
@@ -542,6 +544,77 @@ function extractOwnedOperators(user) {
   return ids.size ? Array.from(ids) : null;
 }
 
+// Per-operator progress (Elite phase, level, potential rank, skill levels
+// and masteries, module stages, and which module is currently equipped),
+// for the operator page's "Your stats" toggle -- a further read of the
+// exact same `troop.chars` entries extractOwnedOperators() above already
+// walks for the owned/not-owned filter. Field names here (evolvePhase,
+// level, potentialRank, mainSkillLvl, skills[].specializeLevel,
+// equip[uniEquipId].level, currentEquip) come from the same arkprts-
+// derived reading of this protocol as the rest of this file (see the
+// header comment), but -- even more so than extractOwnedOperators()'s own
+// charId-only read -- this has NOT been checked against a real account's
+// actual response: a real `troop.chars` entry carries a lot more fields
+// than either function reads, and the shapes of `skills`/`equip`
+// specifically are the ones most likely to have shifted since arkprts'
+// own notes on them were written. Every field below is read
+// defensively and just comes back null/omitted if it's not the type
+// expected, so a wrong guess here means a particular operator's "Your
+// stats" view falls back to "Maxed" (see js/operator-page.js) rather
+// than showing a wrong number -- never throws, and never guesses a
+// plausible-looking value for a field that isn't actually there.
+function extractOwnedOperatorProgress(user) {
+  const chars = user?.troop?.chars;
+  if (!chars || typeof chars !== "object") return null;
+  const byChar = {};
+  for (const entry of Object.values(chars)) {
+    if (!entry || typeof entry.charId !== "string" || !entry.charId) continue;
+    const progress = {
+      evolvePhase: typeof entry.evolvePhase === "number" ? entry.evolvePhase : null,
+      level: typeof entry.level === "number" ? entry.level : null,
+      potentialRank: typeof entry.potentialRank === "number" ? entry.potentialRank : null,
+      mainSkillLvl: typeof entry.mainSkillLvl === "number" ? entry.mainSkillLvl : null,
+      skills: extractSkillProgress(entry.skills),
+      modules: extractModuleProgress(entry.equip),
+      currentEquip: typeof entry.currentEquip === "string" && entry.currentEquip ? entry.currentEquip : null,
+    };
+    // A handful of community tools' own notes mention accounts that can
+    // end up with more than one troop entry for the same charId (e.g. a
+    // recruited-then-recalled slot); not confirmed to actually happen,
+    // but guarded for anyway -- keep whichever looks the most invested-in
+    // rather than just whichever was last in iteration order.
+    const prev = byChar[entry.charId];
+    if (!prev || (progress.level || 0) > (prev.level || 0)) {
+      byChar[entry.charId] = progress;
+    }
+  }
+  return Object.keys(byChar).length ? byChar : null;
+}
+
+function extractSkillProgress(skills) {
+  if (!Array.isArray(skills)) return null;
+  const out = skills.map((s) => ({
+    skillId: s && typeof s.skillId === "string" ? s.skillId : null,
+    specializeLevel: s && typeof s.specializeLevel === "number" ? s.specializeLevel : 0,
+  }));
+  return out.length ? out : null;
+}
+
+// Stage reached per module, keyed by uniEquipId -- a module with no
+// progress at all (never unlocked) just doesn't get an entry, rather
+// than an explicit 0, so the frontend's `progress.modules[id] || 0`
+// lookup stays simple either way.
+function extractModuleProgress(equip) {
+  if (!equip || typeof equip !== "object") return null;
+  const out = {};
+  for (const [uniEquipId, info] of Object.entries(equip)) {
+    if (info && typeof info.level === "number" && info.level > 0) {
+      out[uniEquipId] = info.level;
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 async function fetchDepot(email, code) {
   const emailToken = await submitEmailCode(email, code);
   const { channelUid, accessToken } = await getYostarToken(email, emailToken);
@@ -578,5 +651,6 @@ async function fetchDepot(email, code) {
     nickname: user?.status?.nickName ?? user?.status?.nickname ?? null,
     level: user?.status?.level ?? null,
     ownedOperators: extractOwnedOperators(user),
+    ownedOperatorProgress: extractOwnedOperatorProgress(user),
   };
 }

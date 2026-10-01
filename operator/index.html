@@ -121,6 +121,16 @@
         </button>
       </div>
 
+      <!-- Only shown for an operator your synced account owns -- lets
+           Stats/Potentials/Skills/Modules below show your actual synced
+           progress instead of the default maxed-out view. See
+           js/operator-page.js's effectiveView()/getAccountProgress(). -->
+      <div id="opStatsViewToggle" class="opStatsViewToggle hidden">
+        <span class="opStatsViewLabel">Showing</span>
+        <button type="button" id="opStatsViewMaxed" class="opStatsViewBtn" data-view="maxed">Maxed</button>
+        <button type="button" id="opStatsViewOwned" class="opStatsViewBtn" data-view="owned">Your stats</button>
+      </div>
+
       <div class="opSection" id="opReleaseSection">
         <h2 class="opSectionHeading">Release</h2>
         <div id="opReleaseInfo" class="opInfoRows"></div>

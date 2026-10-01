@@ -7,27 +7,20 @@
 // so the "Synced as <name>" nav badge shows up everywhere, but only the
 // home page actually calls mount() to show the full sync form.
 //
-// Talks to the exact same Cloudflare Worker as before
-// (cloudflare/depot-import.js, base URL in js/config.js's
-// DEPOT_IMPORT_ENDPOINT) -- no backend changes needed. That Worker's
-// fetch-depot response already includes `nickname`/`level` alongside the
-// depot; previously those were only used for a one-time confirmation
-// sentence and then thrown away.
-//
-// Right now a sync only ever fetches your depot (inventory) -- your
-// actual operator roster (owned operators, their levels/skills/modules)
-// isn't fetched yet. That's expected to follow later; calling this
-// whole feature "account sync" rather than "depot import" is in
-// anticipation of that, so this file's shape doesn't need another
-// rename when it happens.
+// Talks to the Cloudflare Worker at cloudflare/depot-import.js (base URL
+// in js/config.js's DEPOT_IMPORT_ENDPOINT). That Worker's fetch-depot
+// response includes `nickname`/`level` alongside the depot, plus the
+// owned-operator roster (`ownedOperators`) and, for each owned operator,
+// its actual Elite/level/potential/skill/module progress
+// (`ownedOperatorProgress`) -- see that file's extractOwnedOperators()/
+// extractOwnedOperatorProgress() for exactly what's in each and their own
+// caveats about how well-confirmed those shapes are.
 //
 // Persisted state lives in the shared prefs blob (see js/prefs.js)
 // under its own "account" section -- separate from "planner" (which
 // still owns the actual depot data) so any page can answer "are we
 // synced, and as who" without needing to know anything about Planner's
-// own prefs shape, and so a future operator-roster sync has an obvious
-// place to extend the same "account" section rather than needing a
-// third one.
+// own prefs shape.
 const AccountSync = (function () {
   const SECTION = "account";
 
@@ -35,7 +28,7 @@ const AccountSync = (function () {
     return getPref(SECTION, "profile", null, (v) => v && typeof v === "object" && v.nickname);
   }
 
-  function saveAccount(nickname, level, ownedOperators) {
+  function saveAccount(nickname, level, ownedOperators, ownedOperatorProgress) {
     setPref(SECTION, "profile", {
       nickname,
       level: level || null,
@@ -46,6 +39,16 @@ const AccountSync = (function () {
       // owned/not-owned filter) can tell "synced, owns nothing" from
       // "we don't actually know" instead of assuming the former.
       ownedOperators: Array.isArray(ownedOperators) ? ownedOperators : null,
+      // charId -> { evolvePhase, level, potentialRank, mainSkillLvl,
+      // skills, modules, currentEquip } from the same sync, for the
+      // operator page's "Your stats" toggle (see
+      // cloudflare/depot-import.js's extractOwnedOperatorProgress() for
+      // the exact shape and its own caveats). Independently nullable
+      // from ownedOperators -- an older sync (from before this field
+      // existed) or a Worker that hasn't been redeployed since still has
+      // a roster, just no per-operator detail to show "Your stats" with.
+      ownedOperatorProgress:
+        ownedOperatorProgress && typeof ownedOperatorProgress === "object" ? ownedOperatorProgress : null,
       syncedAt: new Date().toISOString(),
     });
   }
@@ -58,6 +61,19 @@ const AccountSync = (function () {
   function getOwnedOperators() {
     const account = getAccount();
     return account ? account.ownedOperators || null : null;
+  }
+
+  // A single owned operator's synced progress ({ evolvePhase, level,
+  // potentialRank, mainSkillLvl, skills, modules, currentEquip }), or
+  // null if there's no sync, this charId isn't owned, or the sync that's
+  // there predates per-operator progress data. Same "own function"
+  // reasoning as getOwnedOperators() above -- the operator page's "Your
+  // stats" toggle doesn't need to know this lives under
+  // ownedOperatorProgress[charId] internally.
+  function getOperatorProgress(charId) {
+    const account = getAccount();
+    const all = account && account.ownedOperatorProgress;
+    return all && charId && all[charId] ? all[charId] : null;
   }
 
   // --- nav badge ----------------------------------------------------
@@ -279,6 +295,10 @@ const AccountSync = (function () {
           nickname: body.nickname || null,
           level: body.level || null,
           ownedOperators: Array.isArray(body.ownedOperators) ? body.ownedOperators : null,
+          ownedOperatorProgress:
+            body.ownedOperatorProgress && typeof body.ownedOperatorProgress === "object"
+              ? body.ownedOperatorProgress
+              : null,
         };
         const itemCount = Object.keys(pending.depot).length;
         const who = pending.nickname
@@ -308,11 +328,19 @@ const AccountSync = (function () {
       // sequence), so there's no need to duplicate that check here just
       // because this form isn't running on the planner page.
       setPref("planner", "depot", pending.depot);
-      saveAccount(pending.nickname || "Unknown Doctor", pending.level, pending.ownedOperators);
+      saveAccount(
+        pending.nickname || "Unknown Doctor",
+        pending.level,
+        pending.ownedOperators,
+        pending.ownedOperatorProgress,
+      );
       renderNavBadge();
       setStatus(
         pending.ownedOperators
-          ? "Synced. Your depot will show up next time you open the Planner, and your roster is now available to the operator page's owned/not-owned filter."
+          ? "Synced. Your depot will show up next time you open the Planner, your roster is now available to the operator page's owned/not-owned filter" +
+              (pending.ownedOperatorProgress
+                ? ", and owned operators there can show your actual stats instead of maxed."
+                : " -- though this sync didn't include per-operator progress, so those pages will still show maxed stats for now.")
           : "Synced. Your depot will show up next time you open the Planner. (Your operator roster wasn't included in this sync -- the owned/not-owned filter on the operator page won't have anything to go on yet.)",
       );
       confirmEl.classList.add("hidden");
@@ -345,7 +373,15 @@ const AccountSync = (function () {
     }
   }
 
-  return { getAccount, saveAccount, getOwnedOperators, renderNavBadge, renderStatusLine, mount };
+  return {
+    getAccount,
+    saveAccount,
+    getOwnedOperators,
+    getOperatorProgress,
+    renderNavBadge,
+    renderStatusLine,
+    mount,
+  };
 })();
 
 if (document.readyState === "loading") {
