@@ -388,6 +388,7 @@
         cnOnly: op.cnOnly,
         profession: op.profession,
         onlineTime: op.onlineTime,
+        cnOnlineTime: op.cnOnlineTime,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -1228,7 +1229,23 @@
     const bt = b.onlineTime ? new Date(b.onlineTime).getTime() : NaN;
     const aVal = isNaN(at) ? Infinity : at;
     const bVal = isNaN(bt) ? Infinity : bt;
-    return aVal - bVal || a.name.localeCompare(b.name);
+    if (aVal !== bVal) return aVal - bVal;
+
+    // Tied on Global release date -- in practice almost always because
+    // *neither* has a confirmed one yet (both Infinity), which used to
+    // fall straight to alphabetical for that entire group. An
+    // operator's CN release always lands before its eventual Global
+    // one and tends to be tracked well before Global is confirmed (see
+    // operator_release_dates.json's own two-source build in
+    // akgcc-extra-data/operator_online.py), so preferring it here still
+    // gives this trailing group a real chronological order instead of
+    // none at all -- an operator with at least a known CN date sorts
+    // ahead of one with no known date whatsoever.
+    const acn = a.cnOnlineTime ? new Date(a.cnOnlineTime).getTime() : NaN;
+    const bcn = b.cnOnlineTime ? new Date(b.cnOnlineTime).getTime() : NaN;
+    const acnVal = isNaN(acn) ? Infinity : acn;
+    const bcnVal = isNaN(bcn) ? Infinity : bcn;
+    return acnVal - bcnVal || a.name.localeCompare(b.name);
   }
 
   function renderGrid() {
