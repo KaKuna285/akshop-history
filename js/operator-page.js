@@ -416,59 +416,135 @@
     }
   }
 
-  // Elite 0 Level 1 vs. max Elite at its own max level -- read straight
-  // off each phase's own keyframe data (every phase stores exactly an
-  // E-start and an E-end snapshot), so this never needs the interpolation
-  // math a level in between the two would require.
+  // Every phase stores exactly an E-start (level 1) and an E-end (that
+  // phase's max level) snapshot -- a level in between is a plain linear
+  // interpolation between the two, the same approach other community
+  // calculators (Penguin Stats, ArknightsToolbox) use, and the same
+  // growth curve the game itself uses within a single Elite phase.
+  function interpolateStat(kf0, kf1, level, key) {
+    const v0 = kf0.data ? kf0.data[key] : undefined;
+    const v1 = kf1.data ? kf1.data[key] : undefined;
+    if (v0 == null) return v1;
+    if (v1 == null) return v0;
+    if (kf1.level === kf0.level) return v0;
+    const t = (level - kf0.level) / (kf1.level - kf0.level);
+    return v0 + (v1 - v0) * t;
+  }
+
+  const OP_STATS_ROWS = [
+    ["HP", "maxHp", (v) => Math.round(v).toLocaleString()],
+    ["ATK", "atk", (v) => Math.round(v).toLocaleString()],
+    ["DEF", "def", (v) => Math.round(v).toLocaleString()],
+    ["RES", "magicResistance", (v) => Math.round(v) + "%"],
+    ["Redeploy Cost (DP)", "cost", (v) => String(Math.round(v))],
+    ["Block", "blockCnt", (v) => String(Math.round(v))],
+    ["Attack Interval", "baseAttackTime", (v) => Math.round(v * 100) / 100 + "s"],
+  ];
+
+  // Two linked range sliders (Elite phase, then level within that phase)
+  // drive a single live-updating stats column, rather than a fixed
+  // E0-vs-max-Elite comparison -- so any level/Elite combination can be
+  // previewed, not just the two endpoints.
   function renderStats(op) {
     statsInfoEl.innerHTML = "";
-    const phases = op.phases || [];
-    const firstPhase = phases[0];
-    const lastPhase = phases[phases.length - 1];
-    const firstKF = firstPhase && firstPhase.attributesKeyFrames && firstPhase.attributesKeyFrames[0];
-    const lastKFList = lastPhase && lastPhase.attributesKeyFrames;
-    const lastKF = lastKFList && lastKFList[lastKFList.length - 1];
-    if (!firstKF || !lastKF) {
+    const phases = (op.phases || []).filter((ph) => ph && ph.attributesKeyFrames && ph.attributesKeyFrames.length);
+    if (!phases.length) {
       statsInfoEl.appendChild(textNote("No stats data available."));
       return;
     }
+
+    const controls = document.createElement("div");
+    controls.className = "opStatsControls";
+
+    function buildSliderRow(labelText) {
+      const row = document.createElement("div");
+      row.className = "opStatsSliderRow";
+      const label = document.createElement("label");
+      label.textContent = labelText;
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.className = "opStatsSlider";
+      const value = document.createElement("span");
+      value.className = "opStatsSliderValue";
+      row.appendChild(label);
+      row.appendChild(slider);
+      row.appendChild(value);
+      controls.appendChild(row);
+      return { slider, value };
+    }
+
+    const eliteCtrl = buildSliderRow("Elite");
+    eliteCtrl.slider.min = "0";
+    eliteCtrl.slider.max = String(phases.length - 1);
+    eliteCtrl.slider.step = "1";
+    eliteCtrl.slider.disabled = phases.length <= 1;
+
+    const levelCtrl = buildSliderRow("Level");
+    levelCtrl.slider.step = "1";
+
+    statsInfoEl.appendChild(controls);
+
     const table = document.createElement("table");
     table.className = "opStatsTable";
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
-    ["", `Elite 0, Lv${firstKF.level}`, `Elite ${phases.length - 1}, Lv${lastKF.level}`].forEach((text) => {
-      const th = document.createElement("th");
-      th.textContent = text;
-      headRow.appendChild(th);
-    });
+    const headBlank = document.createElement("th");
+    const headValue = document.createElement("th");
+    headRow.appendChild(headBlank);
+    headRow.appendChild(headValue);
     thead.appendChild(headRow);
     table.appendChild(thead);
 
     const tbody = document.createElement("tbody");
-    const rows = [
-      ["HP", "maxHp", (v) => Math.round(v).toLocaleString()],
-      ["ATK", "atk", (v) => Math.round(v).toLocaleString()],
-      ["DEF", "def", (v) => Math.round(v).toLocaleString()],
-      ["RES", "magicResistance", (v) => Math.round(v) + "%"],
-      ["Redeploy Cost (DP)", "cost", (v) => String(v)],
-      ["Block", "blockCnt", (v) => String(v)],
-      ["Attack Interval", "baseAttackTime", (v) => v + "s"],
-    ];
-    rows.forEach(([label, key, fmt]) => {
+    const valueCells = OP_STATS_ROWS.map(([label]) => {
       const tr = document.createElement("tr");
       const th = document.createElement("th");
       th.textContent = label;
+      const td = document.createElement("td");
       tr.appendChild(th);
-      [firstKF, lastKF].forEach((kf) => {
-        const td = document.createElement("td");
-        const v = kf.data ? kf.data[key] : undefined;
-        td.textContent = v == null ? "—" : fmt(v);
-        tr.appendChild(td);
-      });
+      tr.appendChild(td);
       tbody.appendChild(tr);
+      return td;
     });
     table.appendChild(tbody);
     statsInfoEl.appendChild(table);
+
+    // Starts at max Elite, max level -- same view the page used to show
+    // (fixed) as its "after" column, so the default look doesn't change.
+    let eliteIdx = phases.length - 1;
+    let level = phases[eliteIdx].attributesKeyFrames[phases[eliteIdx].attributesKeyFrames.length - 1].level;
+
+    function update() {
+      const kfs = phases[eliteIdx].attributesKeyFrames;
+      const kf0 = kfs[0];
+      const kf1 = kfs[kfs.length - 1];
+      level = Math.min(Math.max(level, kf0.level), kf1.level);
+
+      eliteCtrl.slider.value = String(eliteIdx);
+      eliteCtrl.value.textContent = `Elite ${eliteIdx}`;
+      levelCtrl.slider.min = String(kf0.level);
+      levelCtrl.slider.max = String(kf1.level);
+      levelCtrl.slider.disabled = kf1.level === kf0.level;
+      levelCtrl.slider.value = String(level);
+      levelCtrl.value.textContent = `Lv${level}`;
+      headValue.textContent = `Elite ${eliteIdx}, Lv${level}`;
+
+      OP_STATS_ROWS.forEach(([, key, fmt], i) => {
+        const v = interpolateStat(kf0, kf1, level, key);
+        valueCells[i].textContent = v == null ? "—" : fmt(v);
+      });
+    }
+
+    eliteCtrl.slider.addEventListener("input", () => {
+      eliteIdx = parseInt(eliteCtrl.slider.value, 10);
+      update();
+    });
+    levelCtrl.slider.addEventListener("input", () => {
+      level = parseInt(levelCtrl.slider.value, 10);
+      update();
+    });
+
+    update();
   }
 
   function renderTalents(op) {
@@ -530,6 +606,24 @@
     });
   }
 
+  // Skill icons use skill_table.json's own iconId when the skill has one
+  // (not every skill does -- some reuse a generic icon keyed by the skill
+  // id itself), same "LOCAL mirror, fall back to Aceship, then hide"
+  // pattern as setAvatarIcon() in util.js, just without that one's
+  // cnOnly-specific placeholder (a missing skill icon isn't a
+  // not-yet-released signal the way a missing operator portrait is).
+  function setSkillIcon(imgEl, iconKey) {
+    setIconWithFallback(imgEl, uri_skill(iconKey), uri_skill(iconKey, ASSET_SOURCE.ACESHIP), false);
+  }
+
+  function skillLevelLabel(i) {
+    return i < 7 ? `Lv${i + 1}` : `M${i - 6}`;
+  }
+
+  // One range slider per skill, Lv1 through M3 (indices 0-9, or 0-6 for a
+  // non-masterable skill), rather than a fixed list of every level at
+  // once -- mirrors the Elite/Level sliders in renderStats() above, and
+  // keeps a 10-level masterable skill from dominating the page.
   function renderSkills(op) {
     skillsInfoEl.innerHTML = "";
     const refs = Array.isArray(op.skills) ? op.skills : [];
@@ -542,39 +636,71 @@
       const levels = data && data.levels;
       const block = document.createElement("div");
       block.className = "opSkillBlock";
+
       const heading = document.createElement("div");
       heading.className = "opSkillHeading";
-      heading.textContent = (levels && levels[0] && levels[0].name) || `Skill ${idx + 1}`;
+      const icon = document.createElement("img");
+      icon.className = "opSkillIcon";
+      icon.alt = "";
+      setSkillIcon(icon, (data && data.iconId) || ref.skillId);
+      heading.appendChild(icon);
+      const nameEl = document.createElement("span");
+      nameEl.textContent = (levels && levels[0] && levels[0].name) || `Skill ${idx + 1}`;
+      heading.appendChild(nameEl);
       block.appendChild(heading);
+
       if (!levels || !levels.length) {
         block.appendChild(textNote("Skill data not available."));
         skillsInfoEl.appendChild(block);
         return;
       }
-      const list = document.createElement("div");
-      list.className = "opSkillLevelList";
-      levels.forEach((lvl, i) => {
-        const row = document.createElement("div");
-        row.className = "opSkillLevelRow" + (i >= 7 ? " opSkillLevelMastery" : "");
-        const labelEl = document.createElement("span");
-        labelEl.className = "opSkillLevelLabel";
-        labelEl.textContent = i < 7 ? `Lv${i + 1}` : `M${i - 6}`;
-        row.appendChild(labelEl);
-        const sp = lvl.spData || {};
+
+      const sliderRow = document.createElement("div");
+      sliderRow.className = "opStatsSliderRow opSkillSliderRow";
+      const sliderLabel = document.createElement("label");
+      sliderLabel.textContent = "Level";
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.className = "opStatsSlider";
+      slider.min = "0";
+      slider.max = String(levels.length - 1);
+      slider.step = "1";
+      slider.disabled = levels.length <= 1;
+      const sliderValue = document.createElement("span");
+      sliderValue.className = "opStatsSliderValue";
+      sliderRow.appendChild(sliderLabel);
+      sliderRow.appendChild(slider);
+      sliderRow.appendChild(sliderValue);
+      block.appendChild(sliderRow);
+
+      const detail = document.createElement("div");
+      detail.className = "opSkillLevelDetail";
+      const spEl = document.createElement("div");
+      spEl.className = "opSkillLevelSp";
+      const descEl = document.createElement("div");
+      descEl.className = "opSkillLevelDescription";
+      detail.appendChild(spEl);
+      detail.appendChild(descEl);
+      block.appendChild(detail);
+
+      function update(i) {
+        slider.value = String(i);
+        sliderValue.textContent = skillLevelLabel(i);
+        sliderValue.classList.toggle("opSkillSliderValueMastery", i >= 7);
+        const lvl = levels[i];
+        const sp = (lvl && lvl.spData) || {};
         const spParts = [];
         if (sp.spCost != null) spParts.push(`${sp.spCost} SP`);
         if (sp.initSp) spParts.push(`${sp.initSp} initial`);
-        const spEl = document.createElement("span");
-        spEl.className = "opSkillLevelSp";
         spEl.textContent = spParts.join(", ");
-        row.appendChild(spEl);
-        const descEl = document.createElement("span");
-        descEl.className = "opSkillLevelDescription";
-        descEl.textContent = formatDescription(lvl.description, lvl.blackboard);
-        row.appendChild(descEl);
-        list.appendChild(row);
-      });
-      block.appendChild(list);
+        descEl.textContent = lvl ? formatDescription(lvl.description, lvl.blackboard) : "";
+      }
+
+      slider.addEventListener("input", () => update(parseInt(slider.value, 10)));
+
+      // Defaults to the highest mastery rank, same "show the best state
+      // first" default as the stats sliders above.
+      update(levels.length - 1);
       skillsInfoEl.appendChild(block);
     });
   }

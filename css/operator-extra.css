@@ -259,6 +259,68 @@
   color: #ccc;
 }
 
+/* --- Shared range-slider controls (stats Elite/Level, skill Lv1-M3) ---- */
+
+.opStatsControls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.opStatsSliderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.opStatsSliderRow label {
+  flex: 0 0 40px;
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.opStatsSlider {
+  flex: 1 1 auto;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+
+.opStatsSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f8d511;
+  cursor: pointer;
+}
+
+.opStatsSlider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f8d511;
+  border: none;
+  cursor: pointer;
+}
+
+.opStatsSlider:disabled {
+  opacity: 0.4;
+}
+
+.opStatsSliderValue {
+  flex: 0 0 90px;
+  text-align: right;
+  font-size: 0.82rem;
+  font-weight: bold;
+  color: #eee;
+}
+
 /* --- Stats ------------------------------------------------------------- */
 
 .opStatsTable {
@@ -375,41 +437,39 @@
 }
 
 .opSkillHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: bold;
   color: #eee;
   font-size: 0.9rem;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.opSkillLevelList {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.opSkillIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
 }
 
-.opSkillLevelRow {
-  display: grid;
-  grid-template-columns: 44px 110px 1fr;
-  gap: 10px;
-  padding: 4px 0;
-  font-size: 0.82rem;
+.opSkillSliderRow {
+  margin-bottom: 8px;
 }
 
-.opSkillLevelRow + .opSkillLevelRow {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.opSkillLevelRow.opSkillLevelMastery .opSkillLevelLabel {
+.opSkillSliderValueMastery {
   color: #6fb3ff;
 }
 
-.opSkillLevelLabel {
-  color: #f8d511;
-  font-weight: bold;
+.opSkillLevelDetail {
+  font-size: 0.85rem;
 }
 
 .opSkillLevelSp {
   color: #999;
+  margin-bottom: 2px;
 }
 
 .opSkillLevelDescription {
@@ -509,8 +569,12 @@
     flex: none;
   }
 
-  .opSkillLevelRow {
-    grid-template-columns: 1fr;
-    gap: 2px;
+  .opStatsSliderRow label {
+    flex: 0 0 36px;
+  }
+
+  .opStatsSliderValue {
+    flex: 0 0 76px;
+    font-size: 0.78rem;
   }
 }
