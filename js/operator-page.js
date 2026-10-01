@@ -64,6 +64,8 @@
   const classFilterEl = document.getElementById("opFilterClass");
   const rarityFilterEl = document.getElementById("opFilterRarity");
   const sortByEl = document.getElementById("opSortBy");
+  const ownedFilterEl = document.getElementById("opFilterOwned");
+  const ownedFilterHintEl = document.getElementById("opOwnedFilterHint");
   const contentEl = document.getElementById("operatorContent");
   const backLinkEl = document.getElementById("opBackLink");
   const iconEl = document.getElementById("opIcon");
@@ -1293,10 +1295,25 @@
     return acnVal - bcnVal || a.name.localeCompare(b.name);
   }
 
+  // Owned/not-owned reads AccountSync's synced roster (see
+  // js/account-sync.js and cloudflare/depot-import.js's
+  // extractOwnedOperators()) fresh on every render rather than being
+  // cached, so syncing a different account or re-syncing on the home
+  // page shows up here the next time this page (re)renders without
+  // needing its own change-detection. Returns null -- not an empty Set
+  // -- when there's no roster to check against, so renderGrid() can
+  // tell "nothing's owned" apart from "we don't know" and leave the
+  // grid alone rather than greying every operator out on missing data.
+  function getOwnedSet() {
+    const owned = typeof AccountSync !== "undefined" ? AccountSync.getOwnedOperators() : null;
+    return owned ? new Set(owned) : null;
+  }
+
   function renderGrid() {
     gridEl.innerHTML = "";
     const classVal = classFilterEl.value;
     const rarityVal = rarityFilterEl.value;
+    const ownedVal = ownedFilterEl.value; // "", "owned", or "unowned"
     let list = operatorList.filter((op) => {
       if (classVal && op.profession !== classVal) return false;
       if (rarityVal && String(op.rarity + 1) !== rarityVal) return false;
@@ -1307,6 +1324,12 @@
     } else if (sortByEl.value === "release") {
       list = list.slice().sort(compareByReleaseDate);
     } // else already name-sorted, same order operatorList itself is built in
+
+    const ownedSet = ownedVal ? getOwnedSet() : null;
+    // Only worth telling the user to go sync when they've actually
+    // asked for the owned/not-owned filter and there's nothing to check
+    // against -- silent the rest of the time.
+    ownedFilterHintEl.classList.toggle("hidden", !(ownedVal && !ownedSet));
 
     if (!list.length) {
       gridEl.appendChild(textNote("No operators match these filters."));
@@ -1321,6 +1344,16 @@
         e.preventDefault();
         renderOperator(op.charId);
       };
+
+      // Greyed out, not removed, when it's on the "wrong" side of the
+      // owned/not-owned filter -- per how this filter's meant to work,
+      // the point is to see where an operator sits at a glance, not to
+      // lose track of the grid's overall shape by hiding half of it.
+      if (ownedSet) {
+        const owned = ownedSet.has(op.charId);
+        const greyedOut = (ownedVal === "owned" && !owned) || (ownedVal === "unowned" && owned);
+        if (greyedOut) item.classList.add("opGreyedOut");
+      }
 
       const imgWrap = document.createElement("div");
       imgWrap.className = "opGridItemImgWrap";
@@ -1342,6 +1375,11 @@
 
   classFilterEl.addEventListener("change", renderGrid);
   rarityFilterEl.addEventListener("change", renderGrid);
+  ownedFilterEl.value = getPref("operator", "ownedFilter", "", (v) => v === "" || v === "owned" || v === "unowned");
+  ownedFilterEl.addEventListener("change", () => {
+    setPref("operator", "ownedFilter", ownedFilterEl.value);
+    renderGrid();
+  });
   sortByEl.value = getPref("operator", "sortBy", sortByEl.value, (v) => v === "name" || v === "rarity" || v === "release");
   sortByEl.addEventListener("change", () => {
     setPref("operator", "sortBy", sortByEl.value);

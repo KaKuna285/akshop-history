@@ -81,7 +81,22 @@
             <option value="release">Release date</option>
           </select>
         </div>
+        <div class="opFilterGroup">
+          <label for="opFilterOwned">Owned</label>
+          <select id="opFilterOwned">
+            <option value="">All operators</option>
+            <option value="owned">Owned</option>
+            <option value="unowned">Not owned</option>
+          </select>
+        </div>
       </div>
+      <!-- Only shown when the owned/not-owned filter above is set to
+           something other than "All operators" and there's no synced
+           roster to check against -- see renderGrid()'s getOwnedSet(). -->
+      <p id="opOwnedFilterHint" class="opOwnedFilterHint hidden">
+        <a href="/">Sync your Arknights account</a> from the home page to
+        use this filter.
+      </p>
       <div id="operatorGrid"></div>
     </div>
 

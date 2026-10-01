@@ -217,6 +217,32 @@
   z-index: 1;
 }
 
+/* Owned/not-owned filter: the non-matching half of the grid stays put
+   (and stays clickable) rather than being removed outright, just
+   visually de-emphasized -- see renderGrid() in operator-page.js. */
+.opGridItem.opGreyedOut {
+  opacity: 0.32;
+  filter: grayscale(0.7);
+}
+
+.opGridItem.opGreyedOut:hover {
+  opacity: 0.6;
+}
+
+.opOwnedFilterHint {
+  margin: -8px 0 16px;
+  font-size: 0.78rem;
+  color: #999;
+}
+
+.opOwnedFilterHint.hidden {
+  display: none;
+}
+
+.opOwnedFilterHint a {
+  color: #f8d511;
+}
+
 .opGridItemImgWrap {
   aspect-ratio: 1;
   overflow: hidden;

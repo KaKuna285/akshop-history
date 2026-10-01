@@ -1,8 +1,11 @@
-// Cloudflare Worker: one-shot Arknights (EN/Yostar) account -> depot import
-// for the Operator Planner (/planner/). Given an account email and the
-// one-time code Yostar emails to it, this logs in exactly the way the
-// mobile client does, pulls the account's current item inventory once, and
-// returns it. Nothing about the account is kept anywhere afterwards.
+// Cloudflare Worker: one-shot Arknights (EN/Yostar) account sync, used by
+// the home page's "Sync your Arknights account" section (js/account-sync.js)
+// and, downstream, the Operator Planner (/planner/) and the owned/not-owned
+// filter on the operator browser (/operator/). Given an account email and
+// the one-time code Yostar emails to it, this logs in exactly the way the
+// mobile client does, reads the account's current item inventory and
+// operator roster once, and returns them. Nothing about the account is kept
+// anywhere afterwards.
 //
 // This is an independent JavaScript implementation of the login/session
 // protocol documented by the ArkPRTS project
@@ -17,13 +20,13 @@
 // What this Worker does, and deliberately doesn't, do:
 //   - EN (Yostar) accounts only. No CN/JP/KR support.
 //   - Fetch-and-discard: the account's session token/secret and the fetched
-//     inventory exist only in memory for the lifetime of a single request.
-//     This Worker has no KV/D1/Durable Object bindings at all, so there is
-//     nowhere for any of it to persist even by accident -- writing it down
-//     anywhere would take a deploy, not just a bug. Cloudflare's own
+//     inventory/roster exist only in memory for the lifetime of a single
+//     request. This Worker has no KV/D1/Durable Object bindings at all, so
+//     there is nowhere for any of it to persist even by accident -- writing
+//     it down anywhere would take a deploy, not just a bug. Cloudflare's own
 //     request logs (visible on the dashboard, if enabled) can still show
 //     metadata like the caller's IP and timestamp; nothing below logs the
-//     email, code, session secret, or inventory contents themselves.
+//     email, code, session secret, inventory, or roster contents themselves.
 //   - Unofficial API. This talks to Yostar/Hypergryph's real game backend
 //     the same way the app does, which isn't a documented or sanctioned
 //     integration -- see the Operator Planner's import UI for the
@@ -507,6 +510,38 @@ async function getInventory(gsHost, uid, secret) {
   return user;
 }
 
+// The same /account/syncData response already fetched for the depot
+// (see getInventory() above) carries the player's actual operator
+// roster too, under `user.troop.chars` -- an { [instanceId]: { charId,
+// ... }, ... } map, one entry per operator the account owns. This is
+// the same field essentially every other community Arknights tool
+// (arkprts and the various box/depot viewers built on it) reads for
+// "what operators does this account have", and `charId` there is
+// already in the exact "char_002_amiya"-style format this site uses
+// everywhere else -- no name mapping needed, just collect and dedupe.
+//
+// Defensive, more so than the inventory/status fields above: this
+// field's shape has only been confirmed by reading other open-source
+// implementations of this same login flow, not by a live response
+// captured specifically for this Worker. If a real response doesn't
+// have `troop.chars` in this shape, this returns null -- not an empty
+// array -- so the frontend can tell "couldn't read your roster" apart
+// from "this account genuinely owns zero operators" (which shouldn't
+// be possible; every account starts with several) and skip greying out
+// every single operator on a bad guess instead of just disabling the
+// owned/not-owned filter until this gets sorted out.
+function extractOwnedOperators(user) {
+  const chars = user?.troop?.chars;
+  if (!chars || typeof chars !== "object") return null;
+  const ids = new Set();
+  for (const entry of Object.values(chars)) {
+    if (entry && typeof entry.charId === "string" && entry.charId) {
+      ids.add(entry.charId);
+    }
+  }
+  return ids.size ? Array.from(ids) : null;
+}
+
 async function fetchDepot(email, code) {
   const emailToken = await submitEmailCode(email, code);
   const { channelUid, accessToken } = await getYostarToken(email, emailToken);
@@ -542,5 +577,6 @@ async function fetchDepot(email, code) {
     depot,
     nickname: user?.status?.nickName ?? user?.status?.nickname ?? null,
     level: user?.status?.level ?? null,
+    ownedOperators: extractOwnedOperators(user),
   };
 }

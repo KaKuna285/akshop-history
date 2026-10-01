@@ -35,12 +35,29 @@ const AccountSync = (function () {
     return getPref(SECTION, "profile", null, (v) => v && typeof v === "object" && v.nickname);
   }
 
-  function saveAccount(nickname, level) {
+  function saveAccount(nickname, level, ownedOperators) {
     setPref(SECTION, "profile", {
       nickname,
       level: level || null,
+      // Array of charIds ("char_002_amiya", ...), or null when the last
+      // sync couldn't read a roster at all (see cloudflare/depot-import.js's
+      // extractOwnedOperators()) -- kept apart from an empty array on
+      // purpose so getOwnedOperators() callers (the operator page's
+      // owned/not-owned filter) can tell "synced, owns nothing" from
+      // "we don't actually know" instead of assuming the former.
+      ownedOperators: Array.isArray(ownedOperators) ? ownedOperators : null,
       syncedAt: new Date().toISOString(),
     });
+  }
+
+  // Array of owned charIds from the last sync, or null if never synced
+  // or the last sync didn't include roster data. Exists as its own
+  // function (rather than making every caller reach into getAccount()'s
+  // shape directly) so the operator page's filter doesn't need to know
+  // this lives under "profile" internally.
+  function getOwnedOperators() {
+    const account = getAccount();
+    return account ? account.ownedOperators || null : null;
   }
 
   // --- nav badge ----------------------------------------------------
@@ -129,11 +146,12 @@ const AccountSync = (function () {
         '<p class="accountSyncNotice">' +
           "This logs in the same way the game's mobile app does, using a " +
           "one-time code Yostar emails to your account, and reads your " +
-          "current inventory once. It is not an official Hypergryph or " +
-          "Yostar integration. Nothing about your account -- not your " +
-          "email, not the code, not any session token -- is stored " +
-          "anywhere; it's used once to fetch your depot and then " +
-          "discarded. EN (Yostar) accounts only." +
+          "current inventory and operator roster once. It is not an " +
+          "official Hypergryph or Yostar integration. Nothing about your " +
+          "account -- not your email, not the code, not any session " +
+          "token -- is stored anywhere; it's used once to fetch your " +
+          "depot and roster and then discarded. EN (Yostar) accounts " +
+          "only." +
         "</p>" +
         '<div class="accountSyncRow">' +
           '<label for="accountSyncEmail">Account email</label>' +
@@ -263,13 +281,17 @@ const AccountSync = (function () {
           depot: body.depot || {},
           nickname: body.nickname || null,
           level: body.level || null,
+          ownedOperators: Array.isArray(body.ownedOperators) ? body.ownedOperators : null,
         };
         const itemCount = Object.keys(pending.depot).length;
         const who = pending.nickname
           ? `${pending.nickname}${pending.level ? ` (Lv ${pending.level})` : ""}`
           : "your account";
+        const rosterNote = pending.ownedOperators
+          ? ` and ${pending.ownedOperators.length.toLocaleString()} owned operator${pending.ownedOperators.length === 1 ? "" : "s"}`
+          : "";
         summaryEl.textContent =
-          `Fetched ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"} from ${who}. ` +
+          `Fetched ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"}${rosterNote} from ${who}. ` +
           `This will replace your current depot entirely (in the Operator Planner) -- anything ` +
           `you've tracked manually and isn't in this list will be removed.`;
         confirmEl.classList.remove("hidden");
@@ -289,9 +311,13 @@ const AccountSync = (function () {
       // sequence), so there's no need to duplicate that check here just
       // because this form isn't running on the planner page.
       setPref("planner", "depot", pending.depot);
-      saveAccount(pending.nickname || "Unknown Doctor", pending.level);
+      saveAccount(pending.nickname || "Unknown Doctor", pending.level, pending.ownedOperators);
       renderNavBadge();
-      setStatus("Synced. Your depot will show up next time you open the Planner.");
+      setStatus(
+        pending.ownedOperators
+          ? "Synced. Your depot will show up next time you open the Planner, and your roster is now available to the operator page's owned/not-owned filter."
+          : "Synced. Your depot will show up next time you open the Planner. (Your operator roster wasn't included in this sync -- the owned/not-owned filter on the operator page won't have anything to go on yet.)",
+      );
       confirmEl.classList.add("hidden");
       summaryEl.textContent = "";
       emailEl.value = "";
@@ -322,7 +348,7 @@ const AccountSync = (function () {
     }
   }
 
-  return { getAccount, saveAccount, renderNavBadge, renderStatusLine, mount };
+  return { getAccount, saveAccount, getOwnedOperators, renderNavBadge, renderStatusLine, mount };
 })();
 
 if (document.readyState === "loading") {
