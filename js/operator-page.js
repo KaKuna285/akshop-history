@@ -957,7 +957,19 @@
         if (!Array.isArray(candidates)) return;
         candidates.forEach((cand) => {
           if (!cand) return;
-          const text = cand.description || cand.upgradeDescription || cand.additionalDescription;
+          // A TRAIT-override candidate (Stage 1's usual part -- see
+          // overrideTraitDataBundle above) carries its text in
+          // "overrideDescripton" (sic -- that's really how the field is
+          // spelled in the upstream game data, confirmed against several
+          // real modules) whenever the module fully replaces the base
+          // trait text rather than just appending to it; "additionalDescription"
+          // is used instead when it's phrased as an addition. Both keys
+          // are present on these objects with one of them null, so this
+          // has to check all four fields -- without "overrideDescripton"
+          // here, a module whose Stage 1 uses that field (e.g. Mountain's
+          // own modules) shows nothing but its stat line, same bug this
+          // comment is fixing.
+          const text = cand.description || cand.upgradeDescription || cand.additionalDescription || cand.overrideDescripton;
           if (!text) return;
           const effect = document.createElement("div");
           effect.className = "opModuleStageEffect";
@@ -999,12 +1011,38 @@
         name.className = "opModuleName";
         name.textContent = mod.uniEquipName || "";
         heading.appendChild(name);
-        row.appendChild(heading);
+
+        // The flavor-text description (uniEquipDesc) is lore, not
+        // gameplay-relevant numbers -- those live in the per-stage
+        // effects below, which stay visible. Collapsed by default so a
+        // module with several stages doesn't push them below the fold
+        // just to show a sentence of flavor text; a small toggle arrow
+        // (pushed to the far right of the heading row via CSS's
+        // margin-left: auto) reveals it on demand.
         if (mod.uniEquipDesc) {
           const desc = document.createElement("div");
-          desc.className = "opModuleDescription";
+          desc.className = "opModuleDescription hidden";
           desc.textContent = formatDescription(mod.uniEquipDesc, null);
+
+          const loreToggle = document.createElement("button");
+          loreToggle.type = "button";
+          loreToggle.className = "opModuleLoreToggle";
+          loreToggle.textContent = "▾"; // ▾
+          loreToggle.setAttribute("aria-expanded", "false");
+          loreToggle.setAttribute("aria-label", "Show module lore");
+          loreToggle.addEventListener("click", () => {
+            const isHidden = desc.classList.toggle("hidden");
+            const expanded = !isHidden;
+            loreToggle.textContent = expanded ? "▴" : "▾"; // ▴ : ▾
+            loreToggle.setAttribute("aria-expanded", String(expanded));
+            loreToggle.setAttribute("aria-label", expanded ? "Hide module lore" : "Show module lore");
+          });
+          heading.appendChild(loreToggle);
+
+          row.appendChild(heading);
           row.appendChild(desc);
+        } else {
+          row.appendChild(heading);
         }
 
         const equipData = battleEquipTable[mod.uniEquipId];

@@ -670,11 +670,40 @@
   padding: 1px 6px;
 }
 
+/* Pushed to the far right of .opModuleHeading's flex row regardless of
+   how long the code/name before it run. */
+.opModuleLoreToggle {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ccc;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.opModuleLoreToggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #eee;
+}
+
 .opModuleDescription {
   color: #ccc;
   font-size: 0.85rem;
   margin-top: 4px;
   line-height: 1.4;
+}
+
+.opModuleDescription.hidden {
+  display: none;
 }
 
 .opModuleStageList {
