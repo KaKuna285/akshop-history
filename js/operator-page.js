@@ -40,11 +40,13 @@
   // Two small lookup tables below (SUBCLASS_NAMES, FACTION_NAMES) turn
   // raw subProfessionId/nationId-groupId-teamId values into readable
   // labels for the header badges. These are reconstructed from general
-  // public knowledge of the game, not pulled from a verified in-game
-  // string table (no reliably-fetchable copy of that mapping was found
-  // while building this) -- an id missing from either table just falls
-  // back to a lightly-capitalized version of the raw id instead of
-  // guessing, so a gap here never looks wrong, just plainer than ideal.
+  // public knowledge of the game (SUBCLASS_NAMES cross-checked against a
+  // community game-data mirror and wiki branch rosters, not pulled from
+  // a verified primary in-game string table -- no reliably-fetchable
+  // copy of that mapping was found while building this) -- an id missing
+  // from either table just falls back to a lightly-capitalized version
+  // of the raw id instead of guessing, so a gap here never looks wrong,
+  // just plainer than ideal.
   //
   // Account-linked "your actual progression" data is a deferred
   // follow-up -- the "Add to planner" button below always starts a new
@@ -97,61 +99,82 @@
     pioneer: "Pioneer",
     charger: "Charger",
     tactician: "Tactician",
-    bearer: "Flagbearer",
+    bearer: "Standard Bearer",
     agent: "Agent",
+    counsellor: "Strategist",
     // Guard
     fighter: "Fighter",
     artsfghter: "Arts Fighter",
     sword: "Swordmaster",
     lord: "Lord",
-    musha: "Musha",
+    musha: "Soloblade",
     reaper: "Reaper",
     librator: "Liberator",
     centurion: "Centurion",
     crusher: "Crusher",
     instructor: "Instructor",
+    fearless: "Dreadnought",
+    hammer: "Earthshaker",
+    mercenary: "Mercenary",
+    primguard: "Primal Guard",
     // Defender
     protector: "Protector",
     unyield: "Juggernaut",
     fortress: "Fortress",
     artsprotector: "Arts Protector",
     duelist: "Duelist",
+    guardian: "Guardian",
+    shotprotector: "Sentry Protector",
+    primprotector: "Primal Protector",
     // Medic
     physician: "Medic",
-    ringhealer: "Ringhealer",
+    ringhealer: "Multi-target Medic",
     healer: "Therapist",
     wandermedic: "Wandering Medic",
+    incantationmedic: "Incantation Medic",
+    chainhealer: "Chain Medic",
+    watchman: "Watchman",
     // Sniper
     fastshot: "Marksman",
-    longrange: "Deadeye Sniper",
+    longrange: "Deadeye",
     closerange: "Heavyshooter",
     reaperrange: "Spreadshooter",
-    bombarder: "Besieger",
-    artilleryman: "Artilleryman",
-    funnel: "Flinger",
+    bombarder: "Flinger",
+    siegesniper: "Besieger",
+    aoesniper: "Artilleryman",
+    hunter: "Hunter",
+    loopshooter: "Loopshooter",
+    skybreaker: "Skybreaker",
     // Caster
     splashcaster: "Splash Caster",
     corecaster: "Core Caster",
     chain: "Chain Caster",
-    mech: "Mech-accord Caster",
-    aoecaster: "Primary Caster",
+    funnel: "Mech-accord Caster",
+    mystic: "Mystic Caster",
+    primcaster: "Primal Caster",
+    soulcaster: "Shaper Caster",
+    // Caster (crowd control / special shapes)
+    blastcaster: "Blast Caster",
+    phalanx: "Phalanx Caster",
     // Supporter
     slower: "Decel Binder",
     summoner: "Summoner",
-    craftsman: "Augmentor",
+    craftsman: "Artificer",
+    underminer: "Hexer",
+    bard: "Bard",
+    blessing: "Abjurer",
+    ritualist: "Ritualist",
     // Specialist
-    executor: "Executioner",
-    pusher: "Pusher",
+    executor: "Executor",
+    pusher: "Push Stroker",
     stalker: "Ambusher",
     geek: "Geek",
     hookmaster: "Hookmaster",
     merchant: "Merchant",
     dollkeeper: "Dollkeeper",
-    underminer: "Underminer",
     traper: "Trapmaster",
-    // Specialist (crowd control / special shapes)
-    blastcaster: "Blast Caster",
-    phalanx: "Phalanx Caster",
+    alchemist: "Alchemist",
+    skywalker: "Skyranger",
   };
 
   const FACTION_NAMES = {
