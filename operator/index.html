@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta
       name="description"
-      content="One operator's release dates, shop history (with predicted debut if they haven't hit the shop yet), and the full LMD/EXP/materials cost to take them from Elite 0 Level 1 to fully maxed."
+      content="One operator's release dates, stats at every Elite stage, talents, potential upgrades, skills at every level and mastery, and modules."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://ak.athansson.com/operator/" />
     <meta property="og:title" content="Operator Details" />
     <meta
       property="og:description"
-      content="One operator's release dates, shop history (with predicted debut if they haven't hit the shop yet), and the full LMD/EXP/materials cost to take them from Elite 0 Level 1 to fully maxed."
+      content="One operator's release dates, stats at every Elite stage, talents, potential upgrades, skills at every level and mastery, and modules."
     />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
@@ -36,6 +36,7 @@
           <a href="/store/">Shop History</a>
           <a href="/calendar/">Calendar</a>
           <a href="/planner/">Planner</a>
+          <a href="/operator/" class="current" aria-current="page">Operator</a>
         </nav>
         <a class="rightButton button iconButton" href="/" id="homeButton"></a>
       </div>
@@ -66,7 +67,8 @@
           <div id="opMeta">
             <span id="opRarityBadge" class="opBadge opRarityBadge"></span>
             <span id="opClassBadge" class="opBadge"></span>
-            <span id="opNumberBadge" class="opBadge"></span>
+            <span id="opSubclassBadge" class="opBadge"></span>
+            <span id="opFactionBadge" class="opBadge"></span>
             <span id="opPoolBadge" class="opBadge"></span>
           </div>
         </div>
@@ -80,24 +82,29 @@
         <div id="opReleaseInfo" class="opInfoRows"></div>
       </div>
 
-      <div class="opSection" id="opShopSection">
-        <h2 class="opSectionHeading">Shop history</h2>
-        <div id="opShopInfo"></div>
+      <div class="opSection" id="opStatsSection">
+        <h2 class="opSectionHeading">Stats</h2>
+        <div id="opStatsInfo"></div>
       </div>
 
-      <div class="opSection" id="opCostSection">
-        <h2 class="opSectionHeading">Cost to fully max (from Elite 0, Level 1)</h2>
-        <div id="opCostTotals">
-          <div class="opCostTotal">
-            <span class="opCostTotalLabel">LMD</span>
-            <span class="opCostTotalValue" id="opCostLmd">0</span>
-          </div>
-          <div class="opCostTotal">
-            <span class="opCostTotalLabel">EXP</span>
-            <span class="opCostTotalValue" id="opCostExp">0</span>
-          </div>
-        </div>
-        <div id="opCostMaterials"></div>
+      <div class="opSection" id="opTalentsSection">
+        <h2 class="opSectionHeading">Talents</h2>
+        <div id="opTalentsInfo"></div>
+      </div>
+
+      <div class="opSection" id="opPotentialsSection">
+        <h2 class="opSectionHeading">Potential upgrades</h2>
+        <div id="opPotentialsInfo"></div>
+      </div>
+
+      <div class="opSection" id="opSkillsSection">
+        <h2 class="opSectionHeading">Skills</h2>
+        <div id="opSkillsInfo"></div>
+      </div>
+
+      <div class="opSection" id="opModulesSection">
+        <h2 class="opSectionHeading">Modules</h2>
+        <div id="opModulesInfo"></div>
       </div>
     </div>
 

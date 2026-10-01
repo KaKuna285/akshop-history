@@ -247,8 +247,11 @@
   color: #6fb3ff;
 }
 
-.opShopNote,
-.opShopPrediction {
+.opFactionBadge.hidden {
+  display: none;
+}
+
+.opNote {
   background: rgba(255, 255, 255, 0.04);
   border-radius: 8px;
   padding: 10px 12px;
@@ -256,119 +259,236 @@
   color: #ccc;
 }
 
-.opShopPredictionDate {
-  color: #f8d511;
+/* --- Stats ------------------------------------------------------------- */
+
+.opStatsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.opStatsTable th,
+.opStatsTable td {
+  text-align: left;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.opStatsTable thead th {
+  color: #999;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   font-weight: bold;
 }
 
-.opShopPredictionDetail {
-  margin-top: 2px;
-  font-size: 0.78rem;
+.opStatsTable tbody th {
+  color: #ccc;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.opStatsTable tbody td {
+  color: #eee;
+  font-weight: bold;
+}
+
+/* --- Talents ------------------------------------------------------------ */
+
+.opTalentBlock {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.opTalentBlock:last-child {
+  margin-bottom: 0;
+}
+
+.opTalentHeading {
+  font-weight: bold;
+  color: #eee;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.opTalentCandidate {
+  padding: 4px 0;
+  font-size: 0.85rem;
+}
+
+.opTalentCandidate + .opTalentCandidate {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.opTalentUnlock {
   color: #999;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
 }
 
-.opShopList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.opTalentDescription {
+  color: #ccc;
+  line-height: 1.4;
 }
 
-.opShopRow {
+/* --- Potential upgrades --------------------------------------------------- */
+
+.opPotentialRow {
   display: flex;
-  justify-content: space-between;
   gap: 10px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 0.85rem;
+  margin-bottom: 6px;
 }
 
-.opShopDate {
-  color: #eee;
+.opPotentialRow:last-child {
+  margin-bottom: 0;
+}
+
+.opPotentialLabel {
+  color: #f8d511;
   font-weight: bold;
-  flex: 0 0 auto;
+  flex: 0 0 90px;
 }
 
-.opShopGap {
-  color: #999;
-  text-align: right;
+.opPotentialDescription {
+  color: #ccc;
 }
 
-#opCostTotals {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 12px;
+/* --- Skills -------------------------------------------------------------- */
+
+.opSkillBlock {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
 }
 
-.opCostTotal {
+.opSkillBlock:last-child {
+  margin-bottom: 0;
+}
+
+.opSkillHeading {
+  font-weight: bold;
+  color: #eee;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.opSkillLevelList {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  padding: 8px 16px;
 }
 
-.opCostTotalLabel {
-  font-size: 0.7rem;
+.opSkillLevelRow {
+  display: grid;
+  grid-template-columns: 44px 110px 1fr;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 0.82rem;
+}
+
+.opSkillLevelRow + .opSkillLevelRow {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.opSkillLevelRow.opSkillLevelMastery .opSkillLevelLabel {
+  color: #6fb3ff;
+}
+
+.opSkillLevelLabel {
+  color: #f8d511;
   font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+}
+
+.opSkillLevelSp {
   color: #999;
 }
 
-.opCostTotalValue {
-  font-size: 1.3rem;
-  font-weight: bold;
-  color: #f8d511;
+.opSkillLevelDescription {
+  color: #ccc;
+  line-height: 1.4;
 }
 
-#opCostMaterials {
+/* --- Modules -------------------------------------------------------------- */
+
+.opModuleRow {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.opModuleRow:last-child {
+  margin-bottom: 0;
+}
+
+.opModuleHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  color: #eee;
+  font-size: 0.9rem;
+}
+
+.opModuleCode {
+  color: #999;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.opModuleDescription {
+  color: #ccc;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.opModuleStageList {
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.opCostMaterialRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  padding: 6px 12px 6px 6px;
+.opModuleStage {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
 }
 
-.opCostMaterialIcon {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: rgba(255, 255, 255, 0.08);
-  flex: 0 0 auto;
-}
-
-.opCostMaterialNameWrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.opCostMaterialName {
-  font-size: 0.85rem;
-  color: #eee;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.opCostMaterialCount {
-  font-size: 0.85rem;
+.opModuleStageHeading {
   color: #f8d511;
   font-weight: bold;
-  flex: 0 0 auto;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+
+.opModuleStageStats {
+  color: #6fb3ff;
+  margin-bottom: 2px;
+}
+
+.opModuleStageEffect {
+  color: #ccc;
+  line-height: 1.4;
+}
+
+.opModuleStageEffect + .opModuleStageEffect {
+  margin-top: 2px;
 }
 
 @media (max-width: 560px) {
@@ -387,5 +507,10 @@
 
   .opInfoLabel {
     flex: none;
+  }
+
+  .opSkillLevelRow {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }
