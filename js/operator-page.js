@@ -250,7 +250,21 @@
     if (!text) return "";
     let out = text.replace(/<\/?[^>]+>/g, "");
     const bbMap = {};
-    (blackboard || []).forEach((b) => {
+    // A candidate/skill-level with literally zero blackboard tokens to
+    // substitute (plain-text description, no "{x}" placeholders) doesn't
+    // always come back as an empty array -- this codebase's own upstream
+    // data (battle_equip_table.json) has been directly observed emitting
+    // an empty *object* ("{}") for an empty list field in this exact
+    // shape (see tokenAttributeBlackboard on a real module phase), not
+    // just "[]". `(blackboard || [])` only guards against a falsy value,
+    // so a truthy-but-non-array "{}" slipped through to .forEach and
+    // threw -- which, since this is called from inside modules'
+    // renderModuleStage() for *every* candidate with any blackboard
+    // field, blanked the whole module behind the "couldn't load full
+    // details" fallback for any module whose text needed no token
+    // substitution at all. That's common enough to explain it happening
+    // "a lot of the time" rather than as a rare edge case.
+    (Array.isArray(blackboard) ? blackboard : []).forEach((b) => {
       if (b && b.key) bbMap[String(b.key).toLowerCase()] = b.value;
     });
     out = out.replace(/\{(-?)([a-zA-Z0-9_.@]+)(:([^}]+))?\}/g, (whole, neg, key, _m, fmt) => {
@@ -520,7 +534,13 @@
   // a togglable option.
   function potentialStatBonuses(op) {
     const totals = {};
-    (op.potentialRanks || []).forEach((rank) => {
+    // Guarded the same way as the battle_equip_table.json-sourced fields
+    // below (formatDescription()'s comment has the confirmed real-world
+    // case) -- character_table.json goes through the same upstream export
+    // pipeline, so an empty potentialRanks could plausibly hit the same
+    // "{}" -instead-of-"[]" quirk even though it hasn't been directly
+    // observed here.
+    (Array.isArray(op.potentialRanks) ? op.potentialRanks : []).forEach((rank) => {
       const modifiers = rank && rank.buff && rank.buff.attributes && rank.buff.attributes.attributeModifiers;
       if (!Array.isArray(modifiers)) return;
       modifiers.forEach((mod) => {
@@ -560,7 +580,13 @@
     const phases = (equipData && Array.isArray(equipData.phases) && equipData.phases) || [];
     const phase = phases.find((ph) => ph && ph.equipLevel === stage);
     if (!phase) return totals;
-    (phase.attributeBlackboard || []).forEach((b) => {
+    // Same "empty list can come back as {} instead of []" upstream quirk
+    // as formatDescription() guards against above -- this isn't wrapped
+    // in any try/catch (it runs straight from the Stats section's Module/
+    // Stage dropdown's own update callback), so a stage with zero stat
+    // deltas used to throw here and break live stat updates entirely
+    // rather than just showing a fallback notice.
+    (Array.isArray(phase.attributeBlackboard) ? phase.attributeBlackboard : []).forEach((b) => {
       if (!b || !b.key || typeof b.value !== "number") return;
       const key = MODULE_ATTR_TO_STAT_KEY[b.key];
       if (!key) return;
@@ -606,7 +632,8 @@
   // reads better than a 90-option dropdown.
   function renderStats(op) {
     statsInfoEl.innerHTML = "";
-    const phases = (op.phases || []).filter((ph) => ph && ph.attributesKeyFrames && ph.attributesKeyFrames.length);
+    // Same defensive Array.isArray guard as potentialStatBonuses() above, for the same reason.
+    const phases = (Array.isArray(op.phases) ? op.phases : []).filter((ph) => ph && ph.attributesKeyFrames && ph.attributesKeyFrames.length);
     if (!phases.length) {
       statsInfoEl.appendChild(textNote("No stats data available."));
       return;
@@ -762,7 +789,8 @@
 
   function renderTalents(op) {
     talentsInfoEl.innerHTML = "";
-    const talents = (op.talents || []).filter((t) => t && t.candidates && t.candidates.length);
+    // Same defensive Array.isArray guard as potentialStatBonuses() above, for the same reason.
+    const talents = (Array.isArray(op.talents) ? op.talents : []).filter((t) => t && t.candidates && t.candidates.length);
     if (!talents.length) {
       talentsInfoEl.appendChild(textNote("No talents."));
       return;
@@ -933,7 +961,10 @@
     heading.textContent = `Stage ${phase.equipLevel}`;
     stage.appendChild(heading);
 
-    const deltas = (phase.attributeBlackboard || []).filter((b) => b && b.key && b.value);
+    // Same "{}" -instead-of-"[]" upstream quirk as formatDescription() and
+    // moduleStatBonuses() guard against (see their comments) -- a stage
+    // with no stat deltas at all can come back this way too.
+    const deltas = (Array.isArray(phase.attributeBlackboard) ? phase.attributeBlackboard : []).filter((b) => b && b.key && b.value);
     if (deltas.length) {
       const statsLine = document.createElement("div");
       statsLine.className = "opModuleStageStats";
@@ -951,7 +982,10 @@
     // inside the modules.forEach in renderModules(), and a thrown error
     // there aborts the whole loop after modulesInfoEl was already
     // cleared) silently blanking the entire Modules section.
-    (phase.parts || []).forEach((part) => {
+    // "{}" -instead-of-"[]" again for a stage with no parts at all (see
+    // formatDescription()'s comment above for where this upstream
+    // serialization quirk was actually confirmed).
+    (Array.isArray(phase.parts) ? phase.parts : []).forEach((part) => {
       if (!part) return;
       [part.addOrOverrideTalentDataBundle, part.overrideTraitDataBundle].forEach((bundle) => {
         const candidates = bundle && bundle.candidates;
