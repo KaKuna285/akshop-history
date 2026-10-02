@@ -1,0 +1,253 @@
+/* Styling for /account/ -- the read-only "My account" overview page.
+   Follows the same dark translucent-card look as css/operator-extra.css
+   and friends so this feels like the same site, kept in its own file
+   since pages don't share a stylesheet (see css/calendar-extra.css's own
+   comment on this convention). .accountSyncLinkBtn/.accountNavBadge are
+   shared with the nav badge/home-page form and already come from
+   css/account-sync.css, already linked on this page -- not redefined
+   here. */
+
+#accountPageStatus,
+#accountPageNotSynced,
+#accountPageContent,
+#pageCredit {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#accountPageStatus,
+#accountPageNotSynced {
+  padding: 0 16px;
+}
+
+#accountPageStatus {
+  text-align: center;
+  color: #777;
+  padding-top: 40px;
+  padding-bottom: 40px;
+  font-size: 0.95rem;
+}
+
+#accountPageStatus.hidden,
+#accountPageNotSynced.hidden,
+#accountPageContent.hidden {
+  display: none;
+}
+
+#accountPageNotSynced {
+  padding-top: 32px;
+  color: #ccc;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+#accountPageNotSynced a {
+  color: #f8d511;
+}
+
+#accountPageContent {
+  padding: 16px 16px 40px;
+}
+
+/* --- Profile card ------------------------------------------------------ */
+
+.accountPageProfile {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.accountPageName {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #eee;
+  margin-bottom: 6px;
+}
+
+.accountPageMeta {
+  font-size: 0.85rem;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+.accountPageFreshness {
+  font-weight: bold;
+}
+
+.accountPageFreshness-fresh {
+  color: #a7e36f;
+}
+
+.accountPageFreshness-aging {
+  color: #ff9f43;
+}
+
+.accountPageFreshness-stale {
+  color: #ff6666;
+}
+
+.accountPageDepotLine {
+  margin-top: 2px;
+  color: #999;
+}
+
+.accountPageActions {
+  margin-top: 10px;
+}
+
+/* --- Roster section ------------------------------------------------------ */
+
+.accountPageSection {
+  margin-bottom: 20px;
+}
+
+.accountPageSectionHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.accountPageSectionHeading h2 {
+  font-size: 1rem;
+  margin: 0;
+  color: #eee;
+}
+
+.accountPageRosterControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.accountPageRosterControls label {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.accountPageRosterControls select {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1c1c1c;
+  color: #eee;
+  font-size: 0.85rem;
+}
+
+.accountPageNoProgressNote {
+  margin: -2px 0 12px;
+  font-size: 0.78rem;
+  color: #999;
+}
+
+.accountPageNoProgressNote a {
+  color: #f8d511;
+}
+
+.accountPageNoProgressNote.hidden {
+  display: none;
+}
+
+.accountPageRosterTableWrap {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.accountPageRosterTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.accountPageRosterTable thead th {
+  text-align: left;
+  padding: 8px 10px;
+  color: #999;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+
+.accountPageRosterTable tbody td {
+  padding: 6px 10px;
+  color: #ddd;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+}
+
+.accountPageRosterTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.accountPageRosterTable tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.accountPageRosterIconCell {
+  width: 34px;
+}
+
+.accountPageRosterIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  display: block;
+}
+
+.accountPageRosterTable a {
+  color: #6fb3ff;
+  text-decoration: none;
+}
+
+.accountPageRosterTable a:hover {
+  text-decoration: underline;
+}
+
+.accountPageRosterEmpty {
+  white-space: normal !important;
+  color: #999 !important;
+  text-align: center;
+  padding: 20px 10px !important;
+}
+
+#pageCredit {
+  margin-top: 16px;
+  margin-bottom: 24px;
+  padding: 0 16px;
+  font-size: 0.75rem;
+  color: #777;
+  text-align: center;
+}
+
+#pageCredit a {
+  color: #999;
+}
+
+#pageCredit a:hover {
+  color: #ccc;
+}
+
+@media (max-width: 560px) {
+  .accountPageSectionHeading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .accountPageRosterTable thead th,
+  .accountPageRosterTable tbody td {
+    padding: 6px 7px;
+    font-size: 0.8rem;
+  }
+}

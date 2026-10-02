@@ -1,0 +1,118 @@
+<html>
+  <head>
+    <title>My Account</title>
+    <meta charset="UTF-8" />
+    <meta
+      name="description"
+      content="Your synced Arknights account: profile, sync freshness, and every owned operator's actual Elite/level/potential/skill/module progress."
+    />
+    <meta name="robots" content="noindex" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ak.athansson.com/account/" />
+    <meta property="og:title" content="My Account" />
+    <meta
+      property="og:description"
+      content="Your synced Arknights account: profile, sync freshness, and every owned operator's actual progress."
+    />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link type="text/css" href="/css/reset.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style2.css" rel="stylesheet" />
+    <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
+    <link type="text/css" href="/css/account-sync.css" rel="stylesheet" />
+    <link type="text/css" href="/css/account-extra.css" rel="stylesheet" />
+    <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/prefs.js"></script>
+    <script type="text/javascript" src="/js/account-sync.js"></script>
+    <script type="text/javascript" src="/js/util.js"></script>
+  </head>
+  <body>
+    <div id="topNav">
+      <div class="nav-left">
+        <a id="pageTitle">My Account</a>
+      </div>
+      <div class="nav-right">
+        <nav class="siteNav" aria-label="Site navigation">
+          <a href="/store/">Shop History</a>
+          <a href="/calendar/">Calendar</a>
+          <a href="/planner/">Planner</a>
+          <a href="/operator/">Operator</a>
+        </nav>
+        <a class="rightButton button iconButton" href="/" id="homeButton"></a>
+      </div>
+    </div>
+
+    <div id="accountPageStatus" class="accountPageStatus">Loading your account&hellip;</div>
+
+    <!-- Reachable with no sync at all (a direct link, or a bookmark from
+         before re-syncing a fresh browser profile) -- points back at the
+         home page rather than showing an empty dashboard. -->
+    <div id="accountPageNotSynced" class="accountPageNotSynced hidden">
+      <p>You haven't synced an Arknights account yet.</p>
+      <p>
+        <a href="/">Sync your account from the home page</a> to see your
+        profile and operator roster here.
+      </p>
+    </div>
+
+    <div id="accountPageContent" class="accountPageContent hidden">
+      <div id="accountPageProfile" class="accountPageProfile">
+        <div id="accountPageName" class="accountPageName"></div>
+        <div id="accountPageMeta" class="accountPageMeta"></div>
+        <div class="accountPageActions">
+          <a href="/" class="accountSyncLinkBtn">Re-sync / use a different account</a>
+        </div>
+      </div>
+
+      <div class="accountPageSection">
+        <div class="accountPageSectionHeading">
+          <h2>Operator roster (<span id="accountPageRosterCount">0</span>)</h2>
+          <div class="accountPageRosterControls">
+            <label for="accountPageSort">Sort by</label>
+            <select id="accountPageSort">
+              <option value="name">Name</option>
+              <option value="rarity">Rarity</option>
+              <option value="level">Level (highest first)</option>
+            </select>
+          </div>
+        </div>
+        <p id="accountPageNoProgressNote" class="accountPageNoProgressNote hidden">
+          Rows showing "—" are operators this sync didn't include detailed
+          progress for -- <a href="/">re-sync from the home page</a> to
+          fill these in.
+        </p>
+        <div id="accountPageRosterTableWrap" class="accountPageRosterTableWrap">
+          <table class="accountPageRosterTable">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Rarity</th>
+                <th>Elite / Level</th>
+                <th>Potential</th>
+                <th>Skill</th>
+                <th>Module</th>
+              </tr>
+            </thead>
+            <tbody id="accountPageRosterBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="pageCredit">
+      Operator data from
+      <a href="https://github.com/Kengxxiao/ArknightsGameData_YoStar" target="_blank" rel="noopener"
+        >ArknightsGameData</a
+      >
+    </div>
+
+    <!-- Only OperatorEditModal.loadCharTable() is actually used here (for
+         icons/names/rarity/skills/modules) -- this page never opens the
+         modal itself, so its DOM is never even injected. -->
+    <script type="text/javascript" src="/js/operator-edit-modal.js"></script>
+    <script type="text/javascript" src="/js/account-page.js"></script>
+  </body>
+</html>

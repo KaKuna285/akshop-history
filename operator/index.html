@@ -115,6 +115,11 @@
             <span id="opFactionBadge" class="opBadge"></span>
             <span id="opPoolBadge" class="opBadge"></span>
           </div>
+          <!-- "Owned" alone, or "Owned · E1 · Lv55 · ..." once a sync
+               included this operator's actual progress -- a quick-glance
+               readout that doesn't need the Maxed/Your stats toggle
+               below to be touched. See AccountSync.formatInvestmentSummary(). -->
+          <div id="opOwnedSummary" class="opOwnedSummary hidden"></div>
         </div>
         <button type="button" id="opAddToPlannerBtn" class="opAddToPlannerBtn">
           + Add to planner

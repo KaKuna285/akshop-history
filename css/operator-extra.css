@@ -489,6 +489,16 @@
   display: none;
 }
 
+.opOwnedSummary {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: #f8d511;
+}
+
+.opOwnedSummary.hidden {
+  display: none;
+}
+
 .opNote {
   background: rgba(255, 255, 255, 0.04);
   border-radius: 8px;

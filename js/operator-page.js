@@ -79,6 +79,7 @@
   const statsViewToggleEl = document.getElementById("opStatsViewToggle");
   const statsViewMaxedBtn = document.getElementById("opStatsViewMaxed");
   const statsViewOwnedBtn = document.getElementById("opStatsViewOwned");
+  const ownedSummaryEl = document.getElementById("opOwnedSummary");
   const releaseInfoEl = document.getElementById("opReleaseInfo");
   const statsInfoEl = document.getElementById("opStatsInfo");
   const talentsInfoEl = document.getElementById("opTalentsInfo");
@@ -139,6 +140,22 @@
     const view = effectiveView();
     statsViewMaxedBtn.classList.toggle("opStatsViewBtnActive", view === "maxed");
     statsViewOwnedBtn.classList.toggle("opStatsViewBtnActive", view === "owned");
+  }
+
+  // The compact "Owned · E1 · Lv55 · ..." line in the header -- always
+  // reflects the account's actual synced state (regardless of which
+  // Maxed/Your stats button is currently selected below), since the
+  // point of this line is "what do I actually have", not a preview.
+  function renderOwnedSummary(op) {
+    if (!currentIsOwned) {
+      ownedSummaryEl.classList.add("hidden");
+      return;
+    }
+    ownedSummaryEl.textContent =
+      typeof AccountSync !== "undefined" && AccountSync.formatInvestmentSummary
+        ? AccountSync.formatInvestmentSummary(op, currentProgress)
+        : "Owned";
+    ownedSummaryEl.classList.remove("hidden");
   }
 
   function setStatsView(view) {
@@ -1276,6 +1293,49 @@
     addToPlannerBtn.classList.toggle("inPlanner", inPlanner);
   }
 
+  // A brand-new roster entry's "current" state, from the account's
+  // synced progress rather than OperatorEditModal.defaultState()'s fixed
+  // E0/Lv1 -- so "Add to planner" on an operator you actually own starts
+  // the roster card from where you really are instead of from scratch.
+  // Mirrors OperatorEditModal's own private clampState()/maxMastery()
+  // math (see that file's header comment for why it keeps its own copy
+  // of this rather than this file reaching into its scope) since none of
+  // that is exported -- deliberately defensive the same way: an
+  // out-of-range or missing field just falls back to that field's own
+  // "nothing yet" value rather than producing an invalid state the modal
+  // can't render.
+  function stateFromProgress(op, progress) {
+    const maxPhaseVal = OperatorEditModal.maxPhase(op);
+    const phase = typeof progress.evolvePhase === "number" ? Math.max(0, Math.min(progress.evolvePhase, maxPhaseVal)) : 0;
+    const phaseData = Array.isArray(op.phases) && op.phases[phase];
+    const maxLevel = phaseData && phaseData.maxLevel ? phaseData.maxLevel : 1;
+    const level = typeof progress.level === "number" ? Math.max(1, Math.min(progress.level, maxLevel)) : 1;
+    const hasSkills = OperatorEditModal.hasSkills(op);
+    const skillLevel =
+      hasSkills && typeof progress.mainSkillLvl === "number" ? Math.max(1, Math.min(progress.mainSkillLvl, 7)) : 1;
+
+    const specializeBySkillId = {};
+    if (Array.isArray(progress.skills)) {
+      progress.skills.forEach((s) => {
+        if (s && s.skillId) specializeBySkillId[s.skillId] = s.specializeLevel || 0;
+      });
+    }
+    const mastery = {};
+    (op.skills || []).forEach((ref, idx) => {
+      const cap = ref && ref.levelUpCostCond ? ref.levelUpCostCond.length : 0;
+      if (!cap) return;
+      mastery[idx] = Math.max(0, Math.min(specializeBySkillId[ref.skillId] || 0, cap));
+    });
+
+    const modules = {};
+    (op.modules || []).forEach((mod) => {
+      const v = (progress.modules && progress.modules[mod.uniEquipId]) || 0;
+      modules[mod.uniEquipId] = Math.max(0, Math.min(v, 3));
+    });
+
+    return { phase, level, skillLevel, mastery, modules };
+  }
+
   addToPlannerBtn.addEventListener("click", () => {
     const op = charTable && charTable[currentCharId];
     if (!op) return;
@@ -1284,7 +1344,7 @@
     if (!entry) {
       entry = {
         charId: op.charId,
-        current: OperatorEditModal.defaultState(),
+        current: currentIsOwned && currentProgress ? stateFromProgress(op, currentProgress) : OperatorEditModal.defaultState(),
         target: OperatorEditModal.defaultTargetState(op),
       };
       roster = roster.concat([entry]);
@@ -1380,6 +1440,7 @@
     currentIsOwned = !!(ownedSet && ownedSet.has(op.charId));
     currentProgress = currentIsOwned ? getAccountProgress(op.charId) : null;
     updateStatsViewToggle();
+    renderOwnedSummary(op);
 
     renderReleaseInfo(op);
     renderTalents(op);

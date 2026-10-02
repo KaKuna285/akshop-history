@@ -76,6 +76,73 @@ const AccountSync = (function () {
     return all && charId && all[charId] ? all[charId] : null;
   }
 
+  // --- shared progress formatting -------------------------------------
+  // Turns one owned operator's synced progress into short display
+  // strings -- shared by the operator page's header summary and the
+  // /account overview page's roster table, so the two can't end up
+  // describing the same operator two different ways. `op` is a
+  // character_table.json record merged the way OperatorEditModal.
+  // loadCharTable() returns it (op.skills[].levelUpCostCond and
+  // op.modules both need to be present); `progress` is one entry from
+  // ownedOperatorProgress (see cloudflare/depot-import.js's
+  // extractOwnedOperatorProgress()).
+
+  // "Skill 7 (M2/M0)" below Skill Level 7 every skill shares the same
+  // level, so just that; at 7, each masterable skill's own mastery rank
+  // (0 if none picked yet) is listed in op.skills' own order. Returns
+  // null (not a placeholder string) when there's nothing to say, so
+  // callers can tell "no data" apart from a real "Skill 1".
+  function formatSkillSummary(op, progress) {
+    if (!progress || typeof progress.mainSkillLvl !== "number") return null;
+    if (progress.mainSkillLvl < 7) return `Skill ${progress.mainSkillLvl}`;
+    const masteries = (Array.isArray(op && op.skills) ? op.skills : [])
+      .map((ref) => {
+        const cap = ref && ref.levelUpCostCond ? ref.levelUpCostCond.length : 0;
+        if (!cap) return null;
+        const entry = Array.isArray(progress.skills)
+          ? progress.skills.find((s) => s && s.skillId === ref.skillId)
+          : null;
+        return `M${(entry && entry.specializeLevel) || 0}`;
+      })
+      .filter(Boolean);
+    return masteries.length ? `Skill 7 (${masteries.join("/")})` : "Skill 7";
+  }
+
+  // "Reflexive Thinking Stage 2" (really "<typeName2> <stage>", since
+  // typeName2 -- "A", "B", ... -- is what the Stats section's own Module
+  // dropdown already labels modules with) for whichever module is
+  // actually equipped (see cloudflare/depot-import.js's
+  // extractOwnedOperatorProgress() comment on `currentEquip` for why
+  // only one counts). null when nothing's equipped, or the equipped
+  // module isn't one of this operator's actual modules (stale data).
+  function formatModuleSummary(op, progress) {
+    if (!progress || !progress.currentEquip || !progress.modules) return null;
+    const stage = progress.modules[progress.currentEquip];
+    if (!stage) return null;
+    const mod = (Array.isArray(op && op.modules) ? op.modules : []).find(
+      (m) => m.uniEquipId === progress.currentEquip,
+    );
+    if (!mod) return null;
+    return `${mod.typeName2 || "Module"} ${stage}`;
+  }
+
+  // The single-line "Owned · E1 · Lv55 · Potential 3 · Skill 7 (M2) ·
+  // Reflexive Thinking Stage 2" summary -- "Owned" alone when there's no
+  // progress to describe (an older sync, or a Worker not yet redeployed
+  // with this field).
+  function formatInvestmentSummary(op, progress) {
+    if (!progress) return "Owned";
+    const parts = [];
+    if (typeof progress.evolvePhase === "number") parts.push(`E${progress.evolvePhase}`);
+    if (typeof progress.level === "number") parts.push(`Lv${progress.level}`);
+    if (typeof progress.potentialRank === "number") parts.push(`Potential ${progress.potentialRank + 1}`);
+    const skill = formatSkillSummary(op, progress);
+    if (skill) parts.push(skill);
+    const mod = formatModuleSummary(op, progress);
+    if (mod) parts.push(mod);
+    return parts.length ? `Owned · ${parts.join(" · ")}` : "Owned";
+  }
+
   // --- nav badge ----------------------------------------------------
 
   // Inserts (or updates, or removes) a small "Synced as <name>" link
@@ -97,14 +164,20 @@ const AccountSync = (function () {
       badge = document.createElement("a");
       badge.id = "accountNavBadge";
       badge.className = "accountNavBadge";
-      badge.href = "/";
+      // Points at the read-only overview page (see /account/index.html +
+      // js/account-page.js) rather than the home page -- the sync form
+      // itself still only lives there (and /account links back to it to
+      // re-sync), but "click your own name" reading as "see your
+      // account" is the more useful default once there's somewhere to
+      // land.
+      badge.href = "/account/";
       const firstIconButton = navRight.querySelector(".rightButton");
       navRight.insertBefore(badge, firstIconButton || null);
     }
     badge.textContent = account.level != null
       ? `${account.nickname} (Lv ${account.level})`
       : account.nickname;
-    badge.title = "Synced Arknights account -- manage on the home page";
+    badge.title = "Synced Arknights account -- view your account overview";
   }
 
   // --- a compact status line, for Planner's Depot tab ----------------
@@ -234,7 +307,13 @@ const AccountSync = (function () {
       const label = account.level != null
         ? `${account.nickname} (Lv ${account.level})`
         : account.nickname;
-      syncedTextEl.textContent = `Synced as ${label}.`;
+      syncedTextEl.textContent = "";
+      syncedTextEl.appendChild(document.createTextNode(`Synced as ${label}. `));
+      const overviewLink = document.createElement("a");
+      overviewLink.href = "/account/";
+      overviewLink.textContent = "View your account overview";
+      syncedTextEl.appendChild(overviewLink);
+      syncedTextEl.appendChild(document.createTextNode("."));
       syncedViewEl.classList.remove("hidden");
       formEl.classList.add("hidden");
     }
@@ -378,6 +457,9 @@ const AccountSync = (function () {
     saveAccount,
     getOwnedOperators,
     getOperatorProgress,
+    formatSkillSummary,
+    formatModuleSummary,
+    formatInvestmentSummary,
     renderNavBadge,
     renderStatusLine,
     mount,
