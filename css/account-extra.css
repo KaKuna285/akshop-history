@@ -280,24 +280,38 @@
 }
 
 /* --- Medal detail panel -------------------------------------------------
-   Opens inline (not a floating overlay) right above the grid when a chip
-   is clicked -- same pattern as the calendar page's #eventPreview (see
-   css/calendar-extra.css), reused here as its own copy since pages don't
-   share a stylesheet. */
+   A true modal popup now (was an inline panel at the top of the page) --
+   same overlay pattern as the shared operator edit modal (see
+   css/operator-edit-modal.css's .modalOverlay/.modalPanel), reused here
+   as its own copy since pages don't share a stylesheet. Opens on clicking
+   any medal chip. */
 
-.medalPreview {
-  display: none;
-  position: relative;
-  margin: 0 0 14px;
-  padding: 14px 40px 14px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-left: 4px solid var(--medal-rarity-color, #f8d511);
-  border-radius: 10px;
+.medalPreviewOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 100;
 }
 
-.medalPreview.visible {
-  display: block;
+.medalPreviewOverlay.hidden {
+  display: none;
+}
+
+.medalPreview {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  margin: 0;
+  padding: 14px 40px 14px 14px;
+  background: #232323;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 4px solid var(--medal-rarity-color, #f8d511);
+  border-radius: 12px;
 }
 
 .medalPreviewClose {
@@ -339,8 +353,9 @@
 
 .medalPreviewIcon {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  position: relative;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -349,10 +364,16 @@
   color: var(--medal-rarity-color, #f8d511);
 }
 
+/* fa-medal glyph fallback -- always rendered underneath; the real
+   in-game icon (.medalPreviewIconImg below) sits on top of it and hides
+   it once/if that image actually loads. No third-party mirror of medal
+   art was confirmed reliable enough to chain as a *second* fallback the
+   way setIconWithFallback() in util.js does for operator art, so this
+   glyph is the only fallback -- see js/account-page.js's uri_medal(). */
 .medalPreviewIcon::before {
   font-family: "Font Awesome 5 Free";
   font-weight: 900;
-  font-size: 1rem;
+  font-size: 1.1rem;
   content: "\f5a2"; /* fa-medal */
   -webkit-font-smoothing: antialiased;
   display: inline-block;
@@ -360,6 +381,17 @@
   font-variant: normal;
   text-rendering: auto;
   line-height: 1;
+}
+
+.medalPreviewIconImg {
+  display: none; /* shown via JS only once it's actually loaded -- see
+                     js/account-page.js's showMedalPreview() */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
 }
 
 .medalPreviewName {
@@ -407,6 +439,73 @@
 
 .medalPreviewGetMethod:empty::before {
   content: none;
+}
+
+.medalPreviewRequires {
+  font-size: 0.8rem;
+  color: #aaa;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.medalPreviewRequires::before {
+  content: "Requires: ";
+  color: #777;
+}
+
+.medalPreviewRequires:empty {
+  display: none;
+}
+
+.medalPreviewRequires:empty::before {
+  content: none;
+}
+
+/* --- Annihilation sub-groups (one per in-game operation) ----------------
+   Only the Annihilation (campMedal) main group nests a second heading
+   level -- each real-world Annihilation Operation release gets its own
+   mini-heading, with medals that couldn't be matched to a specific
+   operation (see js/account-page.js's groupCampMedalsByEvent()) shown
+   first under a generic one. Indented slightly so it reads as nested
+   under the main "Annihilation" heading above it rather than a sibling
+   of equal weight. */
+.accountPageMedalEventGroup {
+  margin: 8px 0 8px 4px;
+}
+
+.accountPageMedalEventHeading {
+  font-size: 0.72rem;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.accountPageMedalEventHeading .accountPageMedalGroupCount {
+  color: #777;
+}
+
+/* --- "Hide unobtainable" toggle ------------------------------------------
+   Only shown once the medals section actually has a known-unobtainable
+   entry to hide (see js/account-page.js's MANUALLY_UNOBTAINABLE_MEDAL_IDS
+   -- there's no reliable data field for this, so it's a manually
+   maintained list; this control is pointless clutter when that list has
+   nothing relevant to the current catalog). */
+.accountPageHideUnobtainableLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #aaa;
+  margin-bottom: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.accountPageHideUnobtainableLabel.hidden {
+  display: none;
+}
+
+.accountPageHideUnobtainableLabel input {
+  cursor: pointer;
 }
 
 /* --- Roster section ------------------------------------------------------ */
@@ -569,5 +668,9 @@
 
   .medalChip {
     max-width: 130px;
+  }
+
+  .medalPreviewOverlay {
+    padding: 16px 10px;
   }
 }

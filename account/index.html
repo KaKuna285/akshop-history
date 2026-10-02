@@ -142,25 +142,37 @@
             <div id="accountPageMedalsBarFill" class="accountPageMedalsBarFill"></div>
           </div>
 
-          <!-- Opens on clicking any medal chip below -- the name, flavor
-               text and "how to obtain" all live here instead of on the
-               chip itself, so the grid stays scannable. A hidden
-               (isHidden), not-yet-obtained medal's real name/description/
-               getMethod ONLY ever show up in here, after a deliberate
-               click -- the chip itself always just says "???" so browsing
-               the grid doesn't spoil anything by accident. See
-               js/account-page.js's showMedalPreview(). -->
-          <div id="medalPreview" class="medalPreview">
-            <button type="button" id="medalPreviewClose" class="medalPreviewClose" aria-label="Close"></button>
-            <div class="medalPreviewHeader">
-              <span id="medalPreviewIcon" class="medalPreviewIcon"></span>
-              <div class="medalPreviewHeaderText">
-                <div id="medalPreviewName" class="medalPreviewName"></div>
-                <div id="medalPreviewMeta" class="medalPreviewMeta"></div>
+          <label id="accountPageHideUnobtainableLabel" class="accountPageHideUnobtainableLabel hidden">
+            <input type="checkbox" id="accountPageHideUnobtainable" />
+            Hide medals I can no longer obtain
+          </label>
+
+          <!-- Opens on clicking any medal chip below, as a modal popup
+               (same overlay pattern as the shared operator edit modal --
+               see css/operator-edit-modal.css) -- the name, icon, flavor
+               text, "how to obtain" and any prerequisite medals all live
+               here instead of on the chip itself, so the grid stays
+               scannable. A hidden (isHidden), not-yet-obtained medal's
+               real name/description/getMethod ONLY ever show up in here,
+               after a deliberate click -- the chip itself always just
+               says "???" so browsing the grid doesn't spoil anything by
+               accident. See js/account-page.js's showMedalPreview(). -->
+          <div id="medalPreviewOverlay" class="medalPreviewOverlay hidden">
+            <div id="medalPreview" class="medalPreview" role="dialog" aria-modal="true" aria-labelledby="medalPreviewName">
+              <button type="button" id="medalPreviewClose" class="medalPreviewClose" aria-label="Close"></button>
+              <div class="medalPreviewHeader">
+                <span id="medalPreviewIcon" class="medalPreviewIcon">
+                  <img id="medalPreviewIconImg" class="medalPreviewIconImg" alt="" />
+                </span>
+                <div class="medalPreviewHeaderText">
+                  <div id="medalPreviewName" class="medalPreviewName"></div>
+                  <div id="medalPreviewMeta" class="medalPreviewMeta"></div>
+                </div>
               </div>
+              <div id="medalPreviewDescription" class="medalPreviewDescription"></div>
+              <div id="medalPreviewGetMethod" class="medalPreviewGetMethod"></div>
+              <div id="medalPreviewRequires" class="medalPreviewRequires"></div>
             </div>
-            <div id="medalPreviewDescription" class="medalPreviewDescription"></div>
-            <div id="medalPreviewGetMethod" class="medalPreviewGetMethod"></div>
           </div>
 
           <div id="accountPageMedalsGroups" class="accountPageMedalsGroups"></div>

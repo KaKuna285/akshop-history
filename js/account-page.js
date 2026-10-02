@@ -29,13 +29,17 @@
   const medalsBarEl = document.getElementById("accountPageMedalsBar");
   const medalsBarFillEl = document.getElementById("accountPageMedalsBarFill");
   const medalsGroupsEl = document.getElementById("accountPageMedalsGroups");
+  const hideUnobtainableLabelEl = document.getElementById("accountPageHideUnobtainableLabel");
+  const hideUnobtainableEl = document.getElementById("accountPageHideUnobtainable");
+  const medalPreviewOverlayEl = document.getElementById("medalPreviewOverlay");
   const medalPreviewEl = document.getElementById("medalPreview");
   const medalPreviewCloseBtn = document.getElementById("medalPreviewClose");
-  const medalPreviewIconEl = document.getElementById("medalPreviewIcon");
+  const medalPreviewIconImgEl = document.getElementById("medalPreviewIconImg");
   const medalPreviewNameEl = document.getElementById("medalPreviewName");
   const medalPreviewMetaEl = document.getElementById("medalPreviewMeta");
   const medalPreviewDescriptionEl = document.getElementById("medalPreviewDescription");
   const medalPreviewGetMethodEl = document.getElementById("medalPreviewGetMethod");
+  const medalPreviewRequiresEl = document.getElementById("medalPreviewRequires");
 
   const tabBtnRoster = document.getElementById("tabBtnRoster");
   const tabBtnMedals = document.getElementById("tabBtnMedals");
@@ -136,29 +140,33 @@
   // this gates the entire section on AccountSync.getObtainedMedals() not
   // being null rather than ever showing a confidently-wrong 0%.
 
-  // Small local label map, same "own small helper per consumer" reasoning
-  // operator-edit-modal.js already uses for its own enum labels -- plus a
-  // humanizing fallback for any medalType this map doesn't know about yet
-  // (new medal types get added to the game after this list was written).
-  // "Events" rather than a literal "Camp" for campMedal -- these are each
-  // a specific time-limited Annihilation Operation (see their own
-  // displayTime/getMethod text), which is what "grouped by events" means
-  // here: there's no separate event-id field in the catalog data (medal_
-  // table.json has no such field at all, confirmed while building this),
-  // so each campMedal entry already *is* one event's medal.
+  // Label map matching the real in-game "Path to Glory" menu names, named
+  // per medalType. IMPORTANT, confirmed by directly re-inspecting
+  // medal_table.json (multiple mirrors, exhaustive distinct-value search):
+  // this file only EVER contains 3 medalType values -- playerMedal,
+  // stageMedal, campMedal. The in-game menu actually has ten tabs (Records,
+  // Episodes, Annihilation, SSS, Progress, Chronicles, Traveler From Afar,
+  // Base, Event, Secret) -- the other seven (SSS/Tower, Progress/Growth,
+  // Chronicles/Story, Traveler From Afar/Rogue, Base/Build, Event/Activity)
+  // are tracked through entirely separate subsystem tables (roguelike,
+  // tower, infrastructure, activity rewards) that this site doesn't read
+  // at all, so there's no data here to show them from -- they're left out
+  // entirely rather than shown as a permanently-empty category, which
+  // would misleadingly read as "you have 0 of these" instead of "this site
+  // can't see these yet". "Secret" also isn't its own medalType -- it's
+  // the existing isHidden flag, pulled out into its own group below
+  // (see renderMedalsSection()) for any medal that's both hidden and not
+  // yet obtained, same as the real menu does.
   const MEDAL_TYPE_NAMES = {
-    playerMedal: "Player",
-    stageMedal: "Stage Clears",
-    campMedal: "Events",
+    playerMedal: "Records Medal",
+    stageMedal: "Episodes Medal",
+    campMedal: "Annihilation",
   };
-
-  // campMedal entries are each tied to one specific (often time-limited)
-  // Annihilation Operation -- sorted newest-first by displayTime so the
-  // most relevant/current ones surface without having to scroll past
-  // years of old rotations. Player/Stage medals keep the catalog's own
-  // order (already a sensible progression -- level thresholds and
-  // episode numbers ascending), so no sort is applied there.
-  const SORT_NEWEST_FIRST = { campMedal: true };
+  // Render order for the known types; anything else (a brand new medalType
+  // the game adds later) falls back to humanizeMedalType() below and is
+  // appended after these, in first-seen order -- see renderMedalsSection().
+  const MEDAL_TYPE_ORDER = ["playerMedal", "stageMedal", "campMedal"];
+  const SECRET_GROUP_LABEL = "Secret Medal";
 
   function humanizeMedalType(type) {
     const words = String(type || "")
@@ -168,6 +176,19 @@
     if (!words) return "Other";
     return words.charAt(0).toUpperCase() + words.slice(1);
   }
+
+  // There's no reliable data field marking a medal as permanently missed
+  // (expireTimes exists but wasn't confirmed to mean that, and plenty of
+  // non-expired medals have odd values there too) -- same "no trustworthy
+  // signal, so maintain it by hand" situation as util.js's own
+  // LINKAGE_LIMITEDS list. Add a medalId below (see a medal's own id in
+  // the catalog) for anything you've confirmed is gone for good, and the
+  // "hide medals I can no longer obtain" toggle (only shown once this list
+  // actually has something in it) will filter it out of both the grid and
+  // the overall/group counts.
+  const MANUALLY_UNOBTAINABLE_MEDAL_IDS = new Set([
+    // "medal_camp_rotate_05",
+  ]);
 
   // Same 3-tier grey/blue/gold scale operator rarity already uses
   // elsewhere on the site (css/operator-extra.css's --rarity-color for
@@ -190,6 +211,49 @@
   // already) can still look up that medal's obtained entry.
   let obtainedMedals = null;
 
+  // The last-loaded catalog, medalId -> medal, kept at module scope so
+  // showMedalPreview() can resolve a "meta" medal's preMedalIdList (see
+  // below) into the names of the medals it requires.
+  let medalById = new Map();
+
+  // --- Annihilation (campMedal) sub-grouping by event ---------------------
+  // medal_table.json has no dedicated event/collection field (confirmed
+  // while building this) -- unlockParam[0] is the closest thing to a
+  // stable per-real-world-Operation identifier (e.g. "camp_01" for a
+  // permanent chapter, "camp_r_05" for a rotating one), reused here as
+  // the grouping key. A medal missing that (shouldn't normally happen for
+  // this type, but stay defensive) goes in its own "no event" bucket,
+  // shown first -- same placement described seeing in-game.
+  const EVENT_LABEL_SUFFIXES = [/ Annihilation Medal$/, / Operation Medal$/, / Medal$/];
+  function eventLabelFor(medal) {
+    const name = medal.medalName || "";
+    for (const suffix of EVENT_LABEL_SUFFIXES) {
+      const stripped = name.replace(suffix, "");
+      if (stripped && stripped !== name) return stripped;
+    }
+    return name || "Unknown operation";
+  }
+  function groupCampMedalsByEvent(medals) {
+    const order = [];
+    const groups = new Map();
+    medals.forEach((medal) => {
+      const key = medal.unlockParam && medal.unlockParam[0] ? medal.unlockParam[0] : null;
+      if (!groups.has(key)) {
+        groups.set(key, { label: key === null ? null : eventLabelFor(medal), medals: [], maxDisplayTime: -Infinity });
+        order.push(key);
+      }
+      const g = groups.get(key);
+      g.medals.push(medal);
+      if (typeof medal.displayTime === "number" && medal.displayTime > g.maxDisplayTime) {
+        g.maxDisplayTime = medal.displayTime;
+      }
+    });
+    const noEvent = groups.has(null) ? [groups.get(null)] : [];
+    const withEvent = order.filter((k) => k !== null).map((k) => groups.get(k));
+    withEvent.sort((a, b) => b.maxDisplayTime - a.maxDisplayTime);
+    return noEvent.concat(withEvent);
+  }
+
   // --- medal detail panel --------------------------------------------
   // Opens on clicking any medal chip -- see #medalPreview in account/
   // index.html and its own comment there. A hidden (isHidden), not-yet-
@@ -211,9 +275,38 @@
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
+  // preMedalIdList (a "meta" medal's prerequisites, e.g. a Talent
+  // Recognition Medal II that requires I first) is an array of medalId
+  // strings when populated -- confirmed via real chained examples while
+  // building this. When a medal has none, the raw JSON can come back as
+  // an empty `{}` object rather than `[]` (a known datamining quirk of
+  // this game's empty List fields), so this treats anything that isn't a
+  // real array as "no prerequisites" rather than erroring on it.
+  function requiredMedalNames(medal) {
+    const ids = Array.isArray(medal.preMedalIdList) ? medal.preMedalIdList : [];
+    return ids.map((id) => {
+      const req = medalById.get(id);
+      return (req && req.medalName) || id;
+    });
+  }
+
   function showMedalPreview(medal, obtainedEntry) {
     const rarityColor = MEDAL_RARITY_COLORS[medal.rarity] || "#f8d511";
     medalPreviewEl.style.setProperty("--medal-rarity-color", rarityColor);
+
+    // The real in-game icon -- shown only once (if) it actually loads;
+    // the fa-medal glyph underneath (.medalPreviewIcon::before, in css/
+    // account-extra.css) stays the permanent fallback, since no second
+    // mirror is known to carry these the way operator art has one (see
+    // js/util.js's uri_medal()).
+    medalPreviewIconImgEl.onload = () => {
+      medalPreviewIconImgEl.style.display = "block";
+    };
+    medalPreviewIconImgEl.onerror = () => {
+      medalPreviewIconImgEl.style.display = "none";
+    };
+    medalPreviewIconImgEl.style.display = "none";
+    medalPreviewIconImgEl.src = uri_medal(medal.medalId);
 
     medalPreviewNameEl.textContent = medal.medalName || "Medal";
 
@@ -233,29 +326,28 @@
 
     medalPreviewDescriptionEl.textContent = medal.description || "";
     medalPreviewGetMethodEl.textContent = medal.getMethod || "";
+    medalPreviewRequiresEl.textContent = requiredMedalNames(medal).join(", ");
 
-    medalPreviewEl.classList.add("visible");
-    medalPreviewEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    medalPreviewOverlayEl.classList.remove("hidden");
+    medalPreviewOverlayEl.scrollTop = 0;
   }
 
   function hideMedalPreview() {
-    medalPreviewEl.classList.remove("visible");
+    medalPreviewOverlayEl.classList.add("hidden");
   }
 
   medalPreviewCloseBtn.addEventListener("click", hideMedalPreview);
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") hideMedalPreview();
+    if (e.key === "Escape" && !medalPreviewOverlayEl.classList.contains("hidden")) hideMedalPreview();
   });
 
-  // Closes the preview on a click anywhere outside it -- same pattern as
-  // the calendar page's #eventPreview (see js/calendar.js). Chip clicks
-  // stop propagation (see renderMedalChip() below) so opening one
-  // doesn't immediately close itself via this same listener.
-  document.addEventListener("click", (e) => {
-    if (!medalPreviewEl.classList.contains("visible")) return;
-    if (medalPreviewEl.contains(e.target)) return;
-    hideMedalPreview();
+  // A popup modal now (was an inline panel at the top of the page) --
+  // same overlay-click-to-close pattern as the shared operator edit
+  // modal (see js/operator-edit-modal.js's ensureDom()): only closes when
+  // the click lands on the backdrop itself, not anything inside the panel.
+  medalPreviewOverlayEl.addEventListener("click", (e) => {
+    if (e.target === medalPreviewOverlayEl) hideMedalPreview();
   });
 
   function renderMedalChip(medal) {
@@ -278,8 +370,7 @@
     nameEl.textContent = isHidden ? "???" : medal.medalName || "Medal";
     chip.appendChild(nameEl);
 
-    chip.addEventListener("click", (e) => {
-      e.stopPropagation();
+    chip.addEventListener("click", () => {
       // Always the real medal, even when still hidden+unobtained -- "the
       // chip says ???" and "clicking it reveals what it actually is" are
       // two different, deliberate states; only the chip itself stays
@@ -290,12 +381,33 @@
     return chip;
   }
 
+  // Builds one "(obtained / total)" heading element -- shared by both the
+  // main medalType groups and each Annihilation event sub-group below.
+  function buildGroupHeading(label, obtainedCount, total, headingClass, countClass) {
+    const headingEl = document.createElement("div");
+    headingEl.className = headingClass;
+    headingEl.textContent = `${label} `;
+    const countEl = document.createElement("span");
+    countEl.className = countClass;
+    countEl.textContent = `(${obtainedCount} / ${total})`;
+    headingEl.appendChild(countEl);
+    return headingEl;
+  }
+
+  function buildChipsRow(medals) {
+    const chipsEl = document.createElement("div");
+    chipsEl.className = "accountPageMedalChips";
+    medals.forEach((medal) => chipsEl.appendChild(renderMedalChip(medal)));
+    return chipsEl;
+  }
+
   async function renderMedalsSection() {
     obtainedMedals = AccountSync.getObtainedMedals();
     if (!obtainedMedals) {
       medalsCountEl.textContent = "—";
       medalsBarEl.classList.add("hidden");
       medalsGroupsEl.innerHTML = "";
+      hideUnobtainableLabelEl.classList.add("hidden");
       hideMedalPreview();
       medalsNoDataEl.classList.remove("hidden");
       return;
@@ -303,55 +415,108 @@
 
     try {
       const medalList = await loadMedalTable();
+      medalById = new Map(
+        medalList.filter((m) => m && typeof m.medalId === "string").map((m) => [m.medalId, m]),
+      );
 
-      // Group by medalType, preserving medalList's own order across
-      // groups (first-seen order); within a group, SORT_NEWEST_FIRST
-      // types sort by displayTime descending, everything else keeps the
-      // catalog's own order (see SORT_NEWEST_FIRST's comment above).
-      const order = [];
-      const groups = new Map();
-      medalList.forEach((medal) => {
-        if (!medal || typeof medal.medalId !== "string") return;
-        const type = medal.medalType || "";
-        if (!groups.has(type)) {
-          groups.set(type, []);
-          order.push(type);
-        }
-        groups.get(type).push(medal);
+      // Only worth showing the toggle at all once the manually-maintained
+      // override list (see its own comment above) actually has something
+      // in it -- otherwise it's a control that visibly does nothing.
+      hideUnobtainableLabelEl.classList.toggle("hidden", MANUALLY_UNOBTAINABLE_MEDAL_IDS.size === 0);
+      const hideUnobtainable = hideUnobtainableEl.checked;
+
+      // "Of what's still obtainable" when the toggle is on -- a medal
+      // that's gone for good shouldn't count against you, so it's
+      // dropped from both the grid AND the overall/group totals below,
+      // not just hidden visually. A medal you already obtained before it
+      // went away is never dropped by this, regardless of the toggle.
+      const visibleMedals = medalList.filter((medal) => {
+        if (!medal || typeof medal.medalId !== "string") return false;
+        if (!hideUnobtainable) return true;
+        const obtained = !!obtainedMedals[medal.medalId];
+        return obtained || !MANUALLY_UNOBTAINABLE_MEDAL_IDS.has(medal.medalId);
       });
+
+      // Pull out "Secret Medal" first -- any medal that's both still
+      // hidden (isHidden) AND not yet obtained, regardless of its
+      // medalType, same as the real "Path to Glory" menu's own Secret
+      // tab. Once obtained, a formerly-hidden medal moves into its real
+      // type group below instead (it's no longer a secret).
+      const secretMedals = [];
+      const typedGroups = new Map();
+      const typeOrder = [];
+      visibleMedals.forEach((medal) => {
+        const obtained = !!obtainedMedals[medal.medalId];
+        if (!obtained && medal.isHidden) {
+          secretMedals.push(medal);
+          return;
+        }
+        const type = medal.medalType || "";
+        if (!typedGroups.has(type)) {
+          typedGroups.set(type, []);
+          typeOrder.push(type);
+        }
+        typedGroups.get(type).push(medal);
+      });
+
+      const renderOrder = MEDAL_TYPE_ORDER.filter((t) => typedGroups.has(t)).concat(
+        typeOrder.filter((t) => !MEDAL_TYPE_ORDER.includes(t)),
+      );
 
       let totalKnown = 0;
       let totalObtained = 0;
       medalsGroupsEl.innerHTML = "";
 
-      order.forEach((type) => {
-        const medals = groups.get(type).slice();
-        if (SORT_NEWEST_FIRST[type]) {
-          medals.sort((a, b) => (b.displayTime || 0) - (a.displayTime || 0));
-        }
+      renderOrder.forEach((type) => {
+        const medals = typedGroups.get(type);
         const obtainedInGroup = medals.filter((m) => obtainedMedals[m.medalId]).length;
         totalKnown += medals.length;
         totalObtained += obtainedInGroup;
 
+        const label = MEDAL_TYPE_NAMES[type] || humanizeMedalType(type);
         const groupEl = document.createElement("div");
         groupEl.className = "accountPageMedalGroup";
+        groupEl.appendChild(
+          buildGroupHeading(label, obtainedInGroup, medals.length, "accountPageMedalGroupHeading", "accountPageMedalGroupCount"),
+        );
 
-        const headingEl = document.createElement("div");
-        headingEl.className = "accountPageMedalGroupHeading";
-        headingEl.textContent = `${MEDAL_TYPE_NAMES[type] || humanizeMedalType(type)} `;
-        const countEl = document.createElement("span");
-        countEl.className = "accountPageMedalGroupCount";
-        countEl.textContent = `(${obtainedInGroup} / ${medals.length})`;
-        headingEl.appendChild(countEl);
-        groupEl.appendChild(headingEl);
-
-        const chipsEl = document.createElement("div");
-        chipsEl.className = "accountPageMedalChips";
-        medals.forEach((medal) => chipsEl.appendChild(renderMedalChip(medal)));
-        groupEl.appendChild(chipsEl);
+        if (type === "campMedal") {
+          // Annihilation nests one level deeper -- a mini-heading per
+          // real-world Operation (see groupCampMedalsByEvent() above),
+          // with medals that couldn't be matched to one shown first.
+          groupCampMedalsByEvent(medals).forEach((eventGroup) => {
+            const obtainedInEvent = eventGroup.medals.filter((m) => obtainedMedals[m.medalId]).length;
+            const eventEl = document.createElement("div");
+            eventEl.className = "accountPageMedalEventGroup";
+            eventEl.appendChild(
+              buildGroupHeading(
+                eventGroup.label || "Other",
+                obtainedInEvent,
+                eventGroup.medals.length,
+                "accountPageMedalEventHeading",
+                "accountPageMedalGroupCount",
+              ),
+            );
+            eventEl.appendChild(buildChipsRow(eventGroup.medals));
+            groupEl.appendChild(eventEl);
+          });
+        } else {
+          groupEl.appendChild(buildChipsRow(medals));
+        }
 
         medalsGroupsEl.appendChild(groupEl);
       });
+
+      if (secretMedals.length) {
+        totalKnown += secretMedals.length; // obtainedInGroup is always 0 here, by construction
+        const groupEl = document.createElement("div");
+        groupEl.className = "accountPageMedalGroup";
+        groupEl.appendChild(
+          buildGroupHeading(SECRET_GROUP_LABEL, 0, secretMedals.length, "accountPageMedalGroupHeading", "accountPageMedalGroupCount"),
+        );
+        groupEl.appendChild(buildChipsRow(secretMedals));
+        medalsGroupsEl.appendChild(groupEl);
+      }
 
       medalsNoDataEl.classList.add("hidden");
       medalsBarEl.classList.remove("hidden");
@@ -361,6 +526,7 @@
       console.error("Failed to load medal catalog for the account overview:", err);
       medalsBarEl.classList.add("hidden");
       medalsGroupsEl.innerHTML = "";
+      hideUnobtainableLabelEl.classList.add("hidden");
       hideMedalPreview();
       medalsCountEl.textContent = "—";
       medalsNoDataEl.textContent = "Couldn't load medal data right now -- try refreshing.";
@@ -447,6 +613,13 @@
     renderRoster();
   });
 
+  hideUnobtainableEl.addEventListener("change", () => {
+    setPref("account", "hideUnobtainableMedals", hideUnobtainableEl.checked);
+    renderMedalsSection().catch((err) => {
+      console.error("Unexpected error re-rendering the medals section:", err);
+    });
+  });
+
   async function init() {
     const account = AccountSync.getAccount();
     if (!account) {
@@ -457,6 +630,8 @@
 
     renderProfile(account);
     switchTab(loadActiveTabPref());
+
+    hideUnobtainableEl.checked = getPref("account", "hideUnobtainableMedals", false, (v) => typeof v === "boolean");
 
     // Runs independently of the roster load below -- a failed medal
     // catalog fetch (or no medal data in this sync) shouldn't block the

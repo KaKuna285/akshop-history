@@ -207,6 +207,25 @@ function uri_image(imageName, source = ASSET_SOURCE.LOCAL) {
       return ASSET_SOURCE.ARKWAIFU.replace(/REPLACEME/, imageName);
   }
 }
+// Medal (achievement) icons -- used by the account overview page's medal
+// detail popup. Neither of this project's usual two mirrors (LOCAL/
+// akgcc-arkdata, ACESHIP/Arknight-Images) carries these; the only mirror
+// found to actually serve them, tested against several real medalIds, is
+// fexli/ArknightsResource's own medal/ folder (auto-synced from the
+// official client), keyed directly by the full medalId string. No second
+// mirror is known to fall back to here, unlike uri_avatar() and friends --
+// callers should hide the <img> on error rather than chain a fallback src.
+function uri_medal(medalId) {
+  // Lowercase ONLY the id, not the whole URL -- unlike the LOCAL/ACESHIP
+  // mirrors above (whose repo-path portions are already all-lowercase,
+  // so chaining .toLowerCase() across the whole string was always a
+  // no-op there), this repo/owner path ("fexli/ArknightsResource") is
+  // mixed-case and genuinely case-sensitive on GitHub/jsdelivr -- naively
+  // reusing that same whole-string .toLowerCase() pattern here would 404
+  // every request.
+  return `https://cdn.jsdelivr.net/gh/fexli/ArknightsResource@master/medal/${medalId.toLowerCase()}.png`;
+}
+
 function uri_character(imageName, source = ASSET_SOURCE.LOCAL) {
   switch (source) {
     case ASSET_SOURCE.LOCAL:
