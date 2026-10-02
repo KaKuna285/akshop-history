@@ -141,31 +141,49 @@
   // being null rather than ever showing a confidently-wrong 0%.
 
   // Label map matching the real in-game "Path to Glory" menu names, named
-  // per medalType. IMPORTANT, confirmed by directly re-inspecting
-  // medal_table.json (multiple mirrors, exhaustive distinct-value search):
-  // this file only EVER contains 3 medalType values -- playerMedal,
-  // stageMedal, campMedal. The in-game menu actually has ten tabs (Records,
-  // Episodes, Annihilation, SSS, Progress, Chronicles, Traveler From Afar,
-  // Base, Event, Secret) -- the other seven (SSS/Tower, Progress/Growth,
-  // Chronicles/Story, Traveler From Afar/Rogue, Base/Build, Event/Activity)
-  // are tracked through entirely separate subsystem tables (roguelike,
-  // tower, infrastructure, activity rewards) that this site doesn't read
-  // at all, so there's no data here to show them from -- they're left out
-  // entirely rather than shown as a permanently-empty category, which
-  // would misleadingly read as "you have 0 of these" instead of "this site
-  // can't see these yet". "Secret" also isn't its own medalType -- it's
-  // the existing isHidden flag, pulled out into its own group below
-  // (see renderMedalsSection()) for any medal that's both hidden and not
-  // yet obtained, same as the real menu does.
+  // per medalType. A previous pass through this file concluded (via a
+  // large-file fetch of medal_table.json) that the catalog only ever had
+  // 3 medalType values -- that conclusion was WRONG, caught and corrected
+  // after a follow-up report, by re-reading the live catalog through an
+  // actual browser fetch instead (the earlier read is now understood to
+  // have silently truncated, the same large-JSON-file failure mode
+  // documented elsewhere in this project for character_table.json). The
+  // real catalog has all ten: playerMedal, stageMedal, campMedal,
+  // towerMedal, growthMedal, storyMedal, rogueMedal, buildMedal,
+  // activityMedal, hiddenMedal -- confirmed live, with real per-type
+  // counts (e.g. storyMedal alone has 366 entries). "hiddenMedal" is
+  // deliberately NOT listed here -- confirmed live it's a perfect 1:1
+  // match with the existing isHidden flag (every hiddenMedal-type medal
+  // has isHidden:true and vice versa, zero exceptions), so it's handled
+  // by the existing isHidden-based "Secret Medal" pull-out in
+  // renderMedalsSection() instead of as a normal type group, same as the
+  // real menu's own separate Secret tab.
   const MEDAL_TYPE_NAMES = {
     playerMedal: "Records Medal",
     stageMedal: "Episodes Medal",
     campMedal: "Annihilation",
+    towerMedal: "SSS Medal",
+    growthMedal: "Progress Medal",
+    storyMedal: "Chronicles",
+    rogueMedal: "Traveler From",
+    buildMedal: "Base Medal",
+    activityMedal: "Event Medal",
   };
-  // Render order for the known types; anything else (a brand new medalType
-  // the game adds later) falls back to humanizeMedalType() below and is
-  // appended after these, in first-seen order -- see renderMedalsSection().
-  const MEDAL_TYPE_ORDER = ["playerMedal", "stageMedal", "campMedal"];
+  // Render order for the known types (matching the real in-game tab
+  // order); anything else (a brand new medalType the game adds later)
+  // falls back to humanizeMedalType() below and is appended after these,
+  // in first-seen order -- see renderMedalsSection().
+  const MEDAL_TYPE_ORDER = [
+    "playerMedal",
+    "stageMedal",
+    "campMedal",
+    "towerMedal",
+    "growthMedal",
+    "storyMedal",
+    "rogueMedal",
+    "buildMedal",
+    "activityMedal",
+  ];
   const SECRET_GROUP_LABEL = "Secret Medal";
 
   function humanizeMedalType(type) {
@@ -399,17 +417,22 @@
         return obtained || !MANUALLY_UNOBTAINABLE_MEDAL_IDS.has(medal.medalId);
       });
 
-      // Pull out "Secret Medal" first -- any medal that's both still
-      // hidden (isHidden) AND not yet obtained, regardless of its
-      // medalType, same as the real "Path to Glory" menu's own Secret
-      // tab. Once obtained, a formerly-hidden medal moves into its real
-      // type group below instead (it's no longer a secret).
+      // Pull out "Secret Medal" first -- every hiddenMedal-type medal
+      // (confirmed live: a perfect 1:1 match with isHidden -- see
+      // MEDAL_TYPE_NAMES' own comment above), obtained or not, PLUS a
+      // defensive catch-all for any other medal that's still hidden and
+      // not yet obtained (in case a future medal sets isHidden without
+      // being catalogued as hiddenMedal). Unlike the real type groups
+      // below, a medal here stays here once obtained rather than moving
+      // to a different group -- matches the real "Path to Glory" menu,
+      // whose own Secret tab keeps a revealed secret medal listed there
+      // rather than relocating it.
       const secretMedals = [];
       const typedGroups = new Map();
       const typeOrder = [];
       visibleMedals.forEach((medal) => {
         const obtained = !!obtainedMedals[medal.medalId];
-        if (!obtained && medal.isHidden) {
+        if (medal.medalType === "hiddenMedal" || (!obtained && medal.isHidden)) {
           secretMedals.push(medal);
           return;
         }
@@ -454,11 +477,16 @@
       });
 
       if (secretMedals.length) {
-        totalKnown += secretMedals.length; // obtainedInGroup is always 0 here, by construction
+        // Unlike the old isHidden-only version of this group, an obtained
+        // hiddenMedal-type medal can land here now (see the comment
+        // above), so this can no longer assume 0 obtained by construction.
+        const obtainedInSecret = secretMedals.filter((m) => obtainedMedals[m.medalId]).length;
+        totalKnown += secretMedals.length;
+        totalObtained += obtainedInSecret;
         const groupEl = document.createElement("div");
         groupEl.className = "accountPageMedalGroup";
         groupEl.appendChild(
-          buildGroupHeading(SECRET_GROUP_LABEL, 0, secretMedals.length, "accountPageMedalGroupHeading", "accountPageMedalGroupCount"),
+          buildGroupHeading(SECRET_GROUP_LABEL, obtainedInSecret, secretMedals.length, "accountPageMedalGroupHeading", "accountPageMedalGroupCount"),
         );
         groupEl.appendChild(buildChipsRow(secretMedals));
         medalsGroupsEl.appendChild(groupEl);
