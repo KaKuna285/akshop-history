@@ -461,28 +461,6 @@
   content: none;
 }
 
-/* --- Annihilation sub-groups (one per in-game operation) ----------------
-   Only the Annihilation (campMedal) main group nests a second heading
-   level -- each real-world Annihilation Operation release gets its own
-   mini-heading, with medals that couldn't be matched to a specific
-   operation (see js/account-page.js's groupCampMedalsByEvent()) shown
-   first under a generic one. Indented slightly so it reads as nested
-   under the main "Annihilation" heading above it rather than a sibling
-   of equal weight. */
-.accountPageMedalEventGroup {
-  margin: 8px 0 8px 4px;
-}
-
-.accountPageMedalEventHeading {
-  font-size: 0.72rem;
-  color: #999;
-  margin-bottom: 4px;
-}
-
-.accountPageMedalEventHeading .accountPageMedalGroupCount {
-  color: #777;
-}
-
 /* --- "Hide unobtainable" toggle ------------------------------------------
    Only shown once the medals section actually has a known-unobtainable
    entry to hide (see js/account-page.js's MANUALLY_UNOBTAINABLE_MEDAL_IDS

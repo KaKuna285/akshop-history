@@ -540,8 +540,39 @@ function extractOwnedOperators(user) {
     if (entry && typeof entry.charId === "string" && entry.charId) {
       ids.add(entry.charId);
     }
+    forEachAmiyaTmpl(entry, (tmplCharId) => ids.add(tmplCharId));
   }
   return ids.size ? Array.from(ids) : null;
+}
+
+// Amiya is the one operator in the game with swappable alternate classes
+// (base Caster, plus the Guard and Medic forms unlocked later in the
+// story) -- confirmed live (see the account overview's own "Amiya's
+// alternate forms aren't tracked" report) this does NOT show up as three
+// separate troop.chars entries the way every other operator's roster
+// data does. Confirmed instead, by reading the ArkPRTS reference
+// implementation's own data model (this file's own header comment above
+// explains why that's the reference here): a troop.chars entry has a
+// `tmpl` field, a map of { [charId]: <that form's own full character
+// data -- charId/level/evolvePhase/skills/equip/etc, same shape as the
+// entry itself> }, documented there as "Alternative operator class data.
+// Only for Amiya." The outer entry's own `charId` is whichever form is
+// CURRENTLY ACTIVE/equipped (base Caster, for most accounts, since
+// that's the default) -- so reading only entry.charId, as both functions
+// below used to, silently drops whichever form(s) aren't currently
+// equipped: not undercounted, not miscategorized, just entirely absent
+// from both the owned-operator list and the per-operator progress map,
+// no matter how much real progress that account has on them. This walks
+// `tmpl` alongside the entry itself so every owned form is counted, not
+// just the active one. Harmless/a no-op for every other operator, whose
+// entries have no `tmpl` field at all.
+function forEachAmiyaTmpl(entry, fn) {
+  const tmpl = entry && entry.tmpl;
+  if (!tmpl || typeof tmpl !== "object") return;
+  for (const [key, data] of Object.entries(tmpl)) {
+    const charId = (data && typeof data.charId === "string" && data.charId) || key;
+    if (typeof charId === "string" && charId) fn(charId, data);
+  }
 }
 
 // Per-operator progress (Elite phase, level, potential rank, skill levels
@@ -563,30 +594,44 @@ function extractOwnedOperators(user) {
 // stats" view falls back to "Maxed" (see js/operator-page.js) rather
 // than showing a wrong number -- never throws, and never guesses a
 // plausible-looking value for a field that isn't actually there.
+// Shared by extractOwnedOperatorProgress() below for both a top-level
+// troop.chars entry and one of its Amiya tmpl sub-entries (see
+// forEachAmiyaTmpl()'s comment above) -- both are the same shape.
+function buildOperatorProgress(entry) {
+  return {
+    evolvePhase: typeof entry.evolvePhase === "number" ? entry.evolvePhase : null,
+    level: typeof entry.level === "number" ? entry.level : null,
+    potentialRank: typeof entry.potentialRank === "number" ? entry.potentialRank : null,
+    mainSkillLvl: typeof entry.mainSkillLvl === "number" ? entry.mainSkillLvl : null,
+    skills: extractSkillProgress(entry.skills),
+    modules: extractModuleProgress(entry.equip),
+    currentEquip: typeof entry.currentEquip === "string" && entry.currentEquip ? entry.currentEquip : null,
+  };
+}
+
 function extractOwnedOperatorProgress(user) {
   const chars = user?.troop?.chars;
   if (!chars || typeof chars !== "object") return null;
   const byChar = {};
+  // A handful of community tools' own notes mention accounts that can end
+  // up with more than one troop entry for the same charId (e.g. a
+  // recruited-then-recalled slot); not confirmed to actually happen, but
+  // guarded for anyway -- keep whichever looks the most invested-in
+  // rather than just whichever was last in iteration order. Shared here
+  // so a tmpl-derived entry (see forEachAmiyaTmpl()) is deduped against a
+  // same-charId entry found any other way by the exact same rule.
+  const consider = (charId, data) => {
+    if (typeof charId !== "string" || !charId) return;
+    const progress = buildOperatorProgress(data);
+    const prev = byChar[charId];
+    if (!prev || (progress.level || 0) > (prev.level || 0)) {
+      byChar[charId] = progress;
+    }
+  };
   for (const entry of Object.values(chars)) {
     if (!entry || typeof entry.charId !== "string" || !entry.charId) continue;
-    const progress = {
-      evolvePhase: typeof entry.evolvePhase === "number" ? entry.evolvePhase : null,
-      level: typeof entry.level === "number" ? entry.level : null,
-      potentialRank: typeof entry.potentialRank === "number" ? entry.potentialRank : null,
-      mainSkillLvl: typeof entry.mainSkillLvl === "number" ? entry.mainSkillLvl : null,
-      skills: extractSkillProgress(entry.skills),
-      modules: extractModuleProgress(entry.equip),
-      currentEquip: typeof entry.currentEquip === "string" && entry.currentEquip ? entry.currentEquip : null,
-    };
-    // A handful of community tools' own notes mention accounts that can
-    // end up with more than one troop entry for the same charId (e.g. a
-    // recruited-then-recalled slot); not confirmed to actually happen,
-    // but guarded for anyway -- keep whichever looks the most invested-in
-    // rather than just whichever was last in iteration order.
-    const prev = byChar[entry.charId];
-    if (!prev || (progress.level || 0) > (prev.level || 0)) {
-      byChar[entry.charId] = progress;
-    }
+    consider(entry.charId, entry);
+    forEachAmiyaTmpl(entry, (tmplCharId, tmplData) => consider(tmplCharId, tmplData));
   }
   return Object.keys(byChar).length ? byChar : null;
 }

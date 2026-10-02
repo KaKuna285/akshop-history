@@ -216,44 +216,6 @@
   // below) into the names of the medals it requires.
   let medalById = new Map();
 
-  // --- Annihilation (campMedal) sub-grouping by event ---------------------
-  // medal_table.json has no dedicated event/collection field (confirmed
-  // while building this) -- unlockParam[0] is the closest thing to a
-  // stable per-real-world-Operation identifier (e.g. "camp_01" for a
-  // permanent chapter, "camp_r_05" for a rotating one), reused here as
-  // the grouping key. A medal missing that (shouldn't normally happen for
-  // this type, but stay defensive) goes in its own "no event" bucket,
-  // shown first -- same placement described seeing in-game.
-  const EVENT_LABEL_SUFFIXES = [/ Annihilation Medal$/, / Operation Medal$/, / Medal$/];
-  function eventLabelFor(medal) {
-    const name = medal.medalName || "";
-    for (const suffix of EVENT_LABEL_SUFFIXES) {
-      const stripped = name.replace(suffix, "");
-      if (stripped && stripped !== name) return stripped;
-    }
-    return name || "Unknown operation";
-  }
-  function groupCampMedalsByEvent(medals) {
-    const order = [];
-    const groups = new Map();
-    medals.forEach((medal) => {
-      const key = medal.unlockParam && medal.unlockParam[0] ? medal.unlockParam[0] : null;
-      if (!groups.has(key)) {
-        groups.set(key, { label: key === null ? null : eventLabelFor(medal), medals: [], maxDisplayTime: -Infinity });
-        order.push(key);
-      }
-      const g = groups.get(key);
-      g.medals.push(medal);
-      if (typeof medal.displayTime === "number" && medal.displayTime > g.maxDisplayTime) {
-        g.maxDisplayTime = medal.displayTime;
-      }
-    });
-    const noEvent = groups.has(null) ? [groups.get(null)] : [];
-    const withEvent = order.filter((k) => k !== null).map((k) => groups.get(k));
-    withEvent.sort((a, b) => b.maxDisplayTime - a.maxDisplayTime);
-    return noEvent.concat(withEvent);
-  }
-
   // --- medal detail panel --------------------------------------------
   // Opens on clicking any medal chip -- see #medalPreview in account/
   // index.html and its own comment there. A hidden (isHidden), not-yet-
@@ -480,29 +442,13 @@
           buildGroupHeading(label, obtainedInGroup, medals.length, "accountPageMedalGroupHeading", "accountPageMedalGroupCount"),
         );
 
-        if (type === "campMedal") {
-          // Annihilation nests one level deeper -- a mini-heading per
-          // real-world Operation (see groupCampMedalsByEvent() above),
-          // with medals that couldn't be matched to one shown first.
-          groupCampMedalsByEvent(medals).forEach((eventGroup) => {
-            const obtainedInEvent = eventGroup.medals.filter((m) => obtainedMedals[m.medalId]).length;
-            const eventEl = document.createElement("div");
-            eventEl.className = "accountPageMedalEventGroup";
-            eventEl.appendChild(
-              buildGroupHeading(
-                eventGroup.label || "Other",
-                obtainedInEvent,
-                eventGroup.medals.length,
-                "accountPageMedalEventHeading",
-                "accountPageMedalGroupCount",
-              ),
-            );
-            eventEl.appendChild(buildChipsRow(eventGroup.medals));
-            groupEl.appendChild(eventEl);
-          });
-        } else {
-          groupEl.appendChild(buildChipsRow(medals));
-        }
+        // Flat chip grid, same as every other category -- Annihilation
+        // used to nest a mini-heading per real-world Operation here, but
+        // that read as a long, inconsistent list of mostly single-medal
+        // groups with heading text no other category showed (see the
+        // bug report this removed it for); unlockParam/displayTime are
+        // no longer read anywhere in this file as a result.
+        groupEl.appendChild(buildChipsRow(medals));
 
         medalsGroupsEl.appendChild(groupEl);
       });
