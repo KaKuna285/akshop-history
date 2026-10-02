@@ -10,11 +10,13 @@
 // Talks to the Cloudflare Worker at cloudflare/depot-import.js (base URL
 // in js/config.js's DEPOT_IMPORT_ENDPOINT). That Worker's fetch-depot
 // response includes `nickname`/`level` alongside the depot, plus the
-// owned-operator roster (`ownedOperators`) and, for each owned operator,
-// its actual Elite/level/potential/skill/module progress
-// (`ownedOperatorProgress`) -- see that file's extractOwnedOperators()/
-// extractOwnedOperatorProgress() for exactly what's in each and their own
-// caveats about how well-confirmed those shapes are.
+// owned-operator roster (`ownedOperators`), for each owned operator its
+// actual Elite/level/potential/skill/module progress
+// (`ownedOperatorProgress`), and obtained medals (`obtainedMedals`) -- see
+// that file's extractOwnedOperators()/extractOwnedOperatorProgress()/
+// extractObtainedMedals() for exactly what's in each and their own
+// caveats about how well-confirmed those shapes are (obtainedMedals is
+// the least-confirmed of the three).
 //
 // Persisted state lives in the shared prefs blob (see js/prefs.js)
 // under its own "account" section -- separate from "planner" (which
@@ -28,7 +30,7 @@ const AccountSync = (function () {
     return getPref(SECTION, "profile", null, (v) => v && typeof v === "object" && v.nickname);
   }
 
-  function saveAccount(nickname, level, ownedOperators, ownedOperatorProgress) {
+  function saveAccount(nickname, level, ownedOperators, ownedOperatorProgress, obtainedMedals) {
     setPref(SECTION, "profile", {
       nickname,
       level: level || null,
@@ -49,6 +51,14 @@ const AccountSync = (function () {
       // a roster, just no per-operator detail to show "Your stats" with.
       ownedOperatorProgress:
         ownedOperatorProgress && typeof ownedOperatorProgress === "object" ? ownedOperatorProgress : null,
+      // medalId -> { ts } from the same sync, for the /account overview
+      // page's medal progress section (see cloudflare/depot-import.js's
+      // extractObtainedMedals() -- flagged there as the least-confirmed
+      // shape this site reads). Independently nullable from the two
+      // fields above for the same reason: an older sync, or a Worker not
+      // yet redeployed with this field, still has a roster/depot with no
+      // medal data to show.
+      obtainedMedals: obtainedMedals && typeof obtainedMedals === "object" ? obtainedMedals : null,
       syncedAt: new Date().toISOString(),
     });
   }
@@ -74,6 +84,18 @@ const AccountSync = (function () {
     const account = getAccount();
     const all = account && account.ownedOperatorProgress;
     return all && charId && all[charId] ? all[charId] : null;
+  }
+
+  // medalId -> { ts } from the last sync, or null if there's no sync or
+  // the last sync didn't include medal data at all (see
+  // cloudflare/depot-import.js's extractObtainedMedals()). The /account
+  // overview page's medal section gates its whole progress display on
+  // this being non-null, rather than treating null the same as "synced,
+  // zero medals obtained" -- those are different things and conflating
+  // them would show a confidently wrong 0%.
+  function getObtainedMedals() {
+    const account = getAccount();
+    return account ? account.obtainedMedals || null : null;
   }
 
   // --- shared progress formatting -------------------------------------
@@ -378,6 +400,8 @@ const AccountSync = (function () {
             body.ownedOperatorProgress && typeof body.ownedOperatorProgress === "object"
               ? body.ownedOperatorProgress
               : null,
+          obtainedMedals:
+            body.obtainedMedals && typeof body.obtainedMedals === "object" ? body.obtainedMedals : null,
         };
         const itemCount = Object.keys(pending.depot).length;
         const who = pending.nickname
@@ -412,15 +436,20 @@ const AccountSync = (function () {
         pending.level,
         pending.ownedOperators,
         pending.ownedOperatorProgress,
+        pending.obtainedMedals,
       );
       renderNavBadge();
+      const medalNote = pending.obtainedMedals
+        ? " Your account overview also has your medal progress now."
+        : "";
       setStatus(
-        pending.ownedOperators
+        (pending.ownedOperators
           ? "Synced. Your depot will show up next time you open the Planner, your roster is now available to the operator page's owned/not-owned filter" +
               (pending.ownedOperatorProgress
                 ? ", and owned operators there can show your actual stats instead of maxed."
                 : " -- though this sync didn't include per-operator progress, so those pages will still show maxed stats for now.")
-          : "Synced. Your depot will show up next time you open the Planner. (Your operator roster wasn't included in this sync -- the owned/not-owned filter on the operator page won't have anything to go on yet.)",
+          : "Synced. Your depot will show up next time you open the Planner. (Your operator roster wasn't included in this sync -- the owned/not-owned filter on the operator page won't have anything to go on yet.)") +
+          medalNote,
       );
       confirmEl.classList.add("hidden");
       summaryEl.textContent = "";
@@ -457,6 +486,7 @@ const AccountSync = (function () {
     saveAccount,
     getOwnedOperators,
     getOperatorProgress,
+    getObtainedMedals,
     formatSkillSummary,
     formatModuleSummary,
     formatInvestmentSummary,

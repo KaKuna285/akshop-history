@@ -98,6 +98,91 @@
   margin-top: 10px;
 }
 
+/* --- Medals section -------------------------------------------------- */
+
+.accountPageMedalsBar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.accountPageMedalsBar.hidden {
+  display: none;
+}
+
+.accountPageMedalsBarFill {
+  height: 100%;
+  background: #f8d511;
+  border-radius: 4px 0 0 4px;
+  transition: width 0.3s ease;
+}
+
+.accountPageMedalGroup {
+  margin-bottom: 16px;
+}
+
+.accountPageMedalGroup:last-child {
+  margin-bottom: 0;
+}
+
+.accountPageMedalGroupHeading {
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #ccc;
+  margin-bottom: 8px;
+}
+
+.accountPageMedalChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.accountPageMedalChip {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  max-width: 220px;
+}
+
+.accountPageMedalChipName {
+  font-size: 0.8rem;
+  color: #ddd;
+}
+
+.accountPageMedalChipHint {
+  margin-top: 2px;
+  font-size: 0.7rem;
+  color: #888;
+  line-height: 1.35;
+}
+
+.accountPageMedalChip-obtained {
+  border-color: rgba(248, 213, 17, 0.4);
+  background: rgba(248, 213, 17, 0.1);
+}
+
+.accountPageMedalChip-obtained .accountPageMedalChipName {
+  color: #f8d511;
+  font-weight: bold;
+}
+
+.accountPageMedalChip-missing {
+  opacity: 0.6;
+}
+
+.accountPageMedalChip-hidden {
+  opacity: 0.45;
+}
+
+.accountPageMedalChip-hidden .accountPageMedalChipName {
+  color: #888;
+  letter-spacing: 0.1em;
+}
+
 /* --- Roster section ------------------------------------------------------ */
 
 .accountPageSection {

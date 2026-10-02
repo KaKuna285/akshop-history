@@ -1,13 +1,13 @@
 // Cloudflare Worker: one-shot Arknights (EN/Yostar) account sync, used by
 // the home page's "Sync your Arknights account" section (js/account-sync.js)
 // and, downstream, the Operator Planner (/planner/), the owned/not-owned
-// filter on the operator browser (/operator/), and that same page's "Your
-// stats" toggle (per-operator Elite/level/potential/skill/module progress).
+// filter and "Your stats" toggle on the operator browser (/operator/), and
+// the medal progress section on the account overview page (/account/).
 // Given an account email and the one-time code Yostar emails to it, this
 // logs in exactly the way the mobile client does, reads the account's
-// current item inventory and operator roster (including each owned
-// operator's own progress) once, and returns them. Nothing about the
-// account is kept anywhere afterwards.
+// current item inventory, operator roster (including each owned
+// operator's own progress), and obtained medals once, and returns them.
+// Nothing about the account is kept anywhere afterwards.
 //
 // This is an independent JavaScript implementation of the login/session
 // protocol documented by the ArkPRTS project
@@ -615,6 +615,39 @@ function extractModuleProgress(equip) {
   return Object.keys(out).length ? out : null;
 }
 
+// Obtained medals (achievements), for the /account overview page's medal
+// progress section -- keyed by medalId against the full catalog it loads
+// itself from medal_table.json (that catalog side is solid: fetched and
+// inspected via a public mirror while building this). This side of it
+// is NOT: unlike troop.chars (confirmed via other open-source readings
+// of this same login flow), there's no comparable reference for exactly
+// where obtained-medal data sits in the full account sync payload --
+// this assumes a `user.medal.medals` section (array or, like
+// troop.chars, an id-keyed object) with each entry's own `medalId` (or,
+// keyed form, the key itself) and an optional `ts` obtain timestamp,
+// because that mirrors every other per-item section of this same
+// response (troop.chars, inventory) closely enough to be a reasonable
+// guess -- but it really is a guess, more so than anything else this
+// file reads. If a real response doesn't match, this returns null and
+// the frontend says "re-sync" instead of claiming zero medals obtained.
+function extractObtainedMedals(user) {
+  const medals = user?.medal?.medals;
+  if (!medals) return null;
+  const out = {};
+  const addEntry = (id, raw) => {
+    if (typeof id !== "string" || !id) return;
+    out[id] = { ts: raw && typeof raw.ts === "number" ? raw.ts : null };
+  };
+  if (Array.isArray(medals)) {
+    medals.forEach((m) => addEntry(m && (m.medalId || m.id), m));
+  } else if (typeof medals === "object") {
+    for (const [key, val] of Object.entries(medals)) {
+      addEntry((val && typeof val.medalId === "string" && val.medalId) || key, val);
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 async function fetchDepot(email, code) {
   const emailToken = await submitEmailCode(email, code);
   const { channelUid, accessToken } = await getYostarToken(email, emailToken);
@@ -652,5 +685,6 @@ async function fetchDepot(email, code) {
     level: user?.status?.level ?? null,
     ownedOperators: extractOwnedOperators(user),
     ownedOperatorProgress: extractOwnedOperatorProgress(user),
+    obtainedMedals: extractObtainedMedals(user),
   };
 }

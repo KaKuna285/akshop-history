@@ -66,6 +66,23 @@
         </div>
       </div>
 
+      <div class="accountPageSection" id="accountPageMedalsSection">
+        <div class="accountPageSectionHeading">
+          <h2>Medals (<span id="accountPageMedalsCount">0 / 0</span>)</h2>
+        </div>
+        <!-- Hidden instead of the groups below whenever the last sync
+             didn't include medal data at all (see AccountSync.
+             getObtainedMedals()) -- a bare 0% here would look like "you
+             have no medals" rather than "this sync can't tell". -->
+        <p id="accountPageMedalsNoDataNote" class="accountPageNoProgressNote hidden">
+          This sync didn't include medal data -- <a href="/">re-sync from the home page</a> to see your medal progress here.
+        </p>
+        <div id="accountPageMedalsBar" class="accountPageMedalsBar hidden">
+          <div id="accountPageMedalsBarFill" class="accountPageMedalsBarFill"></div>
+        </div>
+        <div id="accountPageMedalsGroups" class="accountPageMedalsGroups"></div>
+      </div>
+
       <div class="accountPageSection">
         <div class="accountPageSectionHeading">
           <h2>Operator roster (<span id="accountPageRosterCount">0</span>)</h2>

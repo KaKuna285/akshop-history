@@ -1,9 +1,10 @@
 (function () {
-  // "My account" overview: profile summary, sync freshness, and every
-  // owned operator's synced progress as a sortable table. A read-only
-  // dashboard for the sync feature -- the actual email/code/fetch form
-  // still only lives on the home page (js/account-sync.js's mount()),
-  // and this page's own "Re-sync" action just links back there.
+  // "My account" overview: profile summary, sync freshness, medal
+  // progress, and every owned operator's synced progress as a sortable
+  // table. A read-only dashboard for the sync feature -- the actual
+  // email/code/fetch form still only lives on the home page
+  // (js/account-sync.js's mount()), and this page's own "Re-sync" action
+  // just links back there.
   //
   // Reached from any page's nav badge once an account is synced (see
   // AccountSync.renderNavBadge()) -- there's nothing to show here before
@@ -22,6 +23,12 @@
   const sortEl = document.getElementById("accountPageSort");
   const noProgressNoteEl = document.getElementById("accountPageNoProgressNote");
   const bodyEl = document.getElementById("accountPageRosterBody");
+
+  const medalsCountEl = document.getElementById("accountPageMedalsCount");
+  const medalsNoDataEl = document.getElementById("accountPageMedalsNoDataNote");
+  const medalsBarEl = document.getElementById("accountPageMedalsBar");
+  const medalsBarFillEl = document.getElementById("accountPageMedalsBarFill");
+  const medalsGroupsEl = document.getElementById("accountPageMedalsGroups");
 
   let roster = []; // [{ op, progress }], built once charTable + account are both ready
 
@@ -75,6 +82,144 @@
       depotLine.className = "accountPageDepotLine";
       depotLine.textContent = `Depot: ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"} tracked in the Operator Planner.`;
       metaEl.appendChild(depotLine);
+    }
+  }
+
+  // --- medals section ----------------------------------------------------
+  // "Account progress" beyond the roster table: how many of the game's
+  // medals (achievements) this account has obtained, grouped the way the
+  // catalog itself groups them (medalType). The catalog side of this is
+  // solid -- medal_table.json was fetched and inspected directly while
+  // building this feature. The account side (which medals a sync actually
+  // reports as obtained) is the least-confirmed data this whole site
+  // reads (see cloudflare/depot-import.js's extractObtainedMedals()), so
+  // this gates the entire section on AccountSync.getObtainedMedals() not
+  // being null rather than ever showing a confidently-wrong 0%.
+
+  // Small local label map, same "own small helper per consumer" reasoning
+  // operator-edit-modal.js already uses for its own enum labels -- plus a
+  // humanizing fallback for any medalType this map doesn't know about yet
+  // (new medal types get added to the game after this list was written).
+  const MEDAL_TYPE_NAMES = {
+    playerMedal: "Player",
+    stageMedal: "Stage",
+    campMedal: "Event",
+  };
+
+  function humanizeMedalType(type) {
+    const words = String(type || "")
+      .replace(/Medal$/, "")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .trim();
+    if (!words) return "Other";
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  }
+
+  // EN-only, same as the rest of the account-sync feature (the Worker
+  // only ever logs into an EN/Yostar account) -- no CN-merge fallback
+  // here the way OperatorEditModal.loadCharTable() has one, since a
+  // medal obtained on an EN account is always in EN's own catalog.
+  async function loadMedalTable() {
+    const res = await fetch(`${DATA_BASE[SERVERS.EN]}/gamedata/excel/medal_table.json`);
+    const json = await fixedJson(res);
+    return Array.isArray(json.medalList) ? json.medalList : [];
+  }
+
+  async function renderMedalsSection() {
+    const obtained = AccountSync.getObtainedMedals();
+    if (!obtained) {
+      medalsCountEl.textContent = "—";
+      medalsBarEl.classList.add("hidden");
+      medalsGroupsEl.innerHTML = "";
+      medalsNoDataEl.classList.remove("hidden");
+      return;
+    }
+
+    try {
+      const medalList = await loadMedalTable();
+
+      // Group by medalType, preserving medalList's own order both across
+      // groups (first-seen order) and within each group -- no re-sorting,
+      // so this never introduces an ordering assumption the catalog
+      // itself doesn't make.
+      const order = [];
+      const groups = new Map();
+      medalList.forEach((medal) => {
+        if (!medal || typeof medal.medalId !== "string") return;
+        const type = medal.medalType || "";
+        if (!groups.has(type)) {
+          groups.set(type, []);
+          order.push(type);
+        }
+        groups.get(type).push(medal);
+      });
+
+      let totalKnown = 0;
+      let totalObtained = 0;
+      medalsGroupsEl.innerHTML = "";
+
+      order.forEach((type) => {
+        const medals = groups.get(type);
+        const obtainedInGroup = medals.filter((m) => obtained[m.medalId]).length;
+        totalKnown += medals.length;
+        totalObtained += obtainedInGroup;
+
+        const groupEl = document.createElement("div");
+        groupEl.className = "accountPageMedalGroup";
+
+        const headingEl = document.createElement("div");
+        headingEl.className = "accountPageMedalGroupHeading";
+        headingEl.textContent = `${MEDAL_TYPE_NAMES[type] || humanizeMedalType(type)} (${obtainedInGroup} / ${medals.length})`;
+        groupEl.appendChild(headingEl);
+
+        const chipsEl = document.createElement("div");
+        chipsEl.className = "accountPageMedalChips";
+
+        medals.forEach((medal) => {
+          const isObtained = !!obtained[medal.medalId];
+          const chip = document.createElement("div");
+          const nameLineEl = document.createElement("div");
+          nameLineEl.className = "accountPageMedalChipName";
+
+          if (isObtained) {
+            chip.className = "accountPageMedalChip accountPageMedalChip-obtained";
+            nameLineEl.textContent = medal.medalName || "Medal";
+            chip.appendChild(nameLineEl);
+          } else if (medal.isHidden) {
+            // Spoiler-protected: don't reveal the name or how to get it
+            // until it's actually obtained.
+            chip.className = "accountPageMedalChip accountPageMedalChip-hidden";
+            nameLineEl.textContent = "???";
+            chip.appendChild(nameLineEl);
+          } else {
+            chip.className = "accountPageMedalChip accountPageMedalChip-missing";
+            nameLineEl.textContent = medal.medalName || "Medal";
+            chip.appendChild(nameLineEl);
+            if (medal.getMethod) {
+              const hintEl = document.createElement("div");
+              hintEl.className = "accountPageMedalChipHint";
+              hintEl.textContent = medal.getMethod;
+              chip.appendChild(hintEl);
+            }
+          }
+          chipsEl.appendChild(chip);
+        });
+
+        groupEl.appendChild(chipsEl);
+        medalsGroupsEl.appendChild(groupEl);
+      });
+
+      medalsNoDataEl.classList.add("hidden");
+      medalsBarEl.classList.remove("hidden");
+      medalsCountEl.textContent = `${totalObtained} / ${totalKnown}`;
+      medalsBarFillEl.style.width = totalKnown ? `${(totalObtained / totalKnown) * 100}%` : "0%";
+    } catch (err) {
+      console.error("Failed to load medal catalog for the account overview:", err);
+      medalsBarEl.classList.add("hidden");
+      medalsGroupsEl.innerHTML = "";
+      medalsCountEl.textContent = "—";
+      medalsNoDataEl.textContent = "Couldn't load medal data right now -- try refreshing.";
+      medalsNoDataEl.classList.remove("hidden");
     }
   }
 
@@ -166,6 +311,13 @@
     }
 
     renderProfile(account);
+
+    // Runs independently of the roster load below -- a failed medal
+    // catalog fetch (or no medal data in this sync) shouldn't block the
+    // roster table from showing, and vice versa.
+    renderMedalsSection().catch((err) => {
+      console.error("Unexpected error rendering the medals section:", err);
+    });
 
     const ownedIds = AccountSync.getOwnedOperators() || [];
     if (!ownedIds.length) {
