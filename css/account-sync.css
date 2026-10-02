@@ -93,6 +93,16 @@
   color: #ddd;
 }
 
+/* The "View your account overview" link inside that paragraph -- same
+   yellow CTA treatment as its sibling "Use a different account" button
+   (.accountSyncLinkBtn below) and every other account-sync prompt
+   (.accountSyncStatusLine a, .accountPageNotSynced a, etc.), rather than
+   style.css's sitewide muted default for an otherwise-unremarkable link.
+   This one's a primary action for this section, not an afterthought. */
+.accountSyncSynced a {
+  color: #f8d511;
+}
+
 .accountSyncLinkBtn {
   background: none;
   border: none;
