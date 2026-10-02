@@ -29,6 +29,18 @@
   const medalsBarEl = document.getElementById("accountPageMedalsBar");
   const medalsBarFillEl = document.getElementById("accountPageMedalsBarFill");
   const medalsGroupsEl = document.getElementById("accountPageMedalsGroups");
+  const medalPreviewEl = document.getElementById("medalPreview");
+  const medalPreviewCloseBtn = document.getElementById("medalPreviewClose");
+  const medalPreviewIconEl = document.getElementById("medalPreviewIcon");
+  const medalPreviewNameEl = document.getElementById("medalPreviewName");
+  const medalPreviewMetaEl = document.getElementById("medalPreviewMeta");
+  const medalPreviewDescriptionEl = document.getElementById("medalPreviewDescription");
+  const medalPreviewGetMethodEl = document.getElementById("medalPreviewGetMethod");
+
+  const tabBtnRoster = document.getElementById("tabBtnRoster");
+  const tabBtnMedals = document.getElementById("tabBtnMedals");
+  const tabPanelRoster = document.getElementById("tabPanelRoster");
+  const tabPanelMedals = document.getElementById("tabPanelMedals");
 
   let roster = []; // [{ op, progress }], built once charTable + account are both ready
 
@@ -85,6 +97,34 @@
     }
   }
 
+  // --- tabs (Operators / Medals) ------------------------------------------
+  // Operators is the primary tab -- shown first and selected by default,
+  // same convention as Planner's Roster/Your Depot tabs (js/planner.js's
+  // switchTab()) -- copied here rather than shared, since this page and
+  // Planner don't share any JS either.
+
+  function loadActiveTabPref() {
+    return getPref("account", "overviewTab", "roster", (v) => v === "roster" || v === "medals");
+  }
+  function saveActiveTabPref(tab) {
+    setPref("account", "overviewTab", tab);
+  }
+
+  function switchTab(tab) {
+    const onRoster = tab === "roster";
+    tabBtnRoster.classList.toggle("active", onRoster);
+    tabBtnRoster.setAttribute("aria-selected", String(onRoster));
+    tabBtnMedals.classList.toggle("active", !onRoster);
+    tabBtnMedals.setAttribute("aria-selected", String(!onRoster));
+    tabPanelRoster.classList.toggle("hidden", !onRoster);
+    tabPanelMedals.classList.toggle("hidden", onRoster);
+    if (onRoster) hideMedalPreview(); // don't leave a stale detail panel open behind the tab
+    saveActiveTabPref(tab);
+  }
+
+  tabBtnRoster.addEventListener("click", () => switchTab("roster"));
+  tabBtnMedals.addEventListener("click", () => switchTab("medals"));
+
   // --- medals section ----------------------------------------------------
   // "Account progress" beyond the roster table: how many of the game's
   // medals (achievements) this account has obtained, grouped the way the
@@ -100,11 +140,25 @@
   // operator-edit-modal.js already uses for its own enum labels -- plus a
   // humanizing fallback for any medalType this map doesn't know about yet
   // (new medal types get added to the game after this list was written).
+  // "Events" rather than a literal "Camp" for campMedal -- these are each
+  // a specific time-limited Annihilation Operation (see their own
+  // displayTime/getMethod text), which is what "grouped by events" means
+  // here: there's no separate event-id field in the catalog data (medal_
+  // table.json has no such field at all, confirmed while building this),
+  // so each campMedal entry already *is* one event's medal.
   const MEDAL_TYPE_NAMES = {
     playerMedal: "Player",
-    stageMedal: "Stage",
-    campMedal: "Event",
+    stageMedal: "Stage Clears",
+    campMedal: "Events",
   };
+
+  // campMedal entries are each tied to one specific (often time-limited)
+  // Annihilation Operation -- sorted newest-first by displayTime so the
+  // most relevant/current ones surface without having to scroll past
+  // years of old rotations. Player/Stage medals keep the catalog's own
+  // order (already a sensible progression -- level thresholds and
+  // episode numbers ascending), so no sort is applied there.
+  const SORT_NEWEST_FIRST = { campMedal: true };
 
   function humanizeMedalType(type) {
     const words = String(type || "")
@@ -114,6 +168,12 @@
     if (!words) return "Other";
     return words.charAt(0).toUpperCase() + words.slice(1);
   }
+
+  // Same 3-tier grey/blue/gold scale operator rarity already uses
+  // elsewhere on the site (css/operator-extra.css's --rarity-color for
+  // 1-2★/4★/6★), reused here rather than inventing a separate palette
+  // for medals' own T1/T2/T3 rarity field.
+  const MEDAL_RARITY_COLORS = { T1: "#9f9f9f", T2: "#00b2f6", T3: "#ffae00" };
 
   // EN-only, same as the rest of the account-sync feature (the Worker
   // only ever logs into an EN/Yostar account) -- no CN-merge fallback
@@ -125,12 +185,118 @@
     return Array.isArray(json.medalList) ? json.medalList : [];
   }
 
+  // The last-rendered sync's obtained-medals map, kept at module scope so
+  // renderMedalChip()'s click handler (closed over a specific medal
+  // already) can still look up that medal's obtained entry.
+  let obtainedMedals = null;
+
+  // --- medal detail panel --------------------------------------------
+  // Opens on clicking any medal chip -- see #medalPreview in account/
+  // index.html and its own comment there. A hidden (isHidden), not-yet-
+  // obtained medal's real name/description/getMethod only ever show up
+  // here, after a deliberate click; the chip itself keeps showing "???"
+  // regardless (see renderMedalChip() below), so this is the one place
+  // that's allowed to spoil it.
+
+  function formatObtainedDate(ts) {
+    if (typeof ts !== "number" || ts <= 0) return null;
+    // Every other timestamp this site reads from game data (medal_table.
+    // json's own displayTime, event dates, etc.) is Unix seconds, not
+    // milliseconds -- same assumption here for consistency, though (like
+    // the rest of obtainedMedals) the obtain timestamp's own field name
+    // was a guess on the Worker side, so this stays defensive about
+    // producing a garbage date rather than trusting it blindly.
+    const d = new Date(ts * 1000);
+    if (isNaN(d.getTime()) || d.getFullYear() < 2017 || d.getFullYear() > 2100) return null;
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function showMedalPreview(medal, obtainedEntry) {
+    const rarityColor = MEDAL_RARITY_COLORS[medal.rarity] || "#f8d511";
+    medalPreviewEl.style.setProperty("--medal-rarity-color", rarityColor);
+
+    medalPreviewNameEl.textContent = medal.medalName || "Medal";
+
+    const metaParts = [MEDAL_TYPE_NAMES[medal.medalType] || humanizeMedalType(medal.medalType)];
+    if (medal.rarity) metaParts.push(medal.rarity);
+    medalPreviewMetaEl.textContent = "";
+    medalPreviewMetaEl.appendChild(document.createTextNode(metaParts.join(" · ") + " · "));
+    const statusEl2 = document.createElement("span");
+    if (obtainedEntry) {
+      statusEl2.className = "medalPreviewObtained";
+      const dateStr = formatObtainedDate(obtainedEntry.ts);
+      statusEl2.textContent = dateStr ? `Obtained ${dateStr}` : "Obtained";
+    } else {
+      statusEl2.textContent = "Not yet obtained";
+    }
+    medalPreviewMetaEl.appendChild(statusEl2);
+
+    medalPreviewDescriptionEl.textContent = medal.description || "";
+    medalPreviewGetMethodEl.textContent = medal.getMethod || "";
+
+    medalPreviewEl.classList.add("visible");
+    medalPreviewEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function hideMedalPreview() {
+    medalPreviewEl.classList.remove("visible");
+  }
+
+  medalPreviewCloseBtn.addEventListener("click", hideMedalPreview);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideMedalPreview();
+  });
+
+  // Closes the preview on a click anywhere outside it -- same pattern as
+  // the calendar page's #eventPreview (see js/calendar.js). Chip clicks
+  // stop propagation (see renderMedalChip() below) so opening one
+  // doesn't immediately close itself via this same listener.
+  document.addEventListener("click", (e) => {
+    if (!medalPreviewEl.classList.contains("visible")) return;
+    if (medalPreviewEl.contains(e.target)) return;
+    hideMedalPreview();
+  });
+
+  function renderMedalChip(medal) {
+    const obtainedEntry = obtainedMedals[medal.medalId];
+    const isObtained = !!obtainedEntry;
+    const isHidden = !isObtained && medal.isHidden;
+
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `medalChip ${isObtained ? "medalChip-obtained" : isHidden ? "medalChip-hidden" : "medalChip-missing"}`;
+    chip.style.setProperty("--medal-rarity-color", MEDAL_RARITY_COLORS[medal.rarity] || "#9f9f9f");
+    chip.title = isHidden ? "???" : medal.medalName || "Medal";
+
+    const iconEl = document.createElement("span");
+    iconEl.className = "medalChipIcon";
+    chip.appendChild(iconEl);
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "medalChipName";
+    nameEl.textContent = isHidden ? "???" : medal.medalName || "Medal";
+    chip.appendChild(nameEl);
+
+    chip.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Always the real medal, even when still hidden+unobtained -- "the
+      // chip says ???" and "clicking it reveals what it actually is" are
+      // two different, deliberate states; only the chip itself stays
+      // spoiler-protected.
+      showMedalPreview(medal, obtainedEntry);
+    });
+
+    return chip;
+  }
+
   async function renderMedalsSection() {
-    const obtained = AccountSync.getObtainedMedals();
-    if (!obtained) {
+    obtainedMedals = AccountSync.getObtainedMedals();
+    if (!obtainedMedals) {
       medalsCountEl.textContent = "—";
       medalsBarEl.classList.add("hidden");
       medalsGroupsEl.innerHTML = "";
+      hideMedalPreview();
       medalsNoDataEl.classList.remove("hidden");
       return;
     }
@@ -138,10 +304,10 @@
     try {
       const medalList = await loadMedalTable();
 
-      // Group by medalType, preserving medalList's own order both across
-      // groups (first-seen order) and within each group -- no re-sorting,
-      // so this never introduces an ordering assumption the catalog
-      // itself doesn't make.
+      // Group by medalType, preserving medalList's own order across
+      // groups (first-seen order); within a group, SORT_NEWEST_FIRST
+      // types sort by displayTime descending, everything else keeps the
+      // catalog's own order (see SORT_NEWEST_FIRST's comment above).
       const order = [];
       const groups = new Map();
       medalList.forEach((medal) => {
@@ -159,8 +325,11 @@
       medalsGroupsEl.innerHTML = "";
 
       order.forEach((type) => {
-        const medals = groups.get(type);
-        const obtainedInGroup = medals.filter((m) => obtained[m.medalId]).length;
+        const medals = groups.get(type).slice();
+        if (SORT_NEWEST_FIRST[type]) {
+          medals.sort((a, b) => (b.displayTime || 0) - (a.displayTime || 0));
+        }
+        const obtainedInGroup = medals.filter((m) => obtainedMedals[m.medalId]).length;
         totalKnown += medals.length;
         totalObtained += obtainedInGroup;
 
@@ -169,43 +338,18 @@
 
         const headingEl = document.createElement("div");
         headingEl.className = "accountPageMedalGroupHeading";
-        headingEl.textContent = `${MEDAL_TYPE_NAMES[type] || humanizeMedalType(type)} (${obtainedInGroup} / ${medals.length})`;
+        headingEl.textContent = `${MEDAL_TYPE_NAMES[type] || humanizeMedalType(type)} `;
+        const countEl = document.createElement("span");
+        countEl.className = "accountPageMedalGroupCount";
+        countEl.textContent = `(${obtainedInGroup} / ${medals.length})`;
+        headingEl.appendChild(countEl);
         groupEl.appendChild(headingEl);
 
         const chipsEl = document.createElement("div");
         chipsEl.className = "accountPageMedalChips";
-
-        medals.forEach((medal) => {
-          const isObtained = !!obtained[medal.medalId];
-          const chip = document.createElement("div");
-          const nameLineEl = document.createElement("div");
-          nameLineEl.className = "accountPageMedalChipName";
-
-          if (isObtained) {
-            chip.className = "accountPageMedalChip accountPageMedalChip-obtained";
-            nameLineEl.textContent = medal.medalName || "Medal";
-            chip.appendChild(nameLineEl);
-          } else if (medal.isHidden) {
-            // Spoiler-protected: don't reveal the name or how to get it
-            // until it's actually obtained.
-            chip.className = "accountPageMedalChip accountPageMedalChip-hidden";
-            nameLineEl.textContent = "???";
-            chip.appendChild(nameLineEl);
-          } else {
-            chip.className = "accountPageMedalChip accountPageMedalChip-missing";
-            nameLineEl.textContent = medal.medalName || "Medal";
-            chip.appendChild(nameLineEl);
-            if (medal.getMethod) {
-              const hintEl = document.createElement("div");
-              hintEl.className = "accountPageMedalChipHint";
-              hintEl.textContent = medal.getMethod;
-              chip.appendChild(hintEl);
-            }
-          }
-          chipsEl.appendChild(chip);
-        });
-
+        medals.forEach((medal) => chipsEl.appendChild(renderMedalChip(medal)));
         groupEl.appendChild(chipsEl);
+
         medalsGroupsEl.appendChild(groupEl);
       });
 
@@ -217,6 +361,7 @@
       console.error("Failed to load medal catalog for the account overview:", err);
       medalsBarEl.classList.add("hidden");
       medalsGroupsEl.innerHTML = "";
+      hideMedalPreview();
       medalsCountEl.textContent = "—";
       medalsNoDataEl.textContent = "Couldn't load medal data right now -- try refreshing.";
       medalsNoDataEl.classList.remove("hidden");
@@ -311,6 +456,7 @@
     }
 
     renderProfile(account);
+    switchTab(loadActiveTabPref());
 
     // Runs independently of the roster load below -- a failed medal
     // catalog fetch (or no medal data in this sync) shouldn't block the

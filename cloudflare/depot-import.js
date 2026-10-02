@@ -621,30 +621,72 @@ function extractModuleProgress(equip) {
 // inspected via a public mirror while building this). This side of it
 // is NOT: unlike troop.chars (confirmed via other open-source readings
 // of this same login flow), there's no comparable reference for exactly
-// where obtained-medal data sits in the full account sync payload --
-// this assumes a `user.medal.medals` section (array or, like
-// troop.chars, an id-keyed object) with each entry's own `medalId` (or,
-// keyed form, the key itself) and an optional `ts` obtain timestamp,
-// because that mirrors every other per-item section of this same
-// response (troop.chars, inventory) closely enough to be a reasonable
-// guess -- but it really is a guess, more so than anything else this
-// file reads. If a real response doesn't match, this returns null and
-// the frontend says "re-sync" instead of claiming zero medals obtained.
+// where obtained-medal data sits in the full account sync payload, or
+// what marks one entry as actually obtained.
+//
+// First real-account test of this (see CHANGELOG/commit history) showed
+// FAR more medals flagged "obtained" than were actually earned -- the
+// original version here treated every key present under
+// `user.medal.medals` as obtained, which is wrong if that section
+// pre-populates a tracking entry for every medal in the game (earned or
+// not, e.g. progress toward a counter-based one) rather than only
+// actually-earned ones. This version instead looks for a plausible
+// "this one's actually obtained" signal -- a positive timestamp, or a
+// truthy completion flag -- under a handful of likely field names.
+// Those names are still a guess (not verified against a real payload),
+// so: if NONE of them shows up anywhere in the whole collection, this
+// bails out to null (can't tell obtained from in-progress) rather than
+// pick between "presence means obtained" (the behavior that just proved
+// wrong) and "nothing is ever obtained" -- both of those would be
+// guessing blind, and null degrades to the frontend's existing
+// "this sync didn't include medal data" message either way, which is
+// honest about the uncertainty instead of confidently wrong.
+//
+// See _debugMedalRaw below (fetchDepot()'s return) -- a temporary,
+// no-processing passthrough of this same raw section, there so the
+// field names actually in use can be read directly (browser dev tools,
+// Network tab, the fetch-depot response) from a real synced account.
+// Once that's confirmed, this function can be rewritten against real
+// field names instead of this guess-list, and _debugMedalRaw removed.
 function extractObtainedMedals(user) {
   const medals = user?.medal?.medals;
   if (!medals) return null;
-  const out = {};
-  const addEntry = (id, raw) => {
-    if (typeof id !== "string" || !id) return;
-    out[id] = { ts: raw && typeof raw.ts === "number" ? raw.ts : null };
-  };
-  if (Array.isArray(medals)) {
-    medals.forEach((m) => addEntry(m && (m.medalId || m.id), m));
-  } else if (typeof medals === "object") {
-    for (const [key, val] of Object.entries(medals)) {
-      addEntry((val && typeof val.medalId === "string" && val.medalId) || key, val);
+
+  const entries = Array.isArray(medals)
+    ? medals.map((m) => [m && (m.medalId || m.id), m])
+    : medals && typeof medals === "object"
+      ? Object.entries(medals).map(([key, val]) => [
+          (val && typeof val.medalId === "string" && val.medalId) || key,
+          val,
+        ])
+      : [];
+
+  const TIMESTAMP_KEYS = ["ts", "fts", "getTime", "obtainTime", "obtainTs", "time"];
+  const FLAG_KEYS = ["got", "obtained", "complete", "completed", "unlock", "unlocked", "state", "status", "flag"];
+
+  // true/false = found a usable signal either way; undefined = this
+  // entry has none of the known field names at all.
+  function obtainedSignal(raw) {
+    if (!raw || typeof raw !== "object") return undefined;
+    for (const key of TIMESTAMP_KEYS) {
+      if (typeof raw[key] === "number") return raw[key] > 0;
     }
+    for (const key of FLAG_KEYS) {
+      if (typeof raw[key] === "boolean") return raw[key];
+      if (typeof raw[key] === "number") return raw[key] > 0;
+    }
+    return undefined;
   }
+
+  const anySignal = entries.some(([, raw]) => obtainedSignal(raw) !== undefined);
+  if (!anySignal) return null;
+
+  const out = {};
+  entries.forEach(([id, raw]) => {
+    if (typeof id !== "string" || !id) return;
+    if (obtainedSignal(raw) !== true) return;
+    out[id] = { ts: raw && typeof raw.ts === "number" ? raw.ts : null };
+  });
   return Object.keys(out).length ? out : null;
 }
 
@@ -686,5 +728,13 @@ async function fetchDepot(email, code) {
     ownedOperators: extractOwnedOperators(user),
     ownedOperatorProgress: extractOwnedOperatorProgress(user),
     obtainedMedals: extractObtainedMedals(user),
+    // TEMPORARY -- not used by the frontend at all, just along for the
+    // ride so the real shape of user.medal.medals can be read straight
+    // from this response (browser dev tools -> Network tab -> the
+    // fetch-depot request -> Response) on a real synced account,
+    // instead of guessing again. Delete this field (and update
+    // extractObtainedMedals() above against what it shows) once that's
+    // confirmed.
+    _debugMedalRaw: user?.medal?.medals ?? null,
   };
 }

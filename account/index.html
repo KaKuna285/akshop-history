@@ -66,55 +66,104 @@
         </div>
       </div>
 
-      <div class="accountPageSection" id="accountPageMedalsSection">
-        <div class="accountPageSectionHeading">
-          <h2>Medals (<span id="accountPageMedalsCount">0 / 0</span>)</h2>
-        </div>
-        <!-- Hidden instead of the groups below whenever the last sync
-             didn't include medal data at all (see AccountSync.
-             getObtainedMedals()) -- a bare 0% here would look like "you
-             have no medals" rather than "this sync can't tell". -->
-        <p id="accountPageMedalsNoDataNote" class="accountPageNoProgressNote hidden">
-          This sync didn't include medal data -- <a href="/">re-sync from the home page</a> to see your medal progress here.
-        </p>
-        <div id="accountPageMedalsBar" class="accountPageMedalsBar hidden">
-          <div id="accountPageMedalsBarFill" class="accountPageMedalsBarFill"></div>
-        </div>
-        <div id="accountPageMedalsGroups" class="accountPageMedalsGroups"></div>
+      <div id="accountPageTabs" role="tablist">
+        <button
+          type="button"
+          class="accountTab active"
+          id="tabBtnRoster"
+          data-tab="roster"
+          role="tab"
+          aria-selected="true"
+        >
+          Operators
+        </button>
+        <button
+          type="button"
+          class="accountTab"
+          id="tabBtnMedals"
+          data-tab="medals"
+          role="tab"
+          aria-selected="false"
+        >
+          Medals
+        </button>
       </div>
 
-      <div class="accountPageSection">
-        <div class="accountPageSectionHeading">
-          <h2>Operator roster (<span id="accountPageRosterCount">0</span>)</h2>
-          <div class="accountPageRosterControls">
-            <label for="accountPageSort">Sort by</label>
-            <select id="accountPageSort">
-              <option value="name">Name</option>
-              <option value="rarity">Rarity</option>
-              <option value="level">Level (highest first)</option>
-            </select>
+      <div id="tabPanelRoster" class="accountTabPanel">
+        <div class="accountPageSection">
+          <div class="accountPageSectionHeading">
+            <h2>Operator roster (<span id="accountPageRosterCount">0</span>)</h2>
+            <div class="accountPageRosterControls">
+              <label for="accountPageSort">Sort by</label>
+              <select id="accountPageSort">
+                <option value="name">Name</option>
+                <option value="rarity">Rarity</option>
+                <option value="level">Level (highest first)</option>
+              </select>
+            </div>
+          </div>
+          <p id="accountPageNoProgressNote" class="accountPageNoProgressNote hidden">
+            Rows showing "—" are operators this sync didn't include detailed
+            progress for -- <a href="/">re-sync from the home page</a> to
+            fill these in.
+          </p>
+          <div id="accountPageRosterTableWrap" class="accountPageRosterTableWrap">
+            <table class="accountPageRosterTable">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Name</th>
+                  <th>Rarity</th>
+                  <th>Elite / Level</th>
+                  <th>Potential</th>
+                  <th>Skill</th>
+                  <th>Module</th>
+                </tr>
+              </thead>
+              <tbody id="accountPageRosterBody"></tbody>
+            </table>
           </div>
         </div>
-        <p id="accountPageNoProgressNote" class="accountPageNoProgressNote hidden">
-          Rows showing "—" are operators this sync didn't include detailed
-          progress for -- <a href="/">re-sync from the home page</a> to
-          fill these in.
-        </p>
-        <div id="accountPageRosterTableWrap" class="accountPageRosterTableWrap">
-          <table class="accountPageRosterTable">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Name</th>
-                <th>Rarity</th>
-                <th>Elite / Level</th>
-                <th>Potential</th>
-                <th>Skill</th>
-                <th>Module</th>
-              </tr>
-            </thead>
-            <tbody id="accountPageRosterBody"></tbody>
-          </table>
+      </div>
+
+      <div id="tabPanelMedals" class="accountTabPanel hidden">
+        <div class="accountPageSection" id="accountPageMedalsSection">
+          <div class="accountPageSectionHeading">
+            <h2>Medals (<span id="accountPageMedalsCount">0 / 0</span>)</h2>
+          </div>
+          <!-- Hidden instead of the groups below whenever the last sync
+               didn't include medal data at all (see AccountSync.
+               getObtainedMedals()) -- a bare 0% here would look like "you
+               have no medals" rather than "this sync can't tell". -->
+          <p id="accountPageMedalsNoDataNote" class="accountPageNoProgressNote hidden">
+            This sync didn't include medal data -- <a href="/">re-sync from the home page</a> to see your medal progress here.
+          </p>
+          <div id="accountPageMedalsBar" class="accountPageMedalsBar hidden">
+            <div id="accountPageMedalsBarFill" class="accountPageMedalsBarFill"></div>
+          </div>
+
+          <!-- Opens on clicking any medal chip below -- the name, flavor
+               text and "how to obtain" all live here instead of on the
+               chip itself, so the grid stays scannable. A hidden
+               (isHidden), not-yet-obtained medal's real name/description/
+               getMethod ONLY ever show up in here, after a deliberate
+               click -- the chip itself always just says "???" so browsing
+               the grid doesn't spoil anything by accident. See
+               js/account-page.js's showMedalPreview(). -->
+          <div id="medalPreview" class="medalPreview">
+            <button type="button" id="medalPreviewClose" class="medalPreviewClose" aria-label="Close"></button>
+            <div class="medalPreviewHeader">
+              <span id="medalPreviewIcon" class="medalPreviewIcon"></span>
+              <div class="medalPreviewHeaderText">
+                <div id="medalPreviewName" class="medalPreviewName"></div>
+                <div id="medalPreviewMeta" class="medalPreviewMeta"></div>
+              </div>
+            </div>
+            <div id="medalPreviewDescription" class="medalPreviewDescription"></div>
+            <div id="medalPreviewGetMethod" class="medalPreviewGetMethod"></div>
+          </div>
+
+          <div id="accountPageMedalsGroups" class="accountPageMedalsGroups"></div>
         </div>
       </div>
     </div>

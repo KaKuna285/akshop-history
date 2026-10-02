@@ -98,6 +98,46 @@
   margin-top: 10px;
 }
 
+/* --- Tabs (Operators / Medals) ----------------------------------------
+   Same look as Planner's own Roster/Your Depot tabs (css/planner-extra.
+   css's .plannerTab/.tabPanel) -- not reused directly, since pages don't
+   share a stylesheet here, but copied so the interaction reads the same
+   wherever it shows up on the site. Operators is the primary tab (shown
+   first, selected by default); Medals is secondary. */
+
+#accountPageTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.accountTab {
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #aaa;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.accountTab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ddd;
+}
+
+.accountTab.active {
+  background: rgba(248, 213, 17, 0.12);
+  border-color: rgba(248, 213, 17, 0.4);
+  color: #f8d511;
+  font-weight: bold;
+}
+
+.accountTabPanel.hidden {
+  display: none;
+}
+
 /* --- Medals section -------------------------------------------------- */
 
 .accountPageMedalsBar {
@@ -120,7 +160,7 @@
 }
 
 .accountPageMedalGroup {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .accountPageMedalGroup:last-child {
@@ -128,59 +168,245 @@
 }
 
 .accountPageMedalGroupHeading {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: bold;
   color: #ccc;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
+.accountPageMedalGroupCount {
+  font-weight: normal;
+  color: #888;
+}
+
+/* Small, dense pills -- just an icon and a name, no per-medal flavor
+   text or "how to get it" hint here anymore (that's what clicking a
+   chip opens #medalPreview for, below). The point is a grid you can
+   actually scan at a glance instead of a wall of paragraphs. */
 .accountPageMedalChips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 5px;
 }
 
-.accountPageMedalChip {
-  padding: 6px 10px;
-  border-radius: 8px;
+.medalChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 150px;
+  padding: 3px 9px 3px 3px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
-  max-width: 220px;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
-.accountPageMedalChipName {
-  font-size: 0.8rem;
-  color: #ddd;
+@media (hover: hover) {
+  .medalChip:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
 }
 
-.accountPageMedalChipHint {
-  margin-top: 2px;
-  font-size: 0.7rem;
-  color: #888;
-  line-height: 1.35;
+.medalChipIcon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  /* Set per chip from the medal's own rarity (T1/T2/T3) -- the same
+     grey/blue/gold scale operator rarity already uses elsewhere on the
+     site (css/operator-extra.css's --rarity-color), reused here instead
+     of inventing a separate palette for a 3-tier scale. */
+  color: var(--medal-rarity-color, #9f9f9f);
 }
 
-.accountPageMedalChip-obtained {
+.medalChipIcon::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  font-size: 0.65rem;
+  content: "\f5a2"; /* fa-medal */
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+
+.medalChipName {
+  font-size: 0.78rem;
+  color: #ccc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.medalChip-obtained {
   border-color: rgba(248, 213, 17, 0.4);
   background: rgba(248, 213, 17, 0.1);
 }
 
-.accountPageMedalChip-obtained .accountPageMedalChipName {
+.medalChip-obtained .medalChipIcon {
+  color: #f8d511;
+}
+
+.medalChip-obtained .medalChipName {
   color: #f8d511;
   font-weight: bold;
 }
 
-.accountPageMedalChip-missing {
-  opacity: 0.6;
+.medalChip-missing .medalChipIcon,
+.medalChip-missing .medalChipName {
+  opacity: 0.65;
 }
 
-.accountPageMedalChip-hidden {
-  opacity: 0.45;
+.medalChip-hidden .medalChipIcon {
+  color: #777;
 }
 
-.accountPageMedalChip-hidden .accountPageMedalChipName {
-  color: #888;
+.medalChip-hidden .medalChipIcon::before {
+  content: "\f059"; /* fa-question-circle -- not obtained *and* still a
+                        mystery, so it doesn't even get the medal glyph */
+}
+
+.medalChip-hidden .medalChipName {
+  color: #777;
   letter-spacing: 0.1em;
+}
+
+/* --- Medal detail panel -------------------------------------------------
+   Opens inline (not a floating overlay) right above the grid when a chip
+   is clicked -- same pattern as the calendar page's #eventPreview (see
+   css/calendar-extra.css), reused here as its own copy since pages don't
+   share a stylesheet. */
+
+.medalPreview {
+  display: none;
+  position: relative;
+  margin: 0 0 14px;
+  padding: 14px 40px 14px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid var(--medal-rarity-color, #f8d511);
+  border-radius: 10px;
+}
+
+.medalPreview.visible {
+  display: block;
+}
+
+.medalPreviewClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #999;
+  cursor: pointer;
+}
+
+.medalPreviewClose:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eee;
+}
+
+.medalPreviewClose::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  content: "\f00d"; /* fa-times */
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+
+.medalPreviewHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.medalPreviewIcon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--medal-rarity-color, #f8d511);
+}
+
+.medalPreviewIcon::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  font-size: 1rem;
+  content: "\f5a2"; /* fa-medal */
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+
+.medalPreviewName {
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: #eee;
+}
+
+.medalPreviewMeta {
+  font-size: 0.78rem;
+  color: #999;
+  margin-top: 2px;
+}
+
+.medalPreviewMeta .medalPreviewObtained {
+  color: #a7e36f;
+}
+
+.medalPreviewDescription {
+  font-size: 0.85rem;
+  color: #ccc;
+  line-height: 1.5;
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.medalPreviewDescription:empty {
+  display: none;
+}
+
+.medalPreviewGetMethod {
+  font-size: 0.8rem;
+  color: #aaa;
+  line-height: 1.5;
+}
+
+.medalPreviewGetMethod::before {
+  content: "How to get it: ";
+  color: #777;
+}
+
+.medalPreviewGetMethod:empty {
+  display: none;
+}
+
+.medalPreviewGetMethod:empty::before {
+  content: none;
 }
 
 /* --- Roster section ------------------------------------------------------ */
@@ -325,6 +551,11 @@
 }
 
 @media (max-width: 560px) {
+  .accountTab {
+    flex: 1 1 0;
+    text-align: center;
+  }
+
   .accountPageSectionHeading {
     flex-direction: column;
     align-items: flex-start;
@@ -334,5 +565,9 @@
   .accountPageRosterTable tbody td {
     padding: 6px 7px;
     font-size: 0.8rem;
+  }
+
+  .medalChip {
+    max-width: 130px;
   }
 }
