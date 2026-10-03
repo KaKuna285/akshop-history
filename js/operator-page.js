@@ -87,8 +87,8 @@
   const skillsInfoEl = document.getElementById("opSkillsInfo");
   const modulesInfoEl = document.getElementById("opModulesInfo");
   const skinsInfoEl = document.getElementById("opSkinsInfo");
-  const skinsOwnedToggleEl = document.getElementById("opSkinsOwnedToggle");
-  const skinsOwnedToggleInputEl = document.getElementById("opSkinsOwnedToggleInput");
+  const skinsUnownedToggleEl = document.getElementById("opSkinsUnownedToggle");
+  const skinsUnownedToggleInputEl = document.getElementById("opSkinsUnownedToggleInput");
   const skinPreviewOverlayEl = document.getElementById("skinPreviewOverlay");
   const skinPreviewEl = document.getElementById("skinPreview");
   const skinPreviewCloseBtn = document.getElementById("skinPreviewClose");
@@ -114,10 +114,13 @@
   // despite having no skinName of their own.
   let skinsByCharId = {};
 
-  // "Grey out owned skins" state for the gallery above -- mirrors
-  // /store's own "Grey out owned" toggle (js/shoplist.js), just as a CSS
-  // opacity class on these DOM .opSkinCard buttons instead of a Chart.js
-  // canvas's globalAlpha, since this gallery isn't a canvas. Sourced from
+  // "Grey out skins you don't own" state for the gallery above -- the
+  // inverse of /store's own "Grey out owned" toggle (js/shoplist.js,
+  // which dims operators you DO have, to highlight who's left to pull):
+  // here it dims the skins you DON'T have yet, so the ones you still
+  // need to get stand out instead -- as a CSS opacity class on these DOM
+  // .opSkinCard buttons rather than a Chart.js canvas's globalAlpha,
+  // since this gallery isn't a canvas. Sourced from
   // AccountSync.getOwnedSkins() (populated by a sync whose Worker
   // response included skin ownership data -- see
   // cloudflare/depot-import.js's extractOwnedSkins()); computed once
@@ -127,7 +130,7 @@
   // owned/not-owned filter elsewhere on this page) so the toggle can stay
   // hidden entirely for a never-synced visitor, or one whose last sync
   // predates this field, instead of just doing nothing visible.
-  let greySkinOwned = getPref("operator", "greySkinOwned", true, (v) => typeof v === "boolean");
+  let greyUnownedSkins = getPref("operator", "greyUnownedSkins", true, (v) => typeof v === "boolean");
   const ownedSkinsMap = AccountSync.getOwnedSkins();
   const hasOwnedSkinData = !!ownedSkinsMap;
   const ownedSkinIdSet = new Set(Object.keys(ownedSkinsMap || {}));
@@ -760,8 +763,13 @@
       const card = document.createElement("button");
       card.type = "button";
       card.className = "opSkinCard";
-      if (greySkinOwned && ownedSkinIdSet.has(skin.skinId)) {
-        card.classList.add("opSkinCardOwned");
+      // hasOwnedSkinData guards this the same as the toggle's own
+      // visibility -- without it, a never-synced visitor (empty
+      // ownedSkinIdSet, so every skin looks "not owned") would see the
+      // whole gallery dimmed by greyUnownedSkins' own true default, with
+      // no visible toggle to turn it back off.
+      if (hasOwnedSkinData && greyUnownedSkins && !ownedSkinIdSet.has(skin.skinId)) {
+        card.classList.add("opSkinCardUnowned");
       }
       const img = document.createElement("img");
       img.className = "opSkinCardImg";
@@ -1845,17 +1853,17 @@
     renderGrid();
   });
 
-  // Skin gallery's own "grey out owned" toggle -- see the
-  // greySkinOwned/ownedSkinIdSet comment above. Only shown (and only
+  // Skin gallery's own "grey out skins you don't own" toggle -- see the
+  // greyUnownedSkins/ownedSkinIdSet comment above. Only shown (and only
   // ever listened on) when there's actually a synced skin-ownership list
   // to grey against.
   if (hasOwnedSkinData) {
-    skinsOwnedToggleEl.classList.remove("hidden");
+    skinsUnownedToggleEl.classList.remove("hidden");
   }
-  skinsOwnedToggleInputEl.checked = greySkinOwned;
-  skinsOwnedToggleInputEl.addEventListener("change", () => {
-    greySkinOwned = skinsOwnedToggleInputEl.checked;
-    setPref("operator", "greySkinOwned", greySkinOwned);
+  skinsUnownedToggleInputEl.checked = greyUnownedSkins;
+  skinsUnownedToggleInputEl.addEventListener("change", () => {
+    greyUnownedSkins = skinsUnownedToggleInputEl.checked;
+    setPref("operator", "greyUnownedSkins", greyUnownedSkins);
     if (currentCharId && charTable && charTable[currentCharId]) {
       renderSkins(charTable[currentCharId]);
     }
