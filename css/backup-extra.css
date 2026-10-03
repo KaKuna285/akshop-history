@@ -1,0 +1,33 @@
+/* Styling for js/backup.js (home page only). Deliberately reuses
+   account-sync.css's classes (.accountSyncNotice, .accountSyncActions,
+   .accountSyncStatus, .accountSyncConfirm, .accountSyncLinkBtn, ...) for
+   everything that already has an equivalent there, so the two sections
+   on the home page read as one visual family. This file only adds the
+   handful of things backup.js needs that account-sync.css has no
+   equivalent for. */
+
+#backup {
+  max-width: 640px;
+  margin: 0 0 32px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 16px 20px 20px;
+}
+
+/* The real file input stays off-screen -- the styled label (already
+   using .accountSyncLinkBtn) is what's actually visible and clickable,
+   and clicking a <label for="..."> opens the associated file input's
+   picker natively, no JS needed for that part. */
+.backupFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.backupFileLabel {
+  display: inline-flex;
+  align-items: center;
+}

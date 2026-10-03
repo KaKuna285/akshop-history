@@ -90,6 +90,18 @@ fetch(extraDataUrl("banner_history.json"))
 			return Math.min(...subset.map((op) => op.first));
 		}
 		var shownrarities = new Set([5]);
+			// "Grey out owned" state for the portrait bubbles -- whether the
+			// toggle is on, and which charIds count as owned. Sourced from
+			// AccountSync (home page's sync flow) rather than anything
+			// store-specific; `hasOwnedData` is kept apart from an empty
+			// ownedCharIdSet on purpose (same reasoning as
+			// AccountSync.getOwnedOperators() itself) so the toggle can stay
+			// hidden entirely for a never-synced visitor instead of just
+			// doing nothing visible.
+			let greyOutOwned = true;
+			const ownedOperatorsList = AccountSync.getOwnedOperators();
+			const hasOwnedData = !!ownedOperatorsList;
+			const ownedCharIdSet = new Set(ownedOperatorsList || []);
 			// Normalization (charId resolution, isKernel flag, date parsing,
 			// avatar preload) now lives in util.js's normalizeShopHistory(),
 			// shared with the operator page -- SHOP_DATA_BY_CHARID isn't used
@@ -213,6 +225,19 @@ fetch(extraDataUrl("banner_history.json"))
 					// position is actually the sum of the entire stack
 
 					ctx.save();
+					// Dim this portrait bubble when it's an operator already in
+					// the synced roster and the "Grey out owned" toggle is on --
+					// paired with the ctx.restore() below (and every early
+					// "continue" path's own ctx.restore()), so globalAlpha never
+					// leaks into the next bubble's drawing.
+					if (
+						greyOutOwned &&
+						ownedCharIdSet.has(
+							chart.data.datasets[args.index].data[i].charId,
+						)
+					) {
+						ctx.globalAlpha = 0.35;
+					}
 					let is_blue =
 						chart.data.datasets[args.index].data[i].shop[
 							parseInt(args.meta._dataset.parsing.xAxisKey)
@@ -432,6 +457,7 @@ fetch(extraDataUrl("banner_history.json"))
 				Object.keys(showntypes).every((k) => typeof v[k] === "boolean"),
 			),
 		);
+		greyOutOwned = getPref("store", "greyOwned", greyOutOwned, (v) => typeof v === "boolean");
 
 		//////////////////////////////////////////////////
 		// this is just the contents of redrawCharts()
@@ -914,6 +940,28 @@ fetch(extraDataUrl("banner_history.json"))
 				e.currentTarget.classList.toggle("checked");
 				showntypes[i] = e.currentTarget.classList.contains("checked");
 				setPref("store", "types", Object.assign({}, showntypes));
+				redrawCharts();
+			};
+		}
+
+		// Only shown once there's actually a synced roster to grey against --
+		// a toggle that would visibly do nothing stays hidden entirely, same
+		// convention as the medals page's own "hide unobtainable" toggle.
+		if (hasOwnedData) {
+			const ownedSpacer = document.createElement("span");
+			ownedSpacer.innerHTML = "/";
+			raritybtns.appendChild(ownedSpacer);
+			const ownedBtn = document.createElement("div");
+			ownedBtn.classList = "sorter button";
+			if (greyOutOwned) ownedBtn.classList.add("checked");
+			ownedBtn.dataset.name = "Owned";
+			ownedBtn.title = "Grey out operators already in your synced roster";
+			ownedBtn.innerHTML = "Grey out owned";
+			raritybtns.appendChild(ownedBtn);
+			ownedBtn.onclick = (e) => {
+				e.currentTarget.classList.toggle("checked");
+				greyOutOwned = e.currentTarget.classList.contains("checked");
+				setPref("store", "greyOwned", greyOutOwned);
 				redrawCharts();
 			};
 		}

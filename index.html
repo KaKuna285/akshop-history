@@ -23,9 +23,11 @@
     <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
     <link type="text/css" href="/css/home-extra.css" rel="stylesheet" />
     <link type="text/css" href="/css/account-sync.css" rel="stylesheet" />
+    <link type="text/css" href="/css/backup-extra.css" rel="stylesheet" />
     <script type="text/javascript" src="/js/config.js"></script>
     <script type="text/javascript" src="/js/prefs.js"></script>
     <script type="text/javascript" src="/js/account-sync.js"></script>
+    <script type="text/javascript" src="/js/backup.js"></script>
   </head>
   <body>
     <div id="topNav">
@@ -52,6 +54,11 @@
           import your account data.
         </p>
         <div id="accountSyncMount"></div>
+      </div>
+
+      <div id="backup">
+        <h2 class="accountSyncHeading">Back up or restore your data</h2>
+        <div id="backupMount"></div>
       </div>
 
       <!--
@@ -111,6 +118,7 @@
         document.getElementById("accountSync").classList.remove("hidden");
       }
       AccountSync.mount(document.getElementById("accountSyncMount"));
+      Backup.mount(document.getElementById("backupMount"));
     </script>
   </body>
 </html>
