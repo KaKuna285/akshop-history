@@ -141,6 +141,11 @@
         <div id="opReleaseInfo" class="opInfoRows"></div>
       </div>
 
+      <div class="opSection" id="opSkinsSection">
+        <h2 class="opSectionHeading">Skins</h2>
+        <div id="opSkinsInfo" class="opSkinsGrid"></div>
+      </div>
+
       <div class="opSection" id="opStatsSection">
         <h2 class="opSectionHeading">Stats</h2>
         <div id="opStatsInfo"></div>
@@ -164,6 +169,23 @@
       <div class="opSection" id="opModulesSection">
         <h2 class="opSectionHeading">Modules</h2>
         <div id="opModulesInfo"></div>
+      </div>
+
+      <!-- Opens on clicking any skin card above -- see #opSkinsInfo /
+           js/operator-page.js's showSkinPreview(). Same overlay/modal
+           pattern as /account's medal preview (click outside or Escape
+           to close). -->
+      <div id="skinPreviewOverlay" class="skinPreviewOverlay hidden">
+        <div id="skinPreview" class="skinPreview" role="dialog" aria-modal="true" aria-labelledby="skinPreviewName">
+          <button type="button" id="skinPreviewClose" class="skinPreviewClose" aria-label="Close"></button>
+          <img id="skinPreviewImg" class="skinPreviewImg" alt="" />
+          <div id="skinPreviewName" class="skinPreviewName"></div>
+          <div id="skinPreviewMeta" class="skinPreviewMeta"></div>
+          <div id="skinPreviewContent" class="skinPreviewContent"></div>
+          <a id="skinPreviewFullLink" href="#" target="_blank" rel="noopener" class="skinPreviewFullLink hidden"
+            >View full illustration &#8599;</a
+          >
+        </div>
       </div>
     </div>
 

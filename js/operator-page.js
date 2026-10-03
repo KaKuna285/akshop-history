@@ -86,11 +86,32 @@
   const potentialsInfoEl = document.getElementById("opPotentialsInfo");
   const skillsInfoEl = document.getElementById("opSkillsInfo");
   const modulesInfoEl = document.getElementById("opModulesInfo");
+  const skinsInfoEl = document.getElementById("opSkinsInfo");
+  const skinPreviewOverlayEl = document.getElementById("skinPreviewOverlay");
+  const skinPreviewEl = document.getElementById("skinPreview");
+  const skinPreviewCloseBtn = document.getElementById("skinPreviewClose");
+  const skinPreviewImgEl = document.getElementById("skinPreviewImg");
+  const skinPreviewNameEl = document.getElementById("skinPreviewName");
+  const skinPreviewMetaEl = document.getElementById("skinPreviewMeta");
+  const skinPreviewContentEl = document.getElementById("skinPreviewContent");
+  const skinPreviewFullLinkEl = document.getElementById("skinPreviewFullLink");
 
   let charTable = null; // charId -> operator record (EN+CN merged, via OperatorEditModal.loadCharTable())
   let operatorList = []; // playable operators, sorted by name, for the jump-search box
   let skillTable = {}; // skillId -> { levels: [...] } (EN+CN merged)
   let battleEquipTable = {}; // uniEquipId -> { phases: [...] } (EN+CN merged)
+  // charId -> [skin, ...] (skin_table.json's charSkins entries, EN+CN
+  // merged the same best-effort way as skillTable/battleEquipTable above,
+  // then filtered down to entries whose charId is a real playable
+  // operator -- see loadData() -- which also happens to drop every
+  // token_*-prefixed entry (enemy/summon re-skins, not operator skins)
+  // for free, since those charIds never appear in charTable either.
+  // Sorted per-operator by displaySkin.sortId, which the real data puts
+  // the default Elite 0/1/2 outfits (negative sortId) before actual
+  // purchasable skins (positive sortId, in release order) -- see
+  // skinDisplayName() for how those default entries get a readable label
+  // despite having no skinName of their own.
+  let skinsByCharId = {};
   let events = []; // events.json's events[] -- best-effort, may stay empty
   let dataReady = false;
   let currentCharId = null;
@@ -465,11 +486,27 @@
     return await fixedJson(res);
   }
 
+  // skin_table.json's top-level shape is { charSkins: {...}, buildinEvolveMap,
+  // buildinPatchMap, brandList, specialSkinInfoList, spDynSkins, ... } --
+  // only charSkins (skinId -> skin record) is used here, so this returns
+  // just that sub-dict rather than the whole ~4MB structure. Confirmed via
+  // a real browser fetch of the live file (not assumed from the field
+  // name) that every record's own isBuySkin/getTime cleanly separate the
+  // 480-ish actual purchasable skins from the ~1600 default Elite 0/1/2
+  // outfit entries every operator also gets one of here -- see
+  // skinDisplayName() below for how those get labeled.
+  async function loadSkinTable(server) {
+    const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/skin_table.json`);
+    const json = await fixedJson(res);
+    return (json && json.charSkins) || {};
+  }
+
   async function loadData() {
-    const [chars, skills, battleEquip] = await Promise.all([
+    const [chars, skills, battleEquip, skins] = await Promise.all([
       OperatorEditModal.loadCharTable(),
       loadSkillTable(SERVER),
       loadBattleEquipTable(SERVER),
+      loadSkinTable(SERVER),
     ]);
     charTable = chars;
     skillTable = skills;
@@ -507,6 +544,35 @@
       }
     } catch (err) {
       console.warn("Couldn't load CN-exclusive module effect data:", err);
+    }
+
+    // Same best-effort CN top-up as skill/module data above -- covers a
+    // cnOnly operator's skins (including their default Elite 0/1/2 art),
+    // which otherwise wouldn't exist under this charId in the EN-only
+    // skin table at all.
+    try {
+      const cnSkins = await loadSkinTable(SERVERS.CN);
+      for (const [skinId, data] of Object.entries(cnSkins)) {
+        if (!skins[skinId]) skins[skinId] = data;
+      }
+    } catch (err) {
+      console.warn("Couldn't load CN-exclusive skin data:", err);
+    }
+
+    // Index by charId, dropping anything that isn't a real playable
+    // operator's own skin -- this is what filters out the token_*-
+    // prefixed entries (enemy/summon re-skins) seen in the live data,
+    // since those charIds never appear in charTable either. Order within
+    // each operator's list follows the game data's own displaySkin.sortId
+    // (defaults first, then real skins in release order).
+    skinsByCharId = {};
+    for (const skin of Object.values(skins)) {
+      if (!skin || !skin.charId || !charTable[skin.charId]) continue;
+      if (!skinsByCharId[skin.charId]) skinsByCharId[skin.charId] = [];
+      skinsByCharId[skin.charId].push(skin);
+    }
+    for (const list of Object.values(skinsByCharId)) {
+      list.sort((a, b) => ((a.displaySkin && a.displaySkin.sortId) || 0) - ((b.displaySkin && b.displaySkin.sortId) || 0));
     }
 
     // Event data is best-effort: a failed/slow fetch just leaves the
@@ -556,6 +622,87 @@
       } else {
         addRow("Released alongside", ev.event);
       }
+    }
+  }
+
+  // --- skins ---------------------------------------------------------------
+  // A skin's own displaySkin.skinName is only ever set for an actual
+  // purchasable/obtainable skin (isBuySkin: true) -- the default Elite
+  // 0/1/2 outfit entries every operator also has here have a null
+  // skinName, so they're labeled from their skinGroupId instead
+  // ("ILLUST_0"/"ILLUST_1"/"ILLUST_2", confirmed via a real fetch of the
+  // live data -- not every operator has all three; a 4-star-and-under
+  // operator with no Elite 2 simply has no ILLUST_2 entry at all).
+  function skinDisplayName(skin) {
+    const d = (skin && skin.displaySkin) || {};
+    if (d.skinName) return d.skinName;
+    const m = /^ILLUST_(\d+)$/.exec(d.skinGroupId || "");
+    if (m) return m[1] === "0" ? "Default outfit" : `Elite ${m[1]} art`;
+    return "Outfit";
+  }
+
+  function hideSkinPreview() {
+    skinPreviewOverlayEl.classList.add("hidden");
+  }
+
+  function showSkinPreview(skin) {
+    const d = (skin && skin.displaySkin) || {};
+    const avatarId = skin.avatarId || skin.skinId;
+    skinPreviewImgEl.onload = () => {
+      skinPreviewImgEl.style.display = "block";
+    };
+    skinPreviewImgEl.onerror = () => {
+      skinPreviewImgEl.style.display = "none";
+    };
+    skinPreviewImgEl.style.display = "none";
+    setSkinAvatarIcon(skinPreviewImgEl, avatarId);
+    skinPreviewNameEl.textContent = skinDisplayName(skin);
+    skinPreviewMetaEl.textContent = d.skinGroupName || "";
+    // Default outfit entries have no real flavor text to show -- content
+    // (sale/epoque copy) and usage (a shorter blurb) are both just the
+    // in-shop description, shown as one paragraph same as the medal
+    // preview's description does for its own flavor text.
+    skinPreviewContentEl.textContent = d.content || d.usage || "";
+    skinPreviewFullLinkEl.href = uri_skin_illust(avatarId);
+    // The default outfit entries' "art" is already the operator's normal
+    // in-game appearance (same image this page's own header icon shows),
+    // not a separate purchasable illustration worth opening full-size --
+    // only show the link for an actual skin.
+    skinPreviewFullLinkEl.classList.toggle("hidden", !skin.isBuySkin);
+    skinPreviewOverlayEl.classList.remove("hidden");
+    skinPreviewOverlayEl.scrollTop = 0;
+  }
+
+  skinPreviewCloseBtn.addEventListener("click", hideSkinPreview);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !skinPreviewOverlayEl.classList.contains("hidden")) hideSkinPreview();
+  });
+  skinPreviewOverlayEl.addEventListener("click", (e) => {
+    if (e.target === skinPreviewOverlayEl) hideSkinPreview();
+  });
+
+  function renderSkins(op) {
+    skinsInfoEl.innerHTML = "";
+    const skins = skinsByCharId[op.charId] || [];
+    if (!skins.length) {
+      skinsInfoEl.appendChild(textNote("No skin data available for this operator."));
+      return;
+    }
+    for (const skin of skins) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "opSkinCard";
+      const img = document.createElement("img");
+      img.className = "opSkinCardImg";
+      img.alt = "";
+      setSkinAvatarIcon(img, skin.avatarId || skin.skinId);
+      card.appendChild(img);
+      const label = document.createElement("span");
+      label.className = "opSkinCardName";
+      label.textContent = skinDisplayName(skin);
+      card.appendChild(label);
+      card.addEventListener("click", () => showSkinPreview(skin));
+      skinsInfoEl.appendChild(card);
     }
   }
 
@@ -1375,6 +1522,11 @@
   }
 
   function renderOperator(charId) {
+    // A skin preview from the previously-viewed operator (switching
+    // operators in place, without a real navigation, is how the
+    // jump-search/grid/"released alongside" links all work here) would
+    // otherwise keep showing that operator's art over this one's page.
+    hideSkinPreview();
     currentCharId = charId;
     const op = charId ? charTable[charId] : null;
     if (!op) {
@@ -1443,6 +1595,7 @@
     renderOwnedSummary(op);
 
     renderReleaseInfo(op);
+    renderSkins(op);
     renderTalents(op);
     renderStatDependentSections(op);
     refreshAddToPlannerButton(op);

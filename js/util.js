@@ -50,6 +50,49 @@ function uri_avatar(charId, source = ASSET_SOURCE.LOCAL) {
   }
 }
 
+// A skin's own avatarId (e.g. "char_002_amiya_winter#1", from skin_table.
+// json's charSkins[skinId].avatarId -- see operator-page.js's loadSkinTable())
+// already names the exact asset, unlike uri_avatar()'s charId+hardcoded-
+// Amiya-suffix guess above, so no special-casing is needed here -- just
+// URL-encode it (avatarIds contain "#", which breaks an unencoded URL by
+// being read as a fragment). Verified against both mirrors directly
+// (real browser fetch, not assumed from uri_avatar()'s convention) before
+// relying on this: LOCAL and ACESHIP both serve it from the same
+// charavatars/avatars folders real operator icons already come from.
+function uri_skin_avatar(avatarId, source = ASSET_SOURCE.LOCAL) {
+  const enc = encodeURIComponent(avatarId);
+  switch (source) {
+    case ASSET_SOURCE.LOCAL:
+      return `${ASSET_SOURCE.LOCAL}torappu/dynamicassets/arts/charavatars/${enc}.png`.toLowerCase();
+    case ASSET_SOURCE.ACESHIP:
+      return `${ASSET_SOURCE.ACESHIP}avatars/${enc}.png`;
+  }
+}
+
+// The full splash illustration for a skin -- multiple MB each (confirmed:
+// real samples ranged ~0.2-5.7MB), so this is only ever meant to be used
+// as a link the user explicitly opens (a new tab), never preloaded or
+// embedded inline. Only confirmed reliable on the Aceship mirror (LOCAL/
+// akgcc wasn't checked for this one -- Aceship alone already covered
+// every sample skin tried). Keyed by the same avatarId as uri_skin_avatar()
+// above, NOT skin_table.json's own "illustId" field -- that field's value
+// (e.g. "illust_char_002_amiya_winter#1") turned out not to match this
+// mirror's actual filenames (e.g. "char_002_amiya_winter#1.png") when
+// checked directly; trusting the field name over a live fetch here would
+// have repeated the same mistake this project has already made twice
+// with large game-data JSON files.
+function uri_skin_illust(avatarId, source = ASSET_SOURCE.ACESHIP) {
+  const enc = encodeURIComponent(avatarId);
+  switch (source) {
+    case ASSET_SOURCE.ACESHIP:
+      return `${ASSET_SOURCE.ACESHIP}characters/${enc}.png`;
+  }
+}
+
+function setSkinAvatarIcon(imgEl, avatarId) {
+  setIconWithFallback(imgEl, uri_skin_avatar(avatarId), uri_skin_avatar(avatarId, ASSET_SOURCE.ACESHIP), false);
+}
+
 // setAvatarIcon()/buildCnBadge() (and their shared helpers below) are used
 // by both the planner page (roster cards, search results, the operator
 // edit modal) and the calendar page (the same edit modal, opened in place
