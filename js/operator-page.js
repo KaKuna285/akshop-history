@@ -87,6 +87,8 @@
   const skillsInfoEl = document.getElementById("opSkillsInfo");
   const modulesInfoEl = document.getElementById("opModulesInfo");
   const skinsInfoEl = document.getElementById("opSkinsInfo");
+  const skinsOwnedToggleEl = document.getElementById("opSkinsOwnedToggle");
+  const skinsOwnedToggleInputEl = document.getElementById("opSkinsOwnedToggleInput");
   const skinPreviewOverlayEl = document.getElementById("skinPreviewOverlay");
   const skinPreviewEl = document.getElementById("skinPreview");
   const skinPreviewCloseBtn = document.getElementById("skinPreviewClose");
@@ -111,6 +113,25 @@
   // skinDisplayName() for how those default entries get a readable label
   // despite having no skinName of their own.
   let skinsByCharId = {};
+
+  // "Grey out owned skins" state for the gallery above -- mirrors
+  // /store's own "Grey out owned" toggle (js/shoplist.js), just as a CSS
+  // opacity class on these DOM .opSkinCard buttons instead of a Chart.js
+  // canvas's globalAlpha, since this gallery isn't a canvas. Sourced from
+  // AccountSync.getOwnedSkins() (populated by a sync whose Worker
+  // response included skin ownership data -- see
+  // cloudflare/depot-import.js's extractOwnedSkins()); computed once
+  // here rather than per-render since a sync only changes via a full
+  // page reload. `hasOwnedSkinData` kept apart from an empty
+  // ownedSkinIdSet on purpose (same reasoning as the operator-roster
+  // owned/not-owned filter elsewhere on this page) so the toggle can stay
+  // hidden entirely for a never-synced visitor, or one whose last sync
+  // predates this field, instead of just doing nothing visible.
+  let greySkinOwned = getPref("operator", "greySkinOwned", true, (v) => typeof v === "boolean");
+  const ownedSkinsMap = AccountSync.getOwnedSkins();
+  const hasOwnedSkinData = !!ownedSkinsMap;
+  const ownedSkinIdSet = new Set(Object.keys(ownedSkinsMap || {}));
+
   let events = []; // events.json's events[] -- best-effort, may stay empty
   let dataReady = false;
   let currentCharId = null;
@@ -739,6 +760,9 @@
       const card = document.createElement("button");
       card.type = "button";
       card.className = "opSkinCard";
+      if (greySkinOwned && ownedSkinIdSet.has(skin.skinId)) {
+        card.classList.add("opSkinCardOwned");
+      }
       const img = document.createElement("img");
       img.className = "opSkinCardImg";
       img.alt = "";
@@ -1819,6 +1843,22 @@
   sortByEl.addEventListener("change", () => {
     setPref("operator", "sortBy", sortByEl.value);
     renderGrid();
+  });
+
+  // Skin gallery's own "grey out owned" toggle -- see the
+  // greySkinOwned/ownedSkinIdSet comment above. Only shown (and only
+  // ever listened on) when there's actually a synced skin-ownership list
+  // to grey against.
+  if (hasOwnedSkinData) {
+    skinsOwnedToggleEl.classList.remove("hidden");
+  }
+  skinsOwnedToggleInputEl.checked = greySkinOwned;
+  skinsOwnedToggleInputEl.addEventListener("change", () => {
+    greySkinOwned = skinsOwnedToggleInputEl.checked;
+    setPref("operator", "greySkinOwned", greySkinOwned);
+    if (currentCharId && charTable && charTable[currentCharId]) {
+      renderSkins(charTable[currentCharId]);
+    }
   });
 
   // --- jump-to-operator search (mirrors planner.js's own operator

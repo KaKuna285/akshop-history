@@ -735,6 +735,31 @@ function extractObtainedMedals(user) {
   return Object.keys(out).length ? out : null;
 }
 
+// Owned skins (and when each was obtained), for the operator page's skin
+// gallery "grey out owned" toggle -- keyed by skinId against the per-
+// operator skins listed in skin_table.json (the frontend side of that
+// match is already solid: skin_table.json's own skinId values, e.g.
+// "char_002_amiya#1", are exactly what a real account's ownership map
+// uses too). Unlike extractObtainedMedals() above, this side is NOT a
+// guess: ArkPRTS's own (github.com/thesadru/ArkPRTS) reference model for
+// this same sync response documents `user.skin.characterSkins` as a
+// `{ [skinId]: bool }` ownership map and `user.skin.skinTs` as a parallel
+// `{ [skinId]: timestamp }` map of when each was obtained -- both read
+// directly here by name, no field-name guessing needed the way the medal
+// data above required.
+function extractOwnedSkins(user) {
+  const owned = user?.skin?.characterSkins;
+  if (!owned || typeof owned !== "object") return null;
+  const ts = user?.skin?.skinTs;
+  const out = {};
+  for (const [skinId, isOwned] of Object.entries(owned)) {
+    if (isOwned !== true) continue;
+    if (typeof skinId !== "string" || !skinId) continue;
+    out[skinId] = { ts: ts && typeof ts[skinId] === "number" ? ts[skinId] : null };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 async function fetchDepot(email, code) {
   const emailToken = await submitEmailCode(email, code);
   const { channelUid, accessToken } = await getYostarToken(email, emailToken);
@@ -773,6 +798,7 @@ async function fetchDepot(email, code) {
     ownedOperators: extractOwnedOperators(user),
     ownedOperatorProgress: extractOwnedOperatorProgress(user),
     obtainedMedals: extractObtainedMedals(user),
+    ownedSkins: extractOwnedSkins(user),
     // TEMPORARY -- not used by the frontend at all, just along for the
     // ride so the real shape of user.medal.medals can be read straight
     // from this response (browser dev tools -> Network tab -> the

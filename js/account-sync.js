@@ -12,11 +12,14 @@
 // response includes `nickname`/`level` alongside the depot, plus the
 // owned-operator roster (`ownedOperators`), for each owned operator its
 // actual Elite/level/potential/skill/module progress
-// (`ownedOperatorProgress`), and obtained medals (`obtainedMedals`) -- see
-// that file's extractOwnedOperators()/extractOwnedOperatorProgress()/
-// extractObtainedMedals() for exactly what's in each and their own
-// caveats about how well-confirmed those shapes are (obtainedMedals is
-// the least-confirmed of the three).
+// (`ownedOperatorProgress`), obtained medals (`obtainedMedals`), and owned
+// skins (`ownedSkins`) -- see that file's extractOwnedOperators()/
+// extractOwnedOperatorProgress()/extractObtainedMedals()/
+// extractOwnedSkins() for exactly what's in each and their own caveats
+// about how well-confirmed those shapes are (obtainedMedals is the
+// least-confirmed of the four; ownedSkins, like the roster/progress
+// fields, is read directly against a documented reference shape, not
+// guessed).
 //
 // Persisted state lives in the shared prefs blob (see js/prefs.js)
 // under its own "account" section -- separate from "planner" (which
@@ -30,7 +33,7 @@ const AccountSync = (function () {
     return getPref(SECTION, "profile", null, (v) => v && typeof v === "object" && v.nickname);
   }
 
-  function saveAccount(nickname, level, ownedOperators, ownedOperatorProgress, obtainedMedals) {
+  function saveAccount(nickname, level, ownedOperators, ownedOperatorProgress, obtainedMedals, ownedSkins) {
     setPref(SECTION, "profile", {
       nickname,
       level: level || null,
@@ -59,6 +62,13 @@ const AccountSync = (function () {
       // yet redeployed with this field, still has a roster/depot with no
       // medal data to show.
       obtainedMedals: obtainedMedals && typeof obtainedMedals === "object" ? obtainedMedals : null,
+      // skinId -> { ts } from the same sync, for the operator page's skin
+      // gallery "grey out owned" toggle (see cloudflare/depot-import.js's
+      // extractOwnedSkins()). Independently nullable from the fields
+      // above for the same reason -- an older sync, or a Worker not yet
+      // redeployed with this field, still has everything else with no
+      // skin ownership data to grey against yet.
+      ownedSkins: ownedSkins && typeof ownedSkins === "object" ? ownedSkins : null,
       syncedAt: new Date().toISOString(),
     });
   }
@@ -96,6 +106,18 @@ const AccountSync = (function () {
   function getObtainedMedals() {
     const account = getAccount();
     return account ? account.obtainedMedals || null : null;
+  }
+
+  // skinId -> { ts } from the last sync, or null if there's no sync or
+  // the last sync didn't include skin ownership data at all (see
+  // cloudflare/depot-import.js's extractOwnedSkins()). The operator
+  // page's skin gallery gates its "grey out owned" toggle's visibility on
+  // this being non-null, same convention as getOwnedOperators() above --
+  // a toggle that can't do anything stays hidden rather than visibly
+  // doing nothing.
+  function getOwnedSkins() {
+    const account = getAccount();
+    return account ? account.ownedSkins || null : null;
   }
 
   // --- shared progress formatting -------------------------------------
@@ -402,6 +424,7 @@ const AccountSync = (function () {
               : null,
           obtainedMedals:
             body.obtainedMedals && typeof body.obtainedMedals === "object" ? body.obtainedMedals : null,
+          ownedSkins: body.ownedSkins && typeof body.ownedSkins === "object" ? body.ownedSkins : null,
         };
         const itemCount = Object.keys(pending.depot).length;
         const who = pending.nickname
@@ -410,8 +433,11 @@ const AccountSync = (function () {
         const rosterNote = pending.ownedOperators
           ? ` and ${pending.ownedOperators.length.toLocaleString()} owned operator${pending.ownedOperators.length === 1 ? "" : "s"}`
           : "";
+        const skinsNote = pending.ownedSkins
+          ? ` (${Object.keys(pending.ownedSkins).length.toLocaleString()} owned skin${Object.keys(pending.ownedSkins).length === 1 ? "" : "s"})`
+          : "";
         summaryEl.textContent =
-          `Fetched ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"}${rosterNote} from ${who}. ` +
+          `Fetched ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"}${rosterNote}${skinsNote} from ${who}. ` +
           `This will replace your current depot entirely (in the Operator Planner) -- anything ` +
           `you've tracked manually and isn't in this list will be removed.`;
         confirmEl.classList.remove("hidden");
@@ -437,10 +463,14 @@ const AccountSync = (function () {
         pending.ownedOperators,
         pending.ownedOperatorProgress,
         pending.obtainedMedals,
+        pending.ownedSkins,
       );
       renderNavBadge();
       const medalNote = pending.obtainedMedals
         ? " Your account overview also has your medal progress now."
+        : "";
+      const skinNote = pending.ownedSkins
+        ? " The operator page's skin gallery can grey out skins you already own, too."
         : "";
       setStatus(
         (pending.ownedOperators
@@ -449,7 +479,8 @@ const AccountSync = (function () {
                 ? ", and owned operators there can show your actual stats instead of maxed."
                 : " -- though this sync didn't include per-operator progress, so those pages will still show maxed stats for now.")
           : "Synced. Your depot will show up next time you open the Planner. (Your operator roster wasn't included in this sync -- the owned/not-owned filter on the operator page won't have anything to go on yet.)") +
-          medalNote,
+          medalNote +
+          skinNote,
       );
       confirmEl.classList.add("hidden");
       summaryEl.textContent = "";
@@ -487,6 +518,7 @@ const AccountSync = (function () {
     getOwnedOperators,
     getOperatorProgress,
     getObtainedMedals,
+    getOwnedSkins,
     formatSkillSummary,
     formatModuleSummary,
     formatInvestmentSummary,

@@ -509,6 +509,20 @@
 
 /* --- Skins (js/operator-page.js's renderSkins()/showSkinPreview()) ----- */
 
+.opSkinsOwnedToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #ccc;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.opSkinsOwnedToggle.hidden {
+  display: none;
+}
+
 .opSkinsGrid {
   display: flex;
   flex-wrap: wrap;
@@ -535,6 +549,15 @@
     border-color: #f8d511;
     background: rgba(248, 213, 17, 0.06);
   }
+}
+
+/* Dimmed when this skin is already in the synced account's owned-skins
+   list and the "Grey out owned" toggle above is on -- same 0.35 opacity
+   /store's own canvas-based greying uses (js/shoplist.js's
+   ctx.globalAlpha), just as a CSS class here since this gallery is plain
+   DOM, not a Chart.js canvas. */
+.opSkinCard.opSkinCardOwned {
+  opacity: 0.35;
 }
 
 .opSkinCardImg {
