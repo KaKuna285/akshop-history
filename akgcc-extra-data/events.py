@@ -666,7 +666,13 @@ def parse_outfit_skin_names(wikitext):
         if not new_m:
             continue
         for name in new_m.group(1).split(","):
-            name = name.strip()
+            # A skin name that itself contains a comma (rare, but real --
+            # e.g. "Rainforest, Me, Rainbow") gets that comma HTML-entity-
+            # escaped by whoever edits this template, specifically so it
+            # isn't mistaken for another separator between names -- the
+            # split above only ever breaks on an *unescaped* comma, so
+            # decoding this back is safe to do after the fact, per piece.
+            name = name.strip().replace("&comma;", ",")
             if name:
                 names.append(name)
     return names
