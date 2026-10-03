@@ -87,8 +87,6 @@
   const skillsInfoEl = document.getElementById("opSkillsInfo");
   const modulesInfoEl = document.getElementById("opModulesInfo");
   const skinsInfoEl = document.getElementById("opSkinsInfo");
-  const skinsUnownedToggleEl = document.getElementById("opSkinsUnownedToggle");
-  const skinsUnownedToggleInputEl = document.getElementById("opSkinsUnownedToggleInput");
   const skinPreviewOverlayEl = document.getElementById("skinPreviewOverlay");
   const skinPreviewEl = document.getElementById("skinPreview");
   const skinPreviewCloseBtn = document.getElementById("skinPreviewClose");
@@ -114,23 +112,24 @@
   // despite having no skinName of their own.
   let skinsByCharId = {};
 
-  // "Grey out skins you don't own" state for the gallery above -- the
-  // inverse of /store's own "Grey out owned" toggle (js/shoplist.js,
-  // which dims operators you DO have, to highlight who's left to pull):
-  // here it dims the skins you DON'T have yet, so the ones you still
-  // need to get stand out instead -- as a CSS opacity class on these DOM
-  // .opSkinCard buttons rather than a Chart.js canvas's globalAlpha,
-  // since this gallery isn't a canvas. Sourced from
+  // Skin-gallery dimming state -- unlike /store's own standalone "Grey
+  // out owned" toggle (js/shoplist.js), this one has no control of its
+  // own: it rides the page's existing "Maxed"/"Your stats" toggle (see
+  // the section right below) instead, so "Maxed" always shows every
+  // skin at full brightness (the idealized, own-everything view the
+  // Stats/Potentials/Skills/Modules sections also show in that mode) and
+  // "Your stats" dims whichever skins this account doesn't actually have
+  // yet -- one toggle, one consistent meaning, rather than a second
+  // control that could disagree with it. Sourced from
   // AccountSync.getOwnedSkins() (populated by a sync whose Worker
   // response included skin ownership data -- see
   // cloudflare/depot-import.js's extractOwnedSkins()); computed once
   // here rather than per-render since a sync only changes via a full
   // page reload. `hasOwnedSkinData` kept apart from an empty
   // ownedSkinIdSet on purpose (same reasoning as the operator-roster
-  // owned/not-owned filter elsewhere on this page) so the toggle can stay
-  // hidden entirely for a never-synced visitor, or one whose last sync
-  // predates this field, instead of just doing nothing visible.
-  let greyUnownedSkins = getPref("operator", "greyUnownedSkins", true, (v) => typeof v === "boolean");
+  // owned/not-owned filter elsewhere on this page) so a never-synced
+  // visitor (or one whose last sync predates this field) never sees
+  // dimming that has nothing real behind it.
   const ownedSkinsMap = AccountSync.getOwnedSkins();
   const hasOwnedSkinData = !!ownedSkinsMap;
   const ownedSkinIdSet = new Set(Object.keys(ownedSkinsMap || {}));
@@ -143,15 +142,19 @@
 
   // --- "Maxed" / "Your stats" toggle --------------------------------------
   // Whether to show the fully-maxed state (the page's long-standing
-  // default) or this operator's actual synced progress in the Stats/
-  // Potentials/Skills/Modules sections below. `statsView` is the user's
-  // last choice (persisted, so picking "Your stats" once keeps it picked
-  // for the next operator too); `currentIsOwned`/`currentProgress` are
-  // refreshed for whichever operator is currently on screen, by
-  // renderOperator() below, since a stale `true`/non-null here from a
-  // previously-viewed operator would wrongly offer "Your stats" for one
-  // that isn't actually owned (or isn't the same owned operator the
-  // progress data belongs to).
+  // default) or this account's actual synced state in the Stats/
+  // Potentials/Skills/Modules sections below, AND in the Skins gallery
+  // (dimming not-yet-owned skins -- see skinsShouldGreyUnowned()): one
+  // toggle, read two ways, so "what you actually have" means the same
+  // thing in both places instead of needing a second control that could
+  // disagree with this one. `statsView` is the user's last choice
+  // (persisted, so picking "Your stats" once keeps it picked for the
+  // next operator too); `currentIsOwned`/`currentProgress` are refreshed
+  // for whichever operator is currently on screen, by renderOperator()
+  // below, since a stale `true`/non-null here from a previously-viewed
+  // operator would wrongly offer "Your stats" for one that isn't
+  // actually owned (or isn't the same owned operator the progress data
+  // belongs to).
   let statsView = getPref("operator", "statsView", "maxed", (v) => v === "maxed" || v === "owned");
   let currentIsOwned = false;
   let currentProgress = null; // this operator's synced progress, or null
@@ -166,6 +169,22 @@
     return currentIsOwned && currentProgress && statsView === "owned" ? "owned" : "maxed";
   }
 
+  // Whether the skin gallery should dim not-yet-owned skins right now --
+  // deliberately checks the raw `statsView` selection rather than
+  // effectiveView(), since skin ownership (AccountSync.getOwnedSkins())
+  // and per-operator Elite/level/etc progress (currentProgress) are two
+  // independent fields from two independent parts of a sync: an account
+  // can have one without the other (an older sync predating one of the
+  // two fields, say), and effectiveView()'s own currentProgress
+  // requirement exists only to decide what the Stats section has numbers
+  // to show -- it has nothing to do with whether this account's skin
+  // ownership data exists. Gating skin dimming on that too would wrongly
+  // keep every skin undimmed on "Your stats" just because this
+  // particular operator's progress happened to be missing.
+  function skinsShouldGreyUnowned() {
+    return currentIsOwned && hasOwnedSkinData && statsView === "owned";
+  }
+
   function getAccountProgress(charId) {
     if (typeof AccountSync === "undefined" || !AccountSync.getOperatorProgress) return null;
     return AccountSync.getOperatorProgress(charId);
@@ -177,13 +196,26 @@
       return;
     }
     statsViewToggleEl.classList.remove("hidden");
-    statsViewOwnedBtn.disabled = !currentProgress;
-    statsViewOwnedBtn.title = currentProgress
-      ? ""
-      : "This sync didn't include detailed progress for this operator -- re-sync your account from the home page to use this.";
-    const view = effectiveView();
-    statsViewMaxedBtn.classList.toggle("opStatsViewBtnActive", view === "maxed");
-    statsViewOwnedBtn.classList.toggle("opStatsViewBtnActive", view === "owned");
+    // Disabled only when NEITHER kind of synced detail is available --
+    // "Your stats" now also governs the skin gallery's dimming (see
+    // skinsShouldGreyUnowned()), which only needs hasOwnedSkinData, not
+    // currentProgress, so an account with skin-ownership data but no
+    // per-operator progress for this operator (an older sync, say) can
+    // still use the button for that, even though Stats/Potentials/
+    // Skills/Modules themselves will just show "Maxed" either way.
+    statsViewOwnedBtn.disabled = !currentProgress && !hasOwnedSkinData;
+    statsViewOwnedBtn.title = statsViewOwnedBtn.disabled
+      ? "This sync didn't include detailed progress or skin ownership for this operator -- re-sync your account from the home page to use this."
+      : "";
+    // Which button looks pressed follows the raw `statsView` choice, not
+    // effectiveView()'s own currentProgress-gated fallback -- picking
+    // "Your stats" with skin data but no per-operator progress now has a
+    // real effect (skin dimming) even though the Stats/Potentials/
+    // Skills/Modules sections below still fall back to Maxed numbers, so
+    // the button should still show as selected rather than silently
+    // reverting, which would look like the click did nothing.
+    statsViewMaxedBtn.classList.toggle("opStatsViewBtnActive", statsView !== "owned");
+    statsViewOwnedBtn.classList.toggle("opStatsViewBtnActive", statsView === "owned");
   }
 
   // The compact "Owned · E1 · Lv55 · ..." line in the header -- always
@@ -763,20 +795,19 @@
       const card = document.createElement("button");
       card.type = "button";
       card.className = "opSkinCard";
-      // hasOwnedSkinData guards this the same as the toggle's own
-      // visibility -- without it, a never-synced visitor (empty
-      // ownedSkinIdSet, so every skin looks "not owned") would see the
-      // whole gallery dimmed by greyUnownedSkins' own true default, with
-      // no visible toggle to turn it back off. skin.isBuySkin guards it a
-      // second way: the default Elite 0/1/2 outfit entries (see
-      // skinDisplayName()'s comment above) aren't purchasable at all --
-      // every operator has them automatically, and they're never present
-      // in a synced account's ownedSkins map either (same as any other
+      // skinsShouldGreyUnowned() covers "is there anything real to grey
+      // against, and did the Maxed/Your-stats toggle ask for it" (see its
+      // own comment above). skin.isBuySkin guards this a second way: the
+      // default Elite 0/1/2 outfit entries (see skinDisplayName()'s
+      // comment above) aren't purchasable at all -- every operator has
+      // them automatically, and they're never present in a synced
+      // account's ownedSkins map either (same as any other
       // never-obtained skin) -- so without this check they'd permanently
-      // read as "not owned" and grey out, even though there's nothing to
-      // buy. Only a real purchasable skin (isBuySkin: true) is actually
-      // eligible to be dimmed as "not owned yet".
-      if (hasOwnedSkinData && greyUnownedSkins && skin.isBuySkin && !ownedSkinIdSet.has(skin.skinId)) {
+      // read as "not owned" and grey out under "Your stats", even though
+      // there's nothing to buy. Only a real purchasable skin
+      // (isBuySkin: true) is actually eligible to be dimmed as
+      // not-owned-yet.
+      if (skinsShouldGreyUnowned() && skin.isBuySkin && !ownedSkinIdSet.has(skin.skinId)) {
         card.classList.add("opSkinCardUnowned");
       }
       const img = document.createElement("img");
@@ -1595,17 +1626,21 @@
     });
   });
 
-  // Re-renders exactly the four sections the "Maxed"/"Your stats" toggle
+  // Re-renders exactly the five sections the "Maxed"/"Your stats" toggle
   // affects -- Release and Talents don't depend on it (a talent's own
   // unlock conditions are shown as plain text either way, not a live
   // preview), so they're left out of both this and renderOperator()'s
-  // own full-page render below.
+  // own full-page render below. Skins is here too (not just the other
+  // four): "Your stats" dims not-yet-owned skins the same way it shows
+  // this account's actual Elite/level/etc elsewhere, see
+  // skinsShouldGreyUnowned()'s own comment.
   function renderStatDependentSections(op) {
     const view = effectiveView();
     renderStats(op, view, currentProgress);
     renderPotentials(op, view, currentProgress);
     renderSkills(op, view, currentProgress);
     renderModules(op, view, currentProgress);
+    renderSkins(op);
   }
 
   function renderOperator(charId) {
@@ -1682,9 +1717,8 @@
     renderOwnedSummary(op);
 
     renderReleaseInfo(op);
-    renderSkins(op);
     renderTalents(op);
-    renderStatDependentSections(op);
+    renderStatDependentSections(op); // also renders Skins -- see its own comment
     refreshAddToPlannerButton(op);
 
     const params = new URLSearchParams(location.search);
@@ -1859,22 +1893,6 @@
   sortByEl.addEventListener("change", () => {
     setPref("operator", "sortBy", sortByEl.value);
     renderGrid();
-  });
-
-  // Skin gallery's own "grey out skins you don't own" toggle -- see the
-  // greyUnownedSkins/ownedSkinIdSet comment above. Only shown (and only
-  // ever listened on) when there's actually a synced skin-ownership list
-  // to grey against.
-  if (hasOwnedSkinData) {
-    skinsUnownedToggleEl.classList.remove("hidden");
-  }
-  skinsUnownedToggleInputEl.checked = greyUnownedSkins;
-  skinsUnownedToggleInputEl.addEventListener("change", () => {
-    greyUnownedSkins = skinsUnownedToggleInputEl.checked;
-    setPref("operator", "greyUnownedSkins", greyUnownedSkins);
-    if (currentCharId && charTable && charTable[currentCharId]) {
-      renderSkins(charTable[currentCharId]);
-    }
   });
 
   // --- jump-to-operator search (mirrors planner.js's own operator

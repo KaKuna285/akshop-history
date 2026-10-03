@@ -143,14 +143,10 @@
 
       <div class="opSection" id="opSkinsSection">
         <h2 class="opSectionHeading">Skins</h2>
-        <!-- Only shown once there's actually a synced skin-ownership list
-             to grey against -- same "hide the toggle entirely rather than
-             let it visibly do nothing" convention as /store's own "Grey
-             out owned" toggle. See js/operator-page.js's renderSkins(). -->
-        <label id="opSkinsUnownedToggle" class="opSkinsUnownedToggle hidden">
-          <input type="checkbox" id="opSkinsUnownedToggleInput" />
-          Grey out skins you don't own
-        </label>
+        <!-- Dimming not-yet-owned skins here rides the "Maxed"/"Your
+             stats" toggle above (#opStatsViewToggle) rather than having a
+             control of its own -- see js/operator-page.js's
+             skinsShouldGreyUnowned()/renderSkins(). -->
         <div id="opSkinsInfo" class="opSkinsGrid"></div>
       </div>
 
