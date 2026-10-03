@@ -665,13 +665,6 @@
     // few MB for some skins) loads in the background via a detached
     // Image(). Only swap the visible <img> over to it once that load has
     // actually succeeded, so the modal never shows a half-loaded image.
-    // A handful of very recently released skins (new collab-exclusive
-    // operators/outfits especially) simply aren't mirrored yet by the
-    // third-party image host this site reads from -- confirmed directly,
-    // not assumed, for several reported examples. On that 404 this just
-    // silently leaves the avatar showing; see the "Check skin art
-    // coverage" debug page (linked at the bottom of this page) for a full
-    // scan of which skins currently have no full illustration anywhere.
     skinPreviewImgEl.dataset.avatarId = avatarId;
     skinPreviewImgEl.classList.remove("skinPreviewImgFull");
     skinPreviewImgEl.onload = () => {
@@ -683,20 +676,34 @@
     skinPreviewImgEl.style.display = "none";
     setSkinAvatarIcon(skinPreviewImgEl, avatarId);
 
-    const fullUrl = uri_skin_illust(portraitId);
-    const preload = new Image();
-    preload.onload = () => {
-      // The user may already have clicked a different skin card before
-      // this background load finished -- only apply it if the preview is
-      // still showing the same skin it was requested for.
-      if (skinPreviewImgEl.dataset.avatarId !== avatarId) return;
-      skinPreviewImgEl.onload = null;
-      skinPreviewImgEl.onerror = null;
-      skinPreviewImgEl.src = fullUrl;
-      skinPreviewImgEl.classList.add("skinPreviewImgFull");
-      skinPreviewImgEl.style.display = "block";
-    };
-    preload.src = fullUrl;
+    // Aceship first (the long-established mirror, usually fastest/most
+    // cached), then myrtle.moe's own asset pipeline as a second try -- it
+    // extracts straight from the official game CDN rather than waiting on
+    // community contributors, so it reliably has art Aceship doesn't yet
+    // for very recent/collab-exclusive skins. A handful of skins (see the
+    // "Check skin art coverage" debug page linked at the bottom of this
+    // page) still have no full illustration on either mirror; that last
+    // 404 just silently leaves the avatar showing.
+    const fullUrlCandidates = [uri_skin_illust(portraitId), uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin)];
+    function tryNextFullUrl(i) {
+      if (i >= fullUrlCandidates.length) return; // nothing worked -- stay on the avatar
+      const url = fullUrlCandidates[i];
+      const preload = new Image();
+      preload.onload = () => {
+        // The user may already have clicked a different skin card before
+        // this background load finished -- only apply it if the preview
+        // is still showing the same skin it was requested for.
+        if (skinPreviewImgEl.dataset.avatarId !== avatarId) return;
+        skinPreviewImgEl.onload = null;
+        skinPreviewImgEl.onerror = null;
+        skinPreviewImgEl.src = url;
+        skinPreviewImgEl.classList.add("skinPreviewImgFull");
+        skinPreviewImgEl.style.display = "block";
+      };
+      preload.onerror = () => tryNextFullUrl(i + 1);
+      preload.src = url;
+    }
+    tryNextFullUrl(0);
 
     skinPreviewNameEl.textContent = skinDisplayName(skin);
     skinPreviewMetaEl.textContent = d.skinGroupName || "";

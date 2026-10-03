@@ -106,8 +106,13 @@
 
   // portraitId, not avatarId -- see uri_skin_illust()'s own comment in
   // util.js for why those differ for the base/"Default outfit" entry.
-  async function checkFullArt(portraitId) {
+  // Same two-tier fallback (Aceship, then myrtle.moe) as the operator
+  // page's own showSkinPreview() -- see uri_skin_illust_myrtle()'s
+  // comment in util.js for that mirror's different (charId-nested,
+  // isBuySkin-dependent) URL shape.
+  async function checkFullArt(charId, portraitId, isBuySkin) {
     if (await urlExists(uri_skin_illust(portraitId))) return "ACESHIP";
+    if (await urlExists(uri_skin_illust_myrtle(charId, portraitId, isBuySkin))) return "MYRTLE";
     return null;
   }
 
@@ -141,12 +146,13 @@
 
   function statusCell(status) {
     const span = document.createElement("span");
+    const labels = { LOCAL: "OK (local mirror)", ACESHIP: "OK (Aceship mirror)", MYRTLE: "OK (myrtle.moe)" };
     if (status) {
       span.className = "sadStatusOk";
-      span.textContent = status === "LOCAL" ? "OK (local mirror)" : "OK (Aceship mirror)";
+      span.textContent = labels[status] || "OK";
     } else {
       span.className = "sadStatusMissing";
-      span.textContent = "Missing on both mirrors";
+      span.textContent = "Missing everywhere checked";
     }
     return span;
   }
@@ -174,7 +180,7 @@
     p1.textContent = `${totalChecked} skins checked (${cnOnlyCount} CN-only, excluded from the counts below).`;
     summaryEl.appendChild(p1);
     const p2 = document.createElement("p");
-    p2.innerHTML = `<strong>${missingFullArt}</strong> skin(s) have no full illustration on either mirror right now.`;
+    p2.innerHTML = `<strong>${missingFullArt}</strong> skin(s) have no full illustration on any mirror right now.`;
     summaryEl.appendChild(p2);
     if (missingAvatar > 0) {
       const p3 = document.createElement("p");
@@ -254,7 +260,7 @@
         const portraitId = item.skin.portraitId || avatarId;
         const [avatarStatus, fullArtStatus] = await Promise.all([
           checkAvatar(avatarId),
-          checkFullArt(portraitId),
+          checkFullArt(item.charId, portraitId, !!item.skin.isBuySkin),
         ]);
         return {
           charId: item.charId,

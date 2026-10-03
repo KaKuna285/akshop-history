@@ -18,6 +18,14 @@ const ASSET_SOURCE = {
   // ACESHIP: "https://raw.githubusercontent.com/Aceship/Arknight-Images/main/",
   ACESHIP: "https://cdn.jsdelivr.net/gh/Aceship/Arknight-Images@main/",
   ARKWAIFU: "https://arkwaifu.cc/api/v1/arts/REPLACEME/variants/origin/content",
+  // Third fallback tier for full skin illustrations only (see
+  // uri_skin_illust_myrtle() below) -- myrtle.moe runs its own asset
+  // pipeline that extracts directly from the official game CDN rather
+  // than waiting on community contributors, so its coverage of very
+  // recent/collab-exclusive skins is noticeably better than Aceship's.
+  // Confirmed via direct fetch: open CORS (access-control-allow-origin:
+  // *), fronted by Cloudflare, cache-control: public.
+  MYRTLE: "https://api.myrtle.moe/api/assets/textures/",
 };
 
 // do not modify SERVERS even if you change data source as this is used locally as well.
@@ -99,6 +107,30 @@ function uri_skin_illust(portraitId, source = ASSET_SOURCE.ACESHIP) {
     case ASSET_SOURCE.ACESHIP:
       return `${ASSET_SOURCE.ACESHIP}characters/${enc}.png`;
   }
+}
+
+// Fallback full-illustration source for when Aceship doesn't have a skin
+// yet (confirmed via the skin art coverage debug page: ~328 skins,
+// mostly recent/collab-exclusive content) -- myrtle.moe's own asset
+// pipeline, laid out differently from Aceship's flat "characters/<id>"
+// convention:
+//  - non-purchased entries (the "Default outfit"/Elite 1/Elite 2 art
+//    every operator has) live under "chararts/<charId>/<portraitId>.png"
+//  - real purchasable skins live under
+//    "skinpack/<charId>/<portraitId>b.png" -- note the trailing "b" on
+//    the filename itself, confirmed against several real skins (not
+//    assumed from one sample): it's the smaller of two variants Myrtle
+//    exposes per skin (~1-1.3MB) and the one its own frontend actually
+//    displays: the non-"b" file at the same path is a much larger (~5MB+)
+//    source texture, not meant for direct display.
+// Both forms are nested by charId, unlike Aceship's flat layout, so this
+// needs isBuySkin and charId as well as portraitId.
+function uri_skin_illust_myrtle(charId, portraitId, isBuySkin) {
+  const encChar = encodeURIComponent(charId);
+  const encPortrait = encodeURIComponent(portraitId);
+  return isBuySkin
+    ? `${ASSET_SOURCE.MYRTLE}skinpack/${encChar}/${encPortrait}b.png`
+    : `${ASSET_SOURCE.MYRTLE}chararts/${encChar}/${encPortrait}.png`;
 }
 
 function setSkinAvatarIcon(imgEl, avatarId) {
