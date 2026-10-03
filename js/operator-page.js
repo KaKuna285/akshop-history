@@ -767,8 +767,16 @@
       // visibility -- without it, a never-synced visitor (empty
       // ownedSkinIdSet, so every skin looks "not owned") would see the
       // whole gallery dimmed by greyUnownedSkins' own true default, with
-      // no visible toggle to turn it back off.
-      if (hasOwnedSkinData && greyUnownedSkins && !ownedSkinIdSet.has(skin.skinId)) {
+      // no visible toggle to turn it back off. skin.isBuySkin guards it a
+      // second way: the default Elite 0/1/2 outfit entries (see
+      // skinDisplayName()'s comment above) aren't purchasable at all --
+      // every operator has them automatically, and they're never present
+      // in a synced account's ownedSkins map either (same as any other
+      // never-obtained skin) -- so without this check they'd permanently
+      // read as "not owned" and grey out, even though there's nothing to
+      // buy. Only a real purchasable skin (isBuySkin: true) is actually
+      // eligible to be dimmed as "not owned yet".
+      if (hasOwnedSkinData && greyUnownedSkins && skin.isBuySkin && !ownedSkinIdSet.has(skin.skinId)) {
         card.classList.add("opSkinCardUnowned");
       }
       const img = document.createElement("img");
