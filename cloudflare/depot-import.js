@@ -740,20 +740,26 @@ function extractObtainedMedals(user) {
 // operator skins listed in skin_table.json (the frontend side of that
 // match is already solid: skin_table.json's own skinId values, e.g.
 // "char_002_amiya#1", are exactly what a real account's ownership map
-// uses too). Unlike extractObtainedMedals() above, this side is NOT a
-// guess: ArkPRTS's own (github.com/thesadru/ArkPRTS) reference model for
-// this same sync response documents `user.skin.characterSkins` as a
-// `{ [skinId]: bool }` ownership map and `user.skin.skinTs` as a parallel
-// `{ [skinId]: timestamp }` map of when each was obtained -- both read
-// directly here by name, no field-name guessing needed the way the medal
-// data above required.
+// uses too). The top-level shape here was right on the first guess
+// (ArkPRTS's reference model: `user.skin.characterSkins` as a
+// `{ [skinId]: ... }` ownership map, `user.skin.skinTs` as a parallel
+// `{ [skinId]: timestamp }` obtained-time map) -- confirmed via a real
+// account's own synced response (see the since-removed _debugSkinRaw
+// field this was checked against). What was wrong was the *value* type:
+// ArkPRTS's own `Mapping[str, bool]` typing implied a literal `true`,
+// but a real response's characterSkins entries are the *number* 1 (this
+// game's own JSON encoding for booleans elsewhere too) -- a strict
+// `=== true` check silently treated every single owned skin as
+// unowned. Plain truthiness below covers both that real shape and a
+// literal `true`, while still correctly skipping a falsy (0/false)
+// entry if one ever does show up.
 function extractOwnedSkins(user) {
   const owned = user?.skin?.characterSkins;
   if (!owned || typeof owned !== "object") return null;
   const ts = user?.skin?.skinTs;
   const out = {};
   for (const [skinId, isOwned] of Object.entries(owned)) {
-    if (isOwned !== true) continue;
+    if (!isOwned) continue;
     if (typeof skinId !== "string" || !skinId) continue;
     out[skinId] = { ts: ts && typeof ts[skinId] === "number" ? ts[skinId] : null };
   }
@@ -807,18 +813,5 @@ async function fetchDepot(email, code) {
     // extractObtainedMedals() above against what it shows) once that's
     // confirmed.
     _debugMedalRaw: user?.medal?.medals ?? null,
-    // TEMPORARY -- same reasoning as _debugMedalRaw above, for
-    // extractOwnedSkins(): a first real-account test came back with
-    // ownedSkins always null, so the ArkPRTS-derived guess that skin
-    // ownership sits at user.skin.characterSkins/user.skin.skinTs is
-    // apparently wrong for this account (or that reference is stale).
-    // _debugSkinRaw dumps user.skin as-is so the real shape (or lack of
-    // one) can be read straight from a real synced account's Network tab
-    // response; _debugUserTopLevelKeys lists every top-level key on
-    // `user` in case skin ownership actually lives somewhere else
-    // entirely (not nested under "skin" at all). Delete both (and fix
-    // extractOwnedSkins() against what they show) once that's confirmed.
-    _debugSkinRaw: user?.skin ?? null,
-    _debugUserTopLevelKeys: user && typeof user === "object" ? Object.keys(user) : null,
   };
 }
