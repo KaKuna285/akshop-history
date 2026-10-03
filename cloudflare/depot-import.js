@@ -807,5 +807,18 @@ async function fetchDepot(email, code) {
     // extractObtainedMedals() above against what it shows) once that's
     // confirmed.
     _debugMedalRaw: user?.medal?.medals ?? null,
+    // TEMPORARY -- same reasoning as _debugMedalRaw above, for
+    // extractOwnedSkins(): a first real-account test came back with
+    // ownedSkins always null, so the ArkPRTS-derived guess that skin
+    // ownership sits at user.skin.characterSkins/user.skin.skinTs is
+    // apparently wrong for this account (or that reference is stale).
+    // _debugSkinRaw dumps user.skin as-is so the real shape (or lack of
+    // one) can be read straight from a real synced account's Network tab
+    // response; _debugUserTopLevelKeys lists every top-level key on
+    // `user` in case skin ownership actually lives somewhere else
+    // entirely (not nested under "skin" at all). Delete both (and fix
+    // extractOwnedSkins() against what they show) once that's confirmed.
+    _debugSkinRaw: user?.skin ?? null,
+    _debugUserTopLevelKeys: user && typeof user === "object" ? Object.keys(user) : null,
   };
 }
