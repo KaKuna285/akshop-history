@@ -575,7 +575,11 @@
 .skinPreview {
   position: relative;
   width: 100%;
-  max-width: 360px;
+  /* Wide enough to show a full illustration (tall/portrait-oriented
+     splash art) at a reasonable size, while still looking fine for the
+     small circular avatar placeholder shown before that finishes
+     loading -- see showSkinPreview() in js/operator-page.js. */
+  max-width: 480px;
   margin: 0;
   padding: 14px 40px 16px 14px;
   background: #232323;
@@ -616,12 +620,27 @@
 }
 
 .skinPreviewImg {
+  /* Initial state: the small circular avatar, shown immediately as a
+     placeholder while the full illustration loads in the background. */
   width: 140px;
   height: 140px;
   border-radius: 50%;
   object-fit: cover;
   background: rgba(255, 255, 255, 0.06);
   margin: 0 auto 10px;
+}
+
+.skinPreviewImg.skinPreviewImgFull {
+  /* Swapped in once the full illustration has finished loading --
+     uncropped (illustrations are tall/portrait-oriented, not square)
+     and sized to fit the modal/viewport rather than the fixed avatar
+     box above. */
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
 .skinPreviewName {
@@ -649,18 +668,6 @@
 }
 
 .skinPreviewContent:empty {
-  display: none;
-}
-
-.skinPreviewFullLink {
-  display: inline-block;
-  margin-top: 12px;
-  color: #f8d511;
-  font-size: 0.82rem;
-  text-decoration: underline;
-}
-
-.skinPreviewFullLink.hidden {
   display: none;
 }
 

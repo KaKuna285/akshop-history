@@ -94,7 +94,6 @@
   const skinPreviewNameEl = document.getElementById("skinPreviewName");
   const skinPreviewMetaEl = document.getElementById("skinPreviewMeta");
   const skinPreviewContentEl = document.getElementById("skinPreviewContent");
-  const skinPreviewFullLinkEl = document.getElementById("skinPreviewFullLink");
 
   let charTable = null; // charId -> operator record (EN+CN merged, via OperatorEditModal.loadCharTable())
   let operatorList = []; // playable operators, sorted by name, for the jump-search box
@@ -648,6 +647,19 @@
   function showSkinPreview(skin) {
     const d = (skin && skin.displaySkin) || {};
     const avatarId = skin.avatarId || skin.skinId;
+    // Show the small avatar immediately as a placeholder -- cheap, and
+    // usually already in the browser's cache from this same skin's grid
+    // card -- while the full illustration (several times bigger, up to a
+    // few MB for some skins) loads in the background via a detached
+    // Image(). Only swap the visible <img> over to it once that load has
+    // actually succeeded, so the modal never shows a half-loaded image.
+    // The "Default outfit" (ILLUST_0) entry has no separate illustration
+    // file on this mirror at all, only ILLUST_1/ILLUST_2 and real skins
+    // do (confirmed via the GitHub Contents API during Phase 1 research)
+    // -- on that 404 this just silently leaves the avatar showing, which
+    // is the correct outcome here, not a bug to report.
+    skinPreviewImgEl.dataset.avatarId = avatarId;
+    skinPreviewImgEl.classList.remove("skinPreviewImgFull");
     skinPreviewImgEl.onload = () => {
       skinPreviewImgEl.style.display = "block";
     };
@@ -656,19 +668,33 @@
     };
     skinPreviewImgEl.style.display = "none";
     setSkinAvatarIcon(skinPreviewImgEl, avatarId);
+
+    const fullUrl = uri_skin_illust(avatarId);
+    const preload = new Image();
+    preload.onload = () => {
+      // The user may already have clicked a different skin card before
+      // this background load finished -- only apply it if the preview is
+      // still showing the same skin it was requested for.
+      if (skinPreviewImgEl.dataset.avatarId !== avatarId) return;
+      skinPreviewImgEl.onload = null;
+      skinPreviewImgEl.onerror = null;
+      skinPreviewImgEl.src = fullUrl;
+      skinPreviewImgEl.classList.add("skinPreviewImgFull");
+      skinPreviewImgEl.style.display = "block";
+    };
+    preload.src = fullUrl;
+
     skinPreviewNameEl.textContent = skinDisplayName(skin);
     skinPreviewMetaEl.textContent = d.skinGroupName || "";
     // Default outfit entries have no real flavor text to show -- content
     // (sale/epoque copy) and usage (a shorter blurb) are both just the
     // in-shop description, shown as one paragraph same as the medal
-    // preview's description does for its own flavor text.
-    skinPreviewContentEl.textContent = d.content || d.usage || "";
-    skinPreviewFullLinkEl.href = uri_skin_illust(avatarId);
-    // The default outfit entries' "art" is already the operator's normal
-    // in-game appearance (same image this page's own header icon shows),
-    // not a separate purchasable illustration worth opening full-size --
-    // only show the link for an actual skin.
-    skinPreviewFullLinkEl.classList.toggle("hidden", !skin.isBuySkin);
+    // preview's description does for its own flavor text. This data has
+    // the exact same "<color name=#xxxxxx>...</color>"-style rich-text
+    // markup as skill/talent/module text, so reuse the same stripper --
+    // skin flavor text has no "{key}" blackboard tokens to resolve, hence
+    // the null second argument.
+    skinPreviewContentEl.textContent = formatDescription(d.content || d.usage || "", null);
     skinPreviewOverlayEl.classList.remove("hidden");
     skinPreviewOverlayEl.scrollTop = 0;
   }

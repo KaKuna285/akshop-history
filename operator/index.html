@@ -174,7 +174,10 @@
       <!-- Opens on clicking any skin card above -- see #opSkinsInfo /
            js/operator-page.js's showSkinPreview(). Same overlay/modal
            pattern as /account's medal preview (click outside or Escape
-           to close). -->
+           to close). #skinPreviewImg shows the small avatar immediately
+           and is swapped to the full illustration in place once that's
+           finished loading in the background -- see showSkinPreview()
+           for why there's no separate "view full size" link. -->
       <div id="skinPreviewOverlay" class="skinPreviewOverlay hidden">
         <div id="skinPreview" class="skinPreview" role="dialog" aria-modal="true" aria-labelledby="skinPreviewName">
           <button type="button" id="skinPreviewClose" class="skinPreviewClose" aria-label="Close"></button>
@@ -182,9 +185,6 @@
           <div id="skinPreviewName" class="skinPreviewName"></div>
           <div id="skinPreviewMeta" class="skinPreviewMeta"></div>
           <div id="skinPreviewContent" class="skinPreviewContent"></div>
-          <a id="skinPreviewFullLink" href="#" target="_blank" rel="noopener" class="skinPreviewFullLink hidden"
-            >View full illustration &#8599;</a
-          >
         </div>
       </div>
     </div>
