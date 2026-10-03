@@ -1,0 +1,105 @@
+<html>
+  <head>
+    <title>Skin Art Coverage Check</title>
+    <meta charset="UTF-8" />
+    <meta
+      name="description"
+      content="Maintainer tool: scans every operator skin and reports which ones are missing avatar or full-illustration art on the image mirrors this site reads from."
+    />
+    <!-- A debugging tool, not a public page -- no reason for this to show
+         up in search results. -->
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link type="text/css" href="/css/reset.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style.css" rel="stylesheet" />
+    <link type="text/css" href="/css/style2.css" rel="stylesheet" />
+    <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
+    <link type="text/css" href="/css/skin-art-debug-extra.css" rel="stylesheet" />
+    <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/prefs.js"></script>
+    <script type="text/javascript" src="/js/util.js"></script>
+  </head>
+  <body>
+    <div id="topNav">
+      <div class="nav-left">
+        <a id="pageTitle">Skin Art Coverage Check</a>
+      </div>
+      <div class="nav-right">
+        <nav class="siteNav" aria-label="Site navigation">
+          <a href="/store/">Shop History</a>
+          <a href="/calendar/">Calendar</a>
+          <a href="/planner/">Planner</a>
+          <a href="/operator/">Operator</a>
+        </nav>
+        <a class="rightButton button iconButton" href="/" id="homeButton"></a>
+      </div>
+    </div>
+
+    <div id="sadIntro" class="sadIntro">
+      <p>
+        Scans every operator skin against the image mirrors the
+        <a href="/operator/">Operator</a> page's skin gallery reads from, and
+        reports which ones can't find their avatar and/or full illustration
+        on either mirror right now. This doesn't fix anything by itself --
+        it's here to tell you <em>which</em> skins are affected and why,
+        since a missing image usually means the third-party mirror just
+        hasn't picked up that file yet (most common for very recently
+        released skins and collab-exclusive content) rather than a bug on
+        this site.
+      </p>
+      <p>
+        Skins that only exist on the CN server (no EN release yet) are
+        expected to be missing and are filtered out of the results below by
+        default -- there's a toggle to see them anyway.
+      </p>
+      <p>
+        This runs a few thousand small network requests (existence checks
+        only, nothing is downloaded in full) against jsDelivr -- it only
+        runs when you press the button below, never automatically.
+      </p>
+    </div>
+
+    <div id="sadControls" class="sadControls">
+      <button type="button" id="sadStartBtn" class="button">Start scan</button>
+      <label class="sadToggle">
+        <input type="checkbox" id="sadShowCnOnly" />
+        Show CN-only skins too
+      </label>
+      <label class="sadToggle">
+        <input type="checkbox" id="sadShowAll" />
+        Show every skin checked (not just problems)
+      </label>
+    </div>
+
+    <div id="sadProgress" class="sadProgress hidden">
+      <div id="sadProgressBar" class="sadProgressBar"><div id="sadProgressFill" class="sadProgressFill"></div></div>
+      <div id="sadProgressLabel" class="sadProgressLabel"></div>
+    </div>
+
+    <div id="sadSummary" class="sadSummary hidden"></div>
+
+    <table id="sadTable" class="sadTable hidden">
+      <thead>
+        <tr>
+          <th>Operator</th>
+          <th>Skin</th>
+          <th>Group</th>
+          <th>Avatar</th>
+          <th>Full illustration</th>
+        </tr>
+      </thead>
+      <tbody id="sadTableBody"></tbody>
+    </table>
+
+    <div id="pageCredit">
+      Operator data from
+      <a href="https://github.com/Kengxxiao/ArknightsGameData_YoStar" target="_blank" rel="noopener"
+        >ArknightsGameData</a
+      >
+    </div>
+
+    <script type="text/javascript" src="/js/skin-art-debug.js"></script>
+  </body>
+</html>

@@ -647,17 +647,31 @@
   function showSkinPreview(skin) {
     const d = (skin && skin.displaySkin) || {};
     const avatarId = skin.avatarId || skin.skinId;
+    // The full illustration is keyed by the skin's own *portraitId*, not
+    // avatarId -- they're the same string for a real purchasable skin and
+    // for the Elite 1/Elite 2 default-outfit entries, which is how Phase
+    // 1's research missed this, but for the base/"Default outfit"
+    // (ILLUST_0) entry they differ: e.g. Amiya's avatarId is the bare
+    // "char_002_amiya" (no file by that name in the illustration mirror),
+    // while her portraitId is "char_002_amiya_1" (a real ~300KB file that
+    // IS there) -- confirmed directly against skin_table.json and the
+    // mirror's file listing. Using portraitId here is what actually
+    // enables full-size art for the default outfit, not a separate
+    // special case.
+    const portraitId = skin.portraitId || avatarId;
     // Show the small avatar immediately as a placeholder -- cheap, and
     // usually already in the browser's cache from this same skin's grid
     // card -- while the full illustration (several times bigger, up to a
     // few MB for some skins) loads in the background via a detached
     // Image(). Only swap the visible <img> over to it once that load has
     // actually succeeded, so the modal never shows a half-loaded image.
-    // The "Default outfit" (ILLUST_0) entry has no separate illustration
-    // file on this mirror at all, only ILLUST_1/ILLUST_2 and real skins
-    // do (confirmed via the GitHub Contents API during Phase 1 research)
-    // -- on that 404 this just silently leaves the avatar showing, which
-    // is the correct outcome here, not a bug to report.
+    // A handful of very recently released skins (new collab-exclusive
+    // operators/outfits especially) simply aren't mirrored yet by the
+    // third-party image host this site reads from -- confirmed directly,
+    // not assumed, for several reported examples. On that 404 this just
+    // silently leaves the avatar showing; see the "Check skin art
+    // coverage" debug page (linked at the bottom of this page) for a full
+    // scan of which skins currently have no full illustration anywhere.
     skinPreviewImgEl.dataset.avatarId = avatarId;
     skinPreviewImgEl.classList.remove("skinPreviewImgFull");
     skinPreviewImgEl.onload = () => {
@@ -669,7 +683,7 @@
     skinPreviewImgEl.style.display = "none";
     setSkinAvatarIcon(skinPreviewImgEl, avatarId);
 
-    const fullUrl = uri_skin_illust(avatarId);
+    const fullUrl = uri_skin_illust(portraitId);
     const preload = new Image();
     preload.onload = () => {
       // The user may already have clicked a different skin card before

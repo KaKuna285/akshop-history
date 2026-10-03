@@ -70,19 +70,31 @@ function uri_skin_avatar(avatarId, source = ASSET_SOURCE.LOCAL) {
 }
 
 // The full splash illustration for a skin -- multiple MB each (confirmed:
-// real samples ranged ~0.2-5.7MB), so this is only ever meant to be used
-// as a link the user explicitly opens (a new tab), never preloaded or
-// embedded inline. Only confirmed reliable on the Aceship mirror (LOCAL/
-// akgcc wasn't checked for this one -- Aceship alone already covered
-// every sample skin tried). Keyed by the same avatarId as uri_skin_avatar()
-// above, NOT skin_table.json's own "illustId" field -- that field's value
-// (e.g. "illust_char_002_amiya_winter#1") turned out not to match this
-// mirror's actual filenames (e.g. "char_002_amiya_winter#1.png") when
-// checked directly; trusting the field name over a live fetch here would
-// have repeated the same mistake this project has already made twice
-// with large game-data JSON files.
-function uri_skin_illust(avatarId, source = ASSET_SOURCE.ACESHIP) {
-  const enc = encodeURIComponent(avatarId);
+// real samples ranged ~0.2-5.7MB), only ever meant to be lazy-loaded one
+// at a time on an explicit user action (see showSkinPreview() in
+// operator-page.js), never preloaded in bulk or embedded as a grid
+// thumbnail. Only confirmed reliable on the Aceship mirror (LOCAL/akgcc
+// doesn't have a matching flat "characters/<id>.png" convention -- its
+// own "characters/" folder is nested by charId instead and only covers
+// default-outfit art, not purchased skins).
+//
+// Callers must pass the skin's "portraitId" here, NOT "avatarId" and NOT
+// skin_table.json's "illustId" field:
+//  - avatarId is the small avatar-crop id (see uri_skin_avatar() above)
+//    and for the base/"Default outfit" (ILLUST_0) entry specifically it
+//    does NOT match this mirror's illustration filename -- e.g. Amiya's
+//    avatarId is the bare "char_002_amiya" (no such file here), while her
+//    portraitId is "char_002_amiya_1" (a real file). For every other
+//    skin (Elite 1/Elite 2 default art, and real purchasable skins)
+//    portraitId and avatarId happen to be identical, which is how this
+//    was initially missed.
+//  - illustId (e.g. "illust_char_002_amiya_winter#1") never matches this
+//    mirror's actual filenames (e.g. "char_002_amiya_winter#1.png") --
+//    confirmed directly, not assumed; trusting that field name over a
+//    live fetch would have repeated the same mistake this project has
+//    already made twice before with large upstream game-data JSON files.
+function uri_skin_illust(portraitId, source = ASSET_SOURCE.ACESHIP) {
+  const enc = encodeURIComponent(portraitId);
   switch (source) {
     case ASSET_SOURCE.ACESHIP:
       return `${ASSET_SOURCE.ACESHIP}characters/${enc}.png`;
