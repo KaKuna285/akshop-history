@@ -178,6 +178,17 @@
     return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY_MS);
   }
 
+  // Same UTC-day-number convention as dayKeyFromTimestamp() above, just
+  // for a raw Unix-seconds timestamp (skin_table.json's own
+  // displaySkin.getTime) instead of a "YYYY-MM-DD..." string -- matters
+  // here for the same reason: toDayNum() (used for the actual calendar
+  // grid) deliberately uses the *local* day boundary, which would drift
+  // this away from dayKeyFromTimestamp()'s UTC-based event days by
+  // whatever the viewer's own UTC offset happens to be.
+  function dayKeyFromUnixSeconds(ts) {
+    return Math.floor(ts / (DAY_MS / 1000));
+  }
+
   const OPERATOR_MATCH_WINDOW_DAYS = 1;
   // A real debut is 1-4 operators, occasionally more for a collab/
   // anniversary batch -- this also happens to be exactly what filters out
@@ -186,6 +197,27 @@
   // catch-up "Opening Event", which would otherwise show as one event
   // "debuting" nearly the entire early roster.
   const OPERATOR_MATCH_MAX = 6;
+
+  // Same idea as the operator window/cap above, but for
+  // matchSkinsToEvents() below -- skins' own getTime is a real per-skin
+  // timestamp (not a back-dated launch-day value the way some early
+  // operators' onlineTime was), so there's no known equivalent false-
+  // positive case to filter out here; this cap is just the same kind of
+  // defensive ceiling in case one ever turns up.
+  const SKIN_MATCH_WINDOW_DAYS = 1;
+  const SKIN_MATCH_MAX = 6;
+
+  // Same loadSkinTable() js/operator-page.js and js/skin-art-debug.js each
+  // already have their own copy of (not factored into util.js -- every
+  // page that needs it just duplicates this one small function) --
+  // skinId -> skin record, EN server only here since matchSkinsToEvents()
+  // below only ever needs to know about a skin once it's actually
+  // available on Global.
+  async function loadSkinTable(server) {
+    const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/skin_table.json`);
+    const json = await fixedJson(res);
+    return (json && json.charSkins) || {};
+  }
 
   // Mutates each matching event in `events`, setting ev.operators to
   // [{charId, name, icon}, ...] -- the shape showEventPreview() already
@@ -215,6 +247,58 @@
         ev.operators = matches
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((op) => ({ charId: op.charId, name: op.name, icon: uri_avatar(op.charId) }));
+      }
+    }
+  }
+
+  // Fallback for new skins events.py's own wiki-page scrape didn't already
+  // attach (see akgcc-extra-data/events.py's attach_event_skins() -- most
+  // event pages simply never name a skin at all, since most purchasable
+  // skins are routine shop rotations with no tied SideStory). Mutates each
+  // nearby event's ev.skins, *appending* date-matched guesses rather than
+  // replacing whatever the server-side scrape already put there -- a skin
+  // events.py already resolved (by name, off a page that says so directly)
+  // is strictly more trustworthy than one this only infers from timing, so
+  // it's never second-guessed or duplicated here.
+  function matchSkinsToEvents(events, skinTable, charTable) {
+    const claimed = new Set();
+    for (const ev of events) {
+      for (const skin of ev.skins || []) {
+        if (skin.charId) claimed.add(`${skin.charId}::${(skin.skinName || "").toLowerCase()}`);
+      }
+    }
+
+    const byDay = new Map(); // dayNum -> [{charId, skinName, operatorName}, ...]
+    for (const skin of Object.values(skinTable)) {
+      if (!skin.isBuySkin) continue; // default Elite 0/1/2 outfit, not a real release
+      const display = skin.displaySkin;
+      if (!display || typeof display.getTime !== "number") continue;
+      const charId = skin.charId;
+      const skinName = display.skinName;
+      if (!charId || !skinName) continue;
+      if (claimed.has(`${charId}::${skinName.toLowerCase()}`)) continue;
+      const day = dayKeyFromUnixSeconds(display.getTime);
+      if (!byDay.has(day)) byDay.set(day, []);
+      const op = charTable[charId];
+      byDay.get(day).push({ charId, skinName, operatorName: op ? op.name : undefined });
+    }
+
+    for (const ev of events) {
+      const day = dayKeyFromTimestamp(ev.globalStart);
+      if (day == null) continue;
+      const matches = [];
+      for (let d = day - SKIN_MATCH_WINDOW_DAYS; d <= day + SKIN_MATCH_WINDOW_DAYS; d++) {
+        for (const skin of byDay.get(d) || []) {
+          const key = `${skin.charId}::${skin.skinName.toLowerCase()}`;
+          if (claimed.has(key)) continue; // already matched (authoritatively, or into an earlier nearby event)
+          matches.push(skin);
+        }
+      }
+      if (matches.length && matches.length <= SKIN_MATCH_MAX) {
+        for (const skin of matches) {
+          claimed.add(`${skin.charId}::${skin.skinName.toLowerCase()}`);
+        }
+        ev.skins = (ev.skins || []).concat(matches);
       }
     }
   }
@@ -440,6 +524,46 @@
       });
       opsSection.appendChild(opsList);
       eventPreviewBodyEl.appendChild(opsSection);
+    }
+
+    if (ev.skins && ev.skins.length) {
+      const skinsSection = document.createElement("div");
+      skinsSection.className = "eventPreviewSkins";
+      const skinsHeading = document.createElement("div");
+      skinsHeading.className = "eventPreviewSkinsHeading";
+      skinsHeading.textContent = "New skins";
+      skinsSection.appendChild(skinsHeading);
+      const skinsList = document.createElement("div");
+      skinsList.className = "eventPreviewSkinsList";
+      // Sorted by operator name, same as the operators section above --
+      // skinName alone would scatter one operator's own skins apart from
+      // each other whenever a batch introduces more than one for them.
+      ev.skins
+        .slice()
+        .sort((a, b) => (a.operatorName || "").localeCompare(b.operatorName || ""))
+        .forEach((skin) => {
+          // No charId (the wiki-scraped operator name on events.py's side
+          // didn't resolve to one, or this skin was named on a page but
+          // never cross-referenced) -- still show the name rather than
+          // silently dropping it, just not as a link to anywhere.
+          const chip = skin.charId ? document.createElement("a") : document.createElement("span");
+          chip.className = "eventPreviewSkinChip";
+          if (skin.charId) {
+            chip.href = `/operator/?id=${encodeURIComponent(skin.charId)}`;
+            const icon = document.createElement("img");
+            icon.className = "eventPreviewSkinIcon";
+            icon.src = uri_avatar(skin.charId);
+            icon.alt = "";
+            chip.appendChild(icon);
+          }
+          const name = document.createElement("span");
+          name.className = "eventPreviewSkinName";
+          name.textContent = skin.operatorName ? `${skin.skinName} (${skin.operatorName})` : skin.skinName;
+          chip.appendChild(name);
+          skinsList.appendChild(chip);
+        });
+      skinsSection.appendChild(skinsList);
+      eventPreviewBodyEl.appendChild(skinsSection);
     }
 
     const wikiHref = wikiUrl(ev.wikiPage || ev.event);
@@ -1012,11 +1136,31 @@
       // needed for matching) *and* modules (needed by the edit modal a chip
       // opens), and both this matching step and the modal want the exact
       // same table, so there's no reason to fetch character_table.json twice.
+      let charTableForSkins = null;
       try {
         const charTable = await OperatorEditModal.loadCharTable();
+        charTableForSkins = charTable;
         matchOperatorsToEvents(allEvents, charTable);
       } catch (err) {
         console.warn("Couldn't load operator release-date data for planner chips:", err);
+      }
+
+      // Best-effort fallback matching for new skins events.py's own wiki
+      // scrape didn't already attach to an event server-side (see
+      // matchSkinsToEvents()'s own comment) -- fetched after the render
+      // above for the same reason as the operator matching just above it:
+      // a slow/failed skin_table.json load should never hold up the
+      // calendar itself, just mean that one open of the preview panel
+      // doesn't show skin chips yet. Needs charTableForSkins (for each
+      // matched skin's operator name) on top of the skin table itself, so
+      // this is skipped entirely if that load just failed above.
+      if (charTableForSkins) {
+        try {
+          const skinTable = await loadSkinTable(SERVERS.EN);
+          matchSkinsToEvents(allEvents, skinTable, charTableForSkins);
+        } catch (err) {
+          console.warn("Couldn't load skin release-date data for the calendar:", err);
+        }
       }
     } catch (err) {
       console.error("Failed to load events.json:", err);

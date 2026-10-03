@@ -253,6 +253,46 @@ doesn't introduce anyone new. Operator portrait icons are mirrored into
 `akgcc-extra-data/images/` exactly like event banners, resolved in the
 same batched `imageinfo` call as the banners rather than a separate one.
 
+The preview panel also lists any new skins tied to that event, each
+linking straight to that operator's page. Unlike operators, neither wiki
+has a structured field linking a skin to the event that introduced it
+(confirmed live: `arknights.wiki.gg`'s own `Skins` Cargo table has no
+`event` column, and no usable `id`/`skinGroup` either - both come back
+empty on every row checked; `prts.wiki` has no skins-related Cargo table
+at all), so `attach_event_skins()` instead scrapes each event's own wiki
+*page* for its `==Outfits==` section, which names any newly-added paid
+outfit directly (e.g. the "Crossing" event's own page lists "Lorem
+Ipsum, The Next Side Quest, The Bloodwing Rose" - independently
+confirmed against those same three skins' own EN `getTime` in
+`skin_table.json`, which lands on that exact event). A scraped name is
+then resolved back to a charId via two more Cargo queries - `Skins`
+(name → operator name) and `OperatorFiles` (operator name → charId, the
+same table `operator_online.py` already trusts for that exact mapping).
+
+Scraping a page is a meaningfully heavier request than this pipeline's
+other, single-batched-query lookups, so it's cached rather than redone
+on every run: `akgcc-extra-data/json/skin_outfit_cache.json` (generated
+automatically, not hand-edited) keeps each event's own scraped skin-name
+list keyed by wiki page, and `event_outfits_are_final()` decides when
+it's safe to trust that cache forever - only once an event's Global date
+is wiki-*confirmed* (an estimate can still shift) and its run actually
+ended at least a couple of days ago, giving the wiki's own editors a
+little time to add the section after the fact. Anything not yet final
+(still running, still estimated, or too recently ended) is re-scraped
+every run until it clears that bar - cheap, since only a handful of
+events are ever in that state at once. A skin no event's page ever
+claims (the common case - most purchasable skins are routine shop
+rotations with no tied SideStory at all) is picked up client-side
+instead, by `js/calendar.js`'s own `matchSkinsToEvents()` - the same
+nearest-event date-matching fallback `matchOperatorsToEvents()` already
+needs for operators with no scraped gacha-banner calendar to draw on,
+just keyed off `skin_table.json`'s own `getTime` instead of
+`onlineTime`. Like the rest of this new-skins step, a failure here
+(a bad Cargo query, one page that fails to fetch) is caught and logged
+rather than taking down the whole run - worst case, that run's
+`events.json` just keeps whatever skins were already cached or matched
+from before.
+
 `events.py`'s Cargo queries (against the same `arknights.wiki.gg` API the
 other scripts use) target the `EventServerDetails` and `Operators`
 tables, whose exact field names were confirmed against each table's own

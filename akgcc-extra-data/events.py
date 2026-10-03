@@ -86,6 +86,28 @@ definition doesn't introduce anyone new. Operator portrait icons are
 mirrored into the repo exactly like event banner art (see above),
 resolved in the same batched imageinfo call as the banners rather than
 a separate one.
+
+New skins per event (attach_event_skins() and friends) have no such
+direct field to join against on either wiki -- confirmed live,
+arknights.wiki.gg's own Skins Cargo table carries no event (or even
+populated id/skinGroup) column, and prts.wiki has no skins-related
+Cargo table at all. What each event's own wiki *page* reliably does
+have instead, for an event that actually added a new paid outfit, is
+an ==Outfits== section naming it directly (e.g. "Crossing"'s own page
+lists "Lorem Ipsum, The Next Side Quest, The Bloodwing Rose" -- all
+three independently confirmed via skin_table.json's own EN getTime
+landing on that same event's globalStart). That page is only scraped
+at all for an event whose Global run is still ongoing/estimated, or
+finished too recently to trust the wiki's own editors to have caught
+up yet -- see event_outfits_are_final(); once an event clears that bar
+its scraped result is cached forever in skin_outfit_cache.json rather
+than re-fetched on every run, since a concluded event's own Outfits
+section never changes again. A skin no event's page ever claims (the
+common case -- most purchasable skins are routine shop rotations with
+no tied SideStory at all) is left for calendar.js's own nearest-event
+date-match fallback, the same kind of stand-in matchOperatorsToEvents()
+already needs for operators with no scraped gacha-banner calendar to
+draw on.
 """
 import requests
 import re
@@ -577,6 +599,256 @@ def backtest_lag_model(confirmed_pairs, window):
     }
 
 
+SKIN_OUTFIT_CACHE_PATH = "./json/skin_outfit_cache.json"
+
+# How long past an event's own confirmed Global end date to keep re-
+# scraping its page anyway, before trusting the cache forever -- a short
+# grace window for the wiki's own editors to actually add the Outfits
+# section after the event wraps, rather than caching an empty result
+# that was really just "nobody's gotten to it yet".
+SKIN_CACHE_GRACE_DAYS = 2
+
+
+def load_skin_outfit_cache(path=SKIN_OUTFIT_CACHE_PATH):
+    """{wikiPage: {"skinNames": [...], "scrapedAt": iso}} -- every event
+    page's own Outfits section is scraped at most once *ever* for an
+    event whose Global run has actually finished (see
+    event_outfits_are_final()); this is what makes that possible. A
+    missing or unreadable file just means starting from an empty cache
+    (a first-ever run, most likely), not a crash."""
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Could not read {path} (starting from an empty skin cache): {exc}")
+        return {}
+
+
+def save_skin_outfit_cache(cache, path=SKIN_OUTFIT_CACHE_PATH):
+    with open(path, "w") as f:
+        json.dump(cache, f, indent=2, sort_keys=True)
+
+
+# Matches one {{Outfit list ...}} template invocation and captures
+# everything up to its own closing "}}" -- confirmed live against
+# several real event pages (see the module docstring) that this
+# template is never itself nested inside another, so a plain non-greedy
+# scan to the first "}}" is enough even though an unrelated *inner*
+# template further down in the same invocation (e.g. an addendum's
+# "{{I|Outfit Voucher|gridview=0}}") can close before the outer one
+# does -- harmless here, since the "new=" parameter this is actually
+# after always appears earlier in the template than any such addendum.
+_OUTFIT_LIST_RE = re.compile(r"\{\{Outfit list(.*?)\}\}", re.DOTALL)
+_OUTFIT_LIST_NEW_PARAM_RE = re.compile(r"\|\s*new\s*=\s*([^\n|]+)")
+
+
+def parse_outfit_skin_names(wikitext):
+    """Every skin name an event page's own ==Outfits== section lists as
+    newly added to the Outfit Store, confirmed live against several
+    real pages (e.g. "Crossing": "Lorem Ipsum, The Next Side Quest, The
+    Bloodwing Rose" -- independently matching those same three skins'
+    own EN getTime in skin_table.json). Skips the *other* flavor of
+    this same template, the one used for the page's separate "Fashion
+    Review" rotation (identified by its own "display=single" parameter)
+    -- that one lists whichever outfits are newly featured in a site-
+    wide showcase, not necessarily ones this event itself introduced.
+    Most event pages have no ==Outfits== section at all (most events
+    don't add a new paid outfit), which this returns as an empty list,
+    not an error."""
+    names = []
+    for m in _OUTFIT_LIST_RE.finditer(wikitext or ""):
+        body = m.group(1)
+        if re.search(r"display\s*=\s*single", body):
+            continue
+        new_m = _OUTFIT_LIST_NEW_PARAM_RE.search(body)
+        if not new_m:
+            continue
+        for name in new_m.group(1).split(","):
+            name = name.strip()
+            if name:
+                names.append(name)
+    return names
+
+
+def fetch_event_outfit_skin_names(wiki_page):
+    """Scrapes one event's own wiki page for parse_outfit_skin_names().
+    Returns [] (not an error) for a missing/renamed page or a page with
+    no Outfits section -- neither should take down the whole run."""
+    try:
+        params = {
+            "action": "parse",
+            "page": wiki_page,
+            "prop": "wikitext",
+            "format": "json",
+        }
+        r = http_get(WIKI_API, params=params, headers=HEADERS)
+        data = r.json()
+        if "error" in data:
+            print(f"Couldn't fetch wikitext for {wiki_page!r}: {data['error']}")
+            return []
+        wikitext = ((data.get("parse") or {}).get("wikitext") or {}).get("*", "")
+        return parse_outfit_skin_names(wikitext)
+    except Exception as exc:
+        print(f"Couldn't fetch wikitext for {wiki_page!r}: {exc}")
+        return []
+
+
+def fetch_skin_operator_names():
+    """{skin display name: operator display name}, from the wiki's own
+    Skins Cargo table (Skins.name/Skins.operator) -- one batched query
+    covering every operator's every skin at once, cheap enough to just
+    redo on every run (unlike the per-event wikitext scrape above,
+    which is what actually needs the cache). This -- not a direct id
+    lookup -- is how a scraped skin *name* gets back to charId: Skins.id
+    is confirmed empty on every row checked live, and Skins.skinGroup
+    too, so there's no event or id field on this table to join against
+    directly; operator *name* is the only usable link it has, and
+    fetch_operator_name_to_charid() below covers the rest of the way."""
+    rows = []
+    offset = 0
+    limit = 500
+    while True:
+        params = {
+            "action": "cargoquery",
+            "tables": "Skins",
+            "fields": "Skins.name=name,Skins.operator=operator",
+            "format": "json",
+            "limit": limit,
+            "offset": offset,
+        }
+        r = http_get(WIKI_API, params=params, headers=HEADERS)
+        data = r.json()
+        if "error" in data:
+            raise RuntimeError(f"Cargo API error: {data['error']}")
+        page_rows = data.get("cargoquery", [])
+        for row in page_rows:
+            rows.append(row["title"])
+        offset += limit
+        if len(page_rows) < limit:
+            break
+    name_to_operator = {}
+    for row in rows:
+        name = (row.get("name") or "").strip()
+        operator = (row.get("operator") or "").strip()
+        if name and operator:
+            name_to_operator[name] = operator
+    return name_to_operator
+
+
+def fetch_operator_name_to_charid():
+    """Operator display name -> charId, from the wiki's own
+    OperatorFiles table (F.name/F.id) -- the same fields/table
+    operator_online.py's own scrape_wiki() already trusts for this
+    exact mapping, fetched fresh here since these are two independent
+    scripts with no shared state between runs."""
+    rows = []
+    offset = 0
+    limit = 500
+    while True:
+        params = {
+            "action": "cargoquery",
+            "tables": "OperatorFiles",
+            "fields": "OperatorFiles.name=name,OperatorFiles.id=charId",
+            "where": "OperatorFiles.id IS NOT NULL",
+            "format": "json",
+            "limit": limit,
+            "offset": offset,
+        }
+        r = http_get(WIKI_API, params=params, headers=HEADERS)
+        data = r.json()
+        if "error" in data:
+            raise RuntimeError(f"Cargo API error: {data['error']}")
+        page_rows = data.get("cargoquery", [])
+        for row in page_rows:
+            rows.append(row["title"])
+        offset += limit
+        if len(page_rows) < limit:
+            break
+    name_to_charid = {}
+    for row in rows:
+        name = (row.get("name") or "").strip()
+        charid = row.get("charId")
+        if name and charid:
+            name_to_charid[name] = charid
+    return name_to_charid
+
+
+def event_outfits_are_final(ev, now):
+    """Whether this event's own cached Outfits scrape can be trusted
+    forever instead of re-fetched on every run: only once Yostar's
+    actual Global date is confirmed (an estimate can still shift, which
+    would shift which page even has the real Outfits section by then)
+    *and* that window closed at least SKIN_CACHE_GRACE_DAYS ago, giving
+    the wiki's own editors a little time to add the section after an
+    event wraps. Anything not yet final gets re-scraped every run until
+    it is -- cheap, since only a handful of events are ever in that
+    state at once."""
+    if not ev.get("globalConfirmed"):
+        return False
+    end = ev.get("globalEnd") or ev.get("globalStart")
+    if not end:
+        return False
+    end_dt = datetime.fromisoformat(end)
+    if end_dt.tzinfo is None:
+        end_dt = end_dt.replace(tzinfo=timezone.utc)
+    return now - end_dt > timedelta(days=SKIN_CACHE_GRACE_DAYS)
+
+
+def attach_event_skins(events, cache):
+    """Mutates every event in `events`, setting ev["skins"] = [{charId,
+    skinName, operatorName}, ...] wherever its own wiki page names any
+    newly-added outfit (see fetch_event_outfit_skin_names()) -- the
+    direct, wiki-sourced link this project's two trusted wikis simply
+    don't have a structured field for (unlike Operators.event for
+    operators; see fetch_skin_operator_names()'s docstring). `cache` is
+    read and mutated in place (see load_skin_outfit_cache()) so a
+    finalized event's page is scraped at most once ever, not on every
+    run forever -- see event_outfits_are_final().
+
+    Skins not resolved here at all (no event ever named them -- the
+    common case for a routine shop-rotation skin with no tied
+    SideStory) are left for calendar.js's own nearest-event date-match
+    fallback to pick up client-side, the same way matchOperatorsToEvents()
+    already has to for operators without a scraped gacha-banner
+    calendar to draw on."""
+    now = datetime.now(timezone.utc)
+    skin_to_operator = None  # fetched lazily -- only once some page actually names a skin
+    operator_to_charid = None
+    scraped = 0
+    for ev in events:
+        wiki_page = ev.get("wikiPage") or ev.get("event")
+        if not wiki_page:
+            continue
+        cached = cache.get(wiki_page)
+        if cached is not None and event_outfits_are_final(ev, now):
+            names = cached.get("skinNames", [])
+        else:
+            names = fetch_event_outfit_skin_names(wiki_page)
+            cache[wiki_page] = {"skinNames": names, "scrapedAt": now.isoformat()}
+            scraped += 1
+            time.sleep(REQUEST_PACING)
+        if not names:
+            continue
+        if skin_to_operator is None:
+            skin_to_operator = fetch_skin_operator_names()
+            operator_to_charid = fetch_operator_name_to_charid()
+        skins = []
+        for name in names:
+            operator_name = skin_to_operator.get(name)
+            charid = operator_to_charid.get(operator_name) if operator_name else None
+            skin = {"skinName": name}
+            if operator_name:
+                skin["operatorName"] = operator_name
+            if charid:
+                skin["charId"] = charid
+            skins.append(skin)
+        ev["skins"] = skins
+    print(f"Scraped {scraped} event page(s) for new-outfit names this run")
+    return events
+
+
 def build_events(rows, overrides=None, operators_by_event=None):
     overrides = overrides or {}
     operators_by_event = operators_by_event or {}
@@ -773,6 +1045,22 @@ if __name__ == "__main__":
     with_image = sum(1 for e in events if e.get("image"))
     with_operators = sum(1 for e in events if e.get("operators"))
     print(f"{with_image}/{len(events)} events have art, {with_operators}/{len(events)} list new operators")
+
+    # New-skins-per-event -- see attach_event_skins()'s own docstring for
+    # why this needs a persistent cache rather than just another scraped
+    # table like operators_by_event above. Wrapped defensively so a wiki
+    # hiccup here (a bad Cargo query, a timeout on one page fetch) can't
+    # take down a run that otherwise successfully built every event's
+    # dates/operators -- worst case this run's events.json just carries
+    # whatever skins were already cached from a previous run, if any.
+    try:
+        skin_outfit_cache = load_skin_outfit_cache()
+        events = attach_event_skins(events, skin_outfit_cache)
+        save_skin_outfit_cache(skin_outfit_cache)
+        with_skins = sum(1 for e in events if e.get("skins"))
+        print(f"{with_skins}/{len(events)} events list new skins")
+    except Exception as exc:
+        print(f"Couldn't attach new-skin data to events (leaving events.json's skins as-is): {exc}")
     print(
         f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days, "
         f"current CN->Global lag = {current_lag_days} days"

@@ -330,6 +330,79 @@
   color: #6dd47e;
 }
 
+.eventPreviewSkins {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.eventPreviewSkinsHeading {
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #999;
+}
+
+.eventPreviewSkinsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* A chip is a real <a> (see js/calendar.js) straight to that skin's
+   operator page -- unlike the operator chips above, there's no modal to
+   open here, just somewhere else on the site that already shows the
+   skin itself (and, once synced, whether you own it). A skin whose
+   wiki-scraped operator name never resolved to a charId renders as
+   plain, unlinked text instead (still named, just not clickable) --
+   that's the `<span>` fallback in showEventPreview()'s own skins
+   section. */
+.eventPreviewSkinChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 3px 10px 3px 3px;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+}
+
+a.eventPreviewSkinChip {
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+@media (hover: hover) {
+  a.eventPreviewSkinChip:hover {
+    background: rgba(248, 213, 17, 0.12);
+    border-color: rgba(248, 213, 17, 0.4);
+  }
+}
+
+span.eventPreviewSkinChip {
+  padding: 3px 10px;
+  opacity: 0.75;
+}
+
+.eventPreviewSkinIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.eventPreviewSkinName {
+  font-size: 0.78rem;
+  color: #eee;
+}
+
 .eventPreviewLink {
   margin-top: auto;
   font-size: 0.8rem;
