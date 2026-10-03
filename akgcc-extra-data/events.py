@@ -743,6 +743,24 @@ def fetch_skin_operator_names():
     return name_to_operator
 
 
+_NORMALIZE_NAME_RE = re.compile(r"[^a-z0-9]+")
+
+
+def normalize_skin_name(name):
+    """Loose-match key for a skin name: lowercased, every run of
+    non-alphanumeric characters (punctuation *and* whitespace alike)
+    collapsed to nothing. Exists because the wiki's event-page text and
+    its own Skins table aren't always typed identically by whoever last
+    edited each one -- confirmed live, one event page's own Outfits
+    list reads "Unstained Unshaken" while the Skins table (and the
+    actual in-game skin) has it as "Unstained, Unshaken". An exact
+    lookup only ever misses on punctuation/spacing like this, never on
+    two genuinely different names colliding, so this is tried only as a
+    *second* pass, after the exact lookup already failed -- see
+    attach_event_skins()."""
+    return _NORMALIZE_NAME_RE.sub("", name.lower())
+
+
 def fetch_operator_name_to_charid():
     """Operator display name -> charId, from the wiki's own
     OperatorFiles table (F.name/F.id) -- the same fields/table
@@ -813,14 +831,23 @@ def attach_event_skins(events, cache):
     finalized event's page is scraped at most once ever, not on every
     run forever -- see event_outfits_are_final().
 
-    Skins not resolved here at all (no event ever named them -- the
-    common case for a routine shop-rotation skin with no tied
-    SideStory) are left for calendar.js's own nearest-event date-match
-    fallback to pick up client-side, the same way matchOperatorsToEvents()
-    already has to for operators without a scraped gacha-banner
-    calendar to draw on."""
+    Skins not resolved here at all (no event's own page ever names them
+    -- the common case for a routine shop-rotation skin with no tied
+    SideStory at all) are simply left off the calendar entirely. An
+    earlier version of this also had calendar.js guess at those with
+    its own nearest-event date match, the same stand-in
+    matchOperatorsToEvents() uses for operators -- but confirmed live,
+    that produced real wrong associations a date-only heuristic can't
+    avoid (a routine, unrelated shop-skin rotation landing on the same
+    calendar day as a SideStory's own release, with nothing tying the
+    two together beyond that coincidence), so it was removed rather
+    than tuned: for operators there's no better source to fall back to,
+    but for skins the wiki page naming them directly (however
+    incompletely some pages turn out to be) is strictly more
+    trustworthy than inferring one from timing alone."""
     now = datetime.now(timezone.utc)
     skin_to_operator = None  # fetched lazily -- only once some page actually names a skin
+    skin_to_operator_normalized = None
     operator_to_charid = None
     scraped = 0
     for ev in events:
@@ -839,10 +866,18 @@ def attach_event_skins(events, cache):
             continue
         if skin_to_operator is None:
             skin_to_operator = fetch_skin_operator_names()
+            # Second-pass lookup for a name the exact match above misses
+            # only on punctuation/spacing -- see normalize_skin_name().
+            # Built once, off the same query result, not refetched.
+            skin_to_operator_normalized = {}
+            for skin_name, operator_name in skin_to_operator.items():
+                skin_to_operator_normalized.setdefault(normalize_skin_name(skin_name), operator_name)
             operator_to_charid = fetch_operator_name_to_charid()
         skins = []
         for name in names:
             operator_name = skin_to_operator.get(name)
+            if not operator_name:
+                operator_name = skin_to_operator_normalized.get(normalize_skin_name(name))
             charid = operator_to_charid.get(operator_name) if operator_name else None
             skin = {"skinName": name}
             if operator_name:

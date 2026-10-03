@@ -268,6 +268,13 @@ confirmed against those same three skins' own EN `getTime` in
 then resolved back to a charId via two more Cargo queries - `Skins`
 (name → operator name) and `OperatorFiles` (operator name → charId, the
 same table `operator_online.py` already trusts for that exact mapping).
+The two wikis aren't always edited consistently with each other, though
+- one event page's own Outfits list read "Unstained Unshaken" with no
+comma at all, while the `Skins` table (and the actual in-game skin) has
+it as "Unstained, Unshaken" - so a scraped name that doesn't match
+`Skins.name` exactly is tried again via `normalize_skin_name()`, which
+lowercases both sides and strips all punctuation and whitespace before
+comparing, specifically to paper over slips like that one.
 
 Scraping a page is a meaningfully heavier request than this pipeline's
 other, single-batched-query lookups, so it's cached rather than redone
@@ -282,16 +289,23 @@ little time to add the section after the fact. Anything not yet final
 every run until it clears that bar - cheap, since only a handful of
 events are ever in that state at once. A skin no event's page ever
 claims (the common case - most purchasable skins are routine shop
-rotations with no tied SideStory at all) is picked up client-side
-instead, by `js/calendar.js`'s own `matchSkinsToEvents()` - the same
-nearest-event date-matching fallback `matchOperatorsToEvents()` already
-needs for operators with no scraped gacha-banner calendar to draw on,
-just keyed off `skin_table.json`'s own `getTime` instead of
-`onlineTime`. Like the rest of this new-skins step, a failure here
-(a bad Cargo query, one page that fails to fetch) is caught and logged
-rather than taking down the whole run - worst case, that run's
-`events.json` just keeps whatever skins were already cached or matched
-from before.
+rotations with no tied SideStory at all) is simply left off that
+event entirely, rather than guessed at. An earlier version of this
+also had `js/calendar.js` fall back to a nearest-event date match for
+those, the same stand-in `matchOperatorsToEvents()` uses for operators
+with no scraped gacha-banner calendar to draw on - but that produced
+real wrong associations in practice (a routine, unrelated shop-skin
+rotation landing on the same calendar day as an unconnected SideStory's
+own release, e.g. "Yet Another Autumn (Savage)" showing up attached to
+"Critical Phase Transition" purely by date coincidence), so it was
+removed rather than tuned: for operators there's no better source to
+fall back to, but for skins the wiki page naming them directly (however
+incompletely some pages turn out to be) is strictly more trustworthy
+than inferring one from timing alone. Like the rest of this new-skins
+step, a failure here (a bad Cargo query, one page that fails to fetch)
+is caught and logged rather than taking down the whole run - worst
+case, that run's `events.json` just keeps whatever skins were already
+cached from before.
 
 `events.py`'s Cargo queries (against the same `arknights.wiki.gg` API the
 other scripts use) target the `EventServerDetails` and `Operators`
