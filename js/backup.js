@@ -77,11 +77,6 @@ const Backup = (function () {
     if (!container) return;
 
     container.innerHTML =
-      '<p class="accountSyncNotice">' +
-        "Everything saved on this device for this site -- your Planner depot and roster, your " +
-        "synced account data, and every page's view settings -- lives only in this browser. " +
-        "Download a backup to keep a copy, or to move it to another browser or device." +
-      "</p>" +
       '<div class="accountSyncActions">' +
         '<button type="button" id="backupExportBtn">Download backup</button>' +
         '<label for="backupFileInput" class="accountSyncLinkBtn backupFileLabel" tabindex="0" role="button">Restore from a file&hellip;</label>' +
@@ -91,7 +86,7 @@ const Backup = (function () {
       '<div id="backupConfirm" class="accountSyncConfirm hidden">' +
         '<p id="backupSummary"></p>' +
         '<div class="accountSyncActions">' +
-          '<button type="button" id="backupApply">Restore this backup</button>' +
+          '<button type="button" id="backupApply">Restore backup</button>' +
           '<button type="button" id="backupCancel" class="accountSyncCancelBtn">Cancel</button>' +
         "</div>" +
       "</div>";

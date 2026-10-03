@@ -6,13 +6,56 @@
    handful of things backup.js needs that account-sync.css has no
    equivalent for. */
 
+/* A small, out-of-the-way corner widget rather than a full section in
+   the page's main column -- this is a utility, not something the page
+   is "about", so it shouldn't compete for attention with the project
+   list above it. */
 #backup {
-  max-width: 640px;
-  margin: 0 0 32px;
-  background: rgba(255, 255, 255, 0.03);
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  width: 220px;
+  max-width: calc(100vw - 32px);
+  background: rgba(30, 30, 30, 0.92);
+  backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  padding: 16px 20px 20px;
+  padding: 10px 12px 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+#backup .accountSyncHeading {
+  font-size: 0.82rem;
+  margin: 0 0 8px;
+  color: #ccc;
+}
+
+#backup .accountSyncActions {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+#backup .accountSyncActions button {
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
+
+#backup .accountSyncStatus {
+  font-size: 0.72rem;
+  margin-bottom: 0;
+}
+
+#backup .accountSyncConfirm {
+  margin-top: 6px;
+  padding: 8px 10px;
+}
+
+#backup .accountSyncConfirm p {
+  font-size: 0.74rem;
 }
 
 /* The real file input stays off-screen -- the styled label (already
