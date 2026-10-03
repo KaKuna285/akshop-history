@@ -885,6 +885,22 @@ def attach_event_skins(events, cache):
             if charid:
                 skin["charId"] = charid
             skins.append(skin)
+
+        # Drop any entry that never resolved as a skin in its own right, but
+        # whose raw text exactly matches some OTHER entry's already-resolved
+        # operator name -- a one-off editorial slip confirmed live on "The
+        # Masses' Travels/Rerun", where the page's own new= list reads
+        # "Caelum Aeternum, Sankta Miksaparato" for what is really just one
+        # skin ("Caelum Aeternum", tied to operator Sankta Miksaparato):
+        # whoever wrote that page comma-separated the skin from its own
+        # operator's name as if they were two different skins, instead of
+        # leaving the operator out of the list entirely the way every other
+        # event page does. The comma split above has no way to know that
+        # ahead of time, so this is caught after the fact instead, by
+        # noticing the leftover fragment is identical to a sibling skin's
+        # own operator -- never flagged just for sharing a word or two.
+        resolved_operator_names = {s["operatorName"] for s in skins if s.get("operatorName")}
+        skins = [s for s in skins if s.get("operatorName") or s["skinName"] not in resolved_operator_names]
         ev["skins"] = skins
     print(f"Scraped {scraped} event page(s) for new-outfit names this run")
     return events
