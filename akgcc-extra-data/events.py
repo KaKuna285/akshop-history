@@ -87,27 +87,33 @@ mirrored into the repo exactly like event banner art (see above),
 resolved in the same batched imageinfo call as the banners rather than
 a separate one.
 
-New skins per event (attach_event_skins() and friends) have no such
-direct field to join against on either wiki -- confirmed live,
-arknights.wiki.gg's own Skins Cargo table carries no event (or even
-populated id/skinGroup) column, and prts.wiki has no skins-related
-Cargo table at all. What each event's own wiki *page* reliably does
-have instead, for an event that actually added a new paid outfit, is
-an ==Outfits== section naming it directly (e.g. "Crossing"'s own page
-lists "Lorem Ipsum, The Next Side Quest, The Bloodwing Rose" -- all
-three independently confirmed via skin_table.json's own EN getTime
-landing on that same event's globalStart). That page is only scraped
-at all for an event whose Global run is still ongoing/estimated, or
-finished too recently to trust the wiki's own editors to have caught
-up yet -- see event_outfits_are_final(); once an event clears that bar
-its scraped result is cached forever in skin_outfit_cache.json rather
-than re-fetched on every run, since a concluded event's own Outfits
-section never changes again. A skin no event's page ever claims (the
-common case -- most purchasable skins are routine shop rotations with
-no tied SideStory at all) is left for calendar.js's own nearest-event
-date-match fallback, the same kind of stand-in matchOperatorsToEvents()
-already needs for operators with no scraped gacha-banner calendar to
-draw on.
+New skins per event (attach_event_skins() and friends) have no direct
+field to join against on either wiki -- confirmed live, arknights.wiki.gg's
+own Skins Cargo table carries no event (or even populated id/skinGroup)
+column, and prts.wiki has no skins-related Cargo table at all. Two wiki
+*pages* carry the link instead:
+
+1. The outfit *brand* pages ("Outfit/Test Collection", "Outfit/EPOQUE",
+   ...): each lists every outfit released under that brand as an
+   {{Outfit cell}} with a `release` field naming the event it came out
+   with, and a `model` field naming the operator. This is the primary,
+   authoritative source -- it covers minor events whose own page never
+   lists their outfit (e.g. Greyy's "My Fellow Newsboy" with "Vector
+   Breakthrough Trial from Misery"), and it wins over an event page that
+   claims an outfit belonging to a different event. See
+   fetch_outfit_brand_releases(); CN-only releases are skipped.
+2. The event's own ==Outfits== section, used only for outfits no brand
+   page lists at all (e.g. one too new for its brand page to have caught
+   up). That page is only scraped for an event whose Global run is still
+   ongoing/estimated, or finished too recently to trust the wiki's
+   editors to have caught up yet -- see event_outfits_are_final(); once
+   an event clears that bar its scraped result is cached forever in
+   skin_outfit_cache.json rather than re-fetched on every run.
+
+An outfit neither source ties to an event is left off the calendar
+entirely -- guessing by release date was tried and removed, since an
+unrelated shop-skin rotation landing on the same day as a SideStory is
+indistinguishable from a real tie.
 """
 import requests
 import re
@@ -799,6 +805,175 @@ def fetch_operator_name_to_charid():
     return name_to_charid
 
 
+# Every outfit *brand* (Test Collection, EPOQUE, Made by 0011, ...) has its
+# own wiki page under this prefix, listing every outfit released under that
+# brand along with -- per outfit -- the event it was released alongside.
+# Discovered dynamically (see fetch_outfit_brand_wikitexts()) rather than
+# hard-coded, so a newly-added brand page is picked up with no code change.
+OUTFIT_BRAND_PAGE_PREFIX = "Outfit/"
+
+_OUTFIT_CELL_SPLIT_RE = re.compile(r"\{\{\s*Outfit cell\b", re.IGNORECASE)
+_TEMPLATE_PARAM_LINE_RE = re.compile(r"^\|\s*([A-Za-z][A-Za-z ]*?)\s*=\s*(.*)$")
+_WIKILINK_TARGET_RE = re.compile(r"\[\[([^\]|#]+)")
+# A region marker on a release line: either a bracketed tag, e.g.
+# "{{Color|[CN]}}" or "{{Color|code=00FFFF|[EN and KR]}}", or a leading
+# "CN:" / "Global:" label, e.g. "*CN: [[X]]". The bracket lookarounds keep
+# this from ever mistaking the opening "[" of a "[[wikilink]]" for a tag.
+_RELEASE_REGION_MARKER_RE = re.compile(
+    r"(?<!\[)\[(?!\[)([^\]]*)\]|^(CN|EN|Global)\s*:", re.IGNORECASE
+)
+_RELEASE_GLOBAL_WORD_RE = re.compile(r"\b(EN|Global)\b", re.IGNORECASE)
+
+
+def parse_outfit_cells(wikitext):
+    """[{"name", "model", "release"}, ...] for every {{Outfit cell ...}}
+    on one brand page -- name is the outfit's own display name, model the
+    operator it's for, release the raw (possibly multi-line) wikitext
+    saying which event it came with. Parsed line by line rather than with
+    one big regex: a value can run over several "*" bullet lines (the
+    per-region releases of a collab outfit), and a plain regex lookahead
+    for "the next parameter" proved fragile against those."""
+    cells = []
+    for chunk in _OUTFIT_CELL_SPLIT_RE.split(wikitext or "")[1:]:
+        params = {}
+        key = None
+        for line in chunk.split("\n"):
+            m = _TEMPLATE_PARAM_LINE_RE.match(line)
+            if m:
+                key = m.group(1).strip().lower()
+                params[key] = m.group(2).strip()
+            elif key is not None and line.lstrip().startswith("*"):
+                params[key] += "\n" + line.strip()
+        name = (params.get("name") or "").replace("&comma;", ",").strip()
+        model = (params.get("model") or "").strip()
+        if name and model:
+            cells.append({"name": name, "model": model, "release": params.get("release", "")})
+    return cells
+
+
+def parse_outfit_release_targets(release):
+    """Page titles of the *Global* event(s) an outfit's "release" field
+    names, in order. Every pattern seen live across all brand pages:
+    a plain "[[Event]]" (the overwhelming majority -- unmarked means
+    Global/EN here); "[[Event]] (available from ... to ...)"; a CN-only
+    "{{Color|[CN]}} [[Event]]" (not out on Global yet, so skipped -- the
+    event it names is CN's, and this calendar is the Global one);
+    several region lines like "*CN: [[A]]" / "*Global: [[B]]" or
+    "*[CN and JP] [[A]]" / "*[EN and KR] [[B]]" (only the Global/EN line
+    is kept); "Alongside ''[[Event]]''"; and plain text with no link at
+    all (e.g. a web event or a bare date), which names no event and so
+    yields nothing."""
+    targets = []
+    for line in (release or "").split("\n"):
+        line = re.sub(r"^\*+\s*", "", line.strip())
+        link = _WIKILINK_TARGET_RE.search(line)
+        if not link:
+            continue
+        marker = _RELEASE_REGION_MARKER_RE.search(line)
+        if marker:
+            label = marker.group(1) if marker.group(1) is not None else marker.group(2)
+            if not _RELEASE_GLOBAL_WORD_RE.search(label):
+                continue
+        targets.append(link.group(1).strip().replace("_", " "))
+    return targets
+
+
+def normalize_event_key(title):
+    """Loose-match key for an event's wiki page title, so the Outfit
+    pages' own spelling of an event lines up with this script's: they
+    write a rerun / multi-part event as "X Rerun" / "X Part 2" (a redirect
+    on the wiki), where EventServerDetails -- and so `wikiPage` here --
+    has the real page title "X/Rerun" / "X/Part 2". Lowercased, with
+    every run of non-alphanumerics (slash and spacing included) dropped,
+    both spellings land on the same key, while "X" and "X Rerun" still
+    stay distinct (confirmed live: no two tracked events collide)."""
+    return _NORMALIZE_NAME_RE.sub("", title.replace("_", " ").lower())
+
+
+def fetch_outfit_brand_wikitexts():
+    """{page title: wikitext} for every "Outfit/<brand>" page, in one
+    batched query (generator=allpages + prop=revisions) instead of one
+    request per brand -- about 25 pages / 340 KB at time of writing, well
+    inside a single response, but the continuation is still followed in
+    case that ever grows past one batch."""
+    wikitexts = {}
+    params = {
+        "action": "query",
+        "generator": "allpages",
+        "gapprefix": OUTFIT_BRAND_PAGE_PREFIX,
+        "gapnamespace": 0,
+        "gaplimit": 50,
+        "prop": "revisions",
+        "rvprop": "content",
+        "rvslots": "main",
+        "format": "json",
+        "formatversion": 2,
+    }
+    for _ in range(20):  # hard ceiling -- never loop forever on a misbehaving continuation
+        r = http_get(WIKI_API, params=params, headers=HEADERS)
+        data = r.json()
+        if "error" in data:
+            raise RuntimeError(f"Outfit brand page query error: {data['error']}")
+        for page in (data.get("query") or {}).get("pages", []):
+            revisions = page.get("revisions") or []
+            if revisions:
+                content = ((revisions[0].get("slots") or {}).get("main") or {}).get("content", "")
+                wikitexts[page["title"]] = content
+        if "continue" not in data:
+            break
+        params.update(data["continue"])
+    return wikitexts
+
+
+def fetch_outfit_brand_releases():
+    """[{"skinName", "operatorName", "targets": [event page title, ...]}]
+    -- one entry per outfit across every brand page whose release field
+    names at least one Global event. This is the authoritative skin ->
+    event link: unlike an event page's own Outfits section (which some
+    pages simply never fill in -- e.g. "Vector Breakthrough Trial from
+    Misery" never lists Greyy's "My Fellow Newsboy", though its brand
+    page, Outfit/EPOQUE, does name it), every outfit has to be listed on
+    exactly one brand page, with its event, for the brand page to be
+    complete at all."""
+    releases = []
+    for title, wikitext in fetch_outfit_brand_wikitexts().items():
+        for cell in parse_outfit_cells(wikitext):
+            targets = parse_outfit_release_targets(cell["release"])
+            if targets:
+                releases.append(
+                    {"skinName": cell["name"], "operatorName": cell["model"], "targets": targets}
+                )
+    return releases
+
+
+def index_outfit_brand_releases(releases):
+    """(brand_by_event, claimed_pairs, claimed_names): brand_by_event maps
+    normalize_event_key(event page) -> [{"skinName", "operatorName"}, ...];
+    claimed_pairs / claimed_names are every (operator, normalized skin
+    name) / normalized skin name some brand page assigned to *any* event
+    -- tracked here or not -- which is what lets attach_event_skins() tell
+    "an event page names a skin no brand page knows about" (keep it) from
+    "an event page names a skin a brand page already assigned to a
+    different event" (drop it; the brand page wins)."""
+    brand_by_event = {}
+    claimed_pairs = set()
+    claimed_names = set()
+    seen = set()
+    for rel in releases:
+        skin_key = normalize_skin_name(rel["skinName"])
+        claimed_pairs.add((rel["operatorName"], skin_key))
+        claimed_names.add(skin_key)
+        for target in rel["targets"]:
+            event_key = normalize_event_key(target)
+            if (event_key, rel["operatorName"], skin_key) in seen:
+                continue
+            seen.add((event_key, rel["operatorName"], skin_key))
+            brand_by_event.setdefault(event_key, []).append(
+                {"skinName": rel["skinName"], "operatorName": rel["operatorName"]}
+            )
+    return brand_by_event, claimed_pairs, claimed_names
+
+
 def event_outfits_are_final(ev, now):
     """Whether this event's own cached Outfits scrape can be trusted
     forever instead of re-fetched on every run: only once Yostar's
@@ -822,38 +997,81 @@ def event_outfits_are_final(ev, now):
 
 def attach_event_skins(events, cache):
     """Mutates every event in `events`, setting ev["skins"] = [{charId,
-    skinName, operatorName}, ...] wherever its own wiki page names any
-    newly-added outfit (see fetch_event_outfit_skin_names()) -- the
-    direct, wiki-sourced link this project's two trusted wikis simply
-    don't have a structured field for (unlike Operators.event for
-    operators; see fetch_skin_operator_names()'s docstring). `cache` is
-    read and mutated in place (see load_skin_outfit_cache()) so a
-    finalized event's page is scraped at most once ever, not on every
-    run forever -- see event_outfits_are_final().
+    skinName, operatorName}, ...] for each new outfit released alongside
+    it. Two sources, in order of trust:
 
-    Skins not resolved here at all (no event's own page ever names them
-    -- the common case for a routine shop-rotation skin with no tied
-    SideStory at all) are simply left off the calendar entirely. An
-    earlier version of this also had calendar.js guess at those with
-    its own nearest-event date match, the same stand-in
-    matchOperatorsToEvents() uses for operators -- but confirmed live,
-    that produced real wrong associations a date-only heuristic can't
-    avoid (a routine, unrelated shop-skin rotation landing on the same
-    calendar day as a SideStory's own release, with nothing tying the
-    two together beyond that coincidence), so it was removed rather
-    than tuned: for operators there's no better source to fall back to,
-    but for skins the wiki page naming them directly (however
-    incompletely some pages turn out to be) is strictly more
-    trustworthy than inferring one from timing alone."""
+    1. The outfit *brand* pages (see fetch_outfit_brand_releases()) --
+       every outfit is listed on one, with the event it came out with.
+       Authoritative: an outfit's event is stated outright per outfit,
+       so it holds up even for a minor event whose own page never lists
+       its outfit at all, and it overrides an event page that wrongly
+       claims someone else's outfit as its own.
+    2. The event's own wiki page ==Outfits== section (see
+       fetch_event_outfit_skin_names()), only for outfits *no* brand page
+       lists at all -- e.g. one too new for its brand page to have caught
+       up yet. `cache` is read and mutated in place (see
+       load_skin_outfit_cache()) so a finalized event's page is scraped
+       at most once ever -- see event_outfits_are_final().
+
+    An outfit neither source ties to an event is simply left off the
+    calendar entirely. An earlier version also had calendar.js guess at
+    those with a nearest-event date match -- but confirmed live, that
+    produced real wrong associations a date-only heuristic can't avoid
+    (an unrelated shop-skin rotation landing on the same calendar day as
+    a SideStory's release), so it was removed rather than tuned."""
     now = datetime.now(timezone.utc)
-    skin_to_operator = None  # fetched lazily -- only once some page actually names a skin
+
+    # Brand pages are one cheap batched request, so unlike the per-event
+    # page scrape below they're simply re-read on every run. If that
+    # request fails, fall back to the event pages alone (the behavior
+    # before brand pages were used) rather than losing skins outright.
+    try:
+        brand_releases = fetch_outfit_brand_releases()
+    except Exception as exc:
+        print(f"Couldn't read the Outfit brand pages (using event pages only): {exc}")
+        brand_releases = []
+    brand_by_event, claimed_pairs, claimed_names = index_outfit_brand_releases(brand_releases)
+    print(f"{len(brand_releases)} outfit(s) across the Outfit brand pages name a Global event")
+
+    # Fetched lazily -- only once some event actually has a skin to resolve.
+    skin_to_operator = None
     skin_to_operator_normalized = None
     operator_to_charid = None
+
+    def ensure_operator_lookup():
+        nonlocal operator_to_charid
+        if operator_to_charid is None:
+            operator_to_charid = fetch_operator_name_to_charid()
+
+    def ensure_skin_lookups():
+        nonlocal skin_to_operator, skin_to_operator_normalized
+        if skin_to_operator is None:
+            skin_to_operator = fetch_skin_operator_names()
+            # Second-pass lookup for a name the exact match misses only on
+            # punctuation/spacing -- see normalize_skin_name(). Built once,
+            # off the same query result, not refetched.
+            skin_to_operator_normalized = {}
+            for skin_name, operator_name in skin_to_operator.items():
+                skin_to_operator_normalized.setdefault(normalize_skin_name(skin_name), operator_name)
+        ensure_operator_lookup()
+
     scraped = 0
     for ev in events:
         wiki_page = ev.get("wikiPage") or ev.get("event")
         if not wiki_page:
             continue
+
+        # --- 1. brand pages: authoritative ---
+        skins = []
+        for brand_skin in brand_by_event.get(normalize_event_key(wiki_page), []):
+            ensure_operator_lookup()
+            skin = dict(brand_skin)
+            charid = operator_to_charid.get(skin["operatorName"])
+            if charid:
+                skin["charId"] = charid
+            skins.append(skin)
+
+        # --- 2. this event's own page, for outfits no brand page claims ---
         cached = cache.get(wiki_page)
         if cached is not None and event_outfits_are_final(ev, now):
             names = cached.get("skinNames", [])
@@ -862,46 +1080,52 @@ def attach_event_skins(events, cache):
             cache[wiki_page] = {"skinNames": names, "scrapedAt": now.isoformat()}
             scraped += 1
             time.sleep(REQUEST_PACING)
-        if not names:
-            continue
-        if skin_to_operator is None:
-            skin_to_operator = fetch_skin_operator_names()
-            # Second-pass lookup for a name the exact match above misses
-            # only on punctuation/spacing -- see normalize_skin_name().
-            # Built once, off the same query result, not refetched.
-            skin_to_operator_normalized = {}
-            for skin_name, operator_name in skin_to_operator.items():
-                skin_to_operator_normalized.setdefault(normalize_skin_name(skin_name), operator_name)
-            operator_to_charid = fetch_operator_name_to_charid()
-        skins = []
-        for name in names:
-            operator_name = skin_to_operator.get(name)
-            if not operator_name:
-                operator_name = skin_to_operator_normalized.get(normalize_skin_name(name))
-            charid = operator_to_charid.get(operator_name) if operator_name else None
-            skin = {"skinName": name}
-            if operator_name:
-                skin["operatorName"] = operator_name
-            if charid:
-                skin["charId"] = charid
-            skins.append(skin)
 
-        # Drop any entry that never resolved as a skin in its own right, but
-        # whose raw text exactly matches some OTHER entry's already-resolved
-        # operator name -- a one-off editorial slip confirmed live on "The
-        # Masses' Travels/Rerun", where the page's own new= list reads
-        # "Caelum Aeternum, Sankta Miksaparato" for what is really just one
-        # skin ("Caelum Aeternum", tied to operator Sankta Miksaparato):
-        # whoever wrote that page comma-separated the skin from its own
-        # operator's name as if they were two different skins, instead of
-        # leaving the operator out of the list entirely the way every other
-        # event page does. The comma split above has no way to know that
-        # ahead of time, so this is caught after the fact instead, by
-        # noticing the leftover fragment is identical to a sibling skin's
-        # own operator -- never flagged just for sharing a word or two.
-        resolved_operator_names = {s["operatorName"] for s in skins if s.get("operatorName")}
-        skins = [s for s in skins if s.get("operatorName") or s["skinName"] not in resolved_operator_names]
-        ev["skins"] = skins
+        page_skins = []
+        if names:
+            ensure_skin_lookups()
+            for name in names:
+                operator_name = skin_to_operator.get(name)
+                if not operator_name:
+                    operator_name = skin_to_operator_normalized.get(normalize_skin_name(name))
+                charid = operator_to_charid.get(operator_name) if operator_name else None
+                skin = {"skinName": name}
+                if operator_name:
+                    skin["operatorName"] = operator_name
+                if charid:
+                    skin["charId"] = charid
+                page_skins.append(skin)
+
+            # Drop any entry that never resolved as a skin in its own right,
+            # but whose raw text exactly matches some OTHER entry's already-
+            # resolved operator name -- a one-off editorial slip confirmed
+            # live on "The Masses' Travels/Rerun", where the page's own
+            # new= list reads "Caelum Aeternum, Sankta Miksaparato" for
+            # what is really just one skin ("Caelum Aeternum", tied to
+            # operator Sankta Miksaparato): whoever wrote that page comma-
+            # separated the skin from its own operator's name as if they
+            # were two different skins. The comma split has no way to know
+            # that ahead of time, so this is caught after the fact, by
+            # noticing the leftover fragment is identical to a sibling
+            # skin's own operator -- never flagged just for sharing a word.
+            resolved_operator_names = {s["operatorName"] for s in page_skins if s.get("operatorName")}
+            page_skins = [
+                s for s in page_skins
+                if s.get("operatorName") or s["skinName"] not in resolved_operator_names
+            ]
+
+        for skin in page_skins:
+            skin_key = normalize_skin_name(skin["skinName"])
+            operator_name = skin.get("operatorName")
+            if operator_name:
+                claimed = (operator_name, skin_key) in claimed_pairs
+            else:
+                claimed = skin_key in claimed_names
+            if not claimed:
+                skins.append(skin)
+
+        if skins:
+            ev["skins"] = skins
     print(f"Scraped {scraped} event page(s) for new-outfit names this run")
     return events
 

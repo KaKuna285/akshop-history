@@ -255,57 +255,70 @@ same batched `imageinfo` call as the banners rather than a separate one.
 
 The preview panel also lists any new skins tied to that event, each
 linking straight to that operator's page. Unlike operators, neither wiki
-has a structured field linking a skin to the event that introduced it
+has a structured *field* linking a skin to the event that introduced it
 (confirmed live: `arknights.wiki.gg`'s own `Skins` Cargo table has no
 `event` column, and no usable `id`/`skinGroup` either - both come back
 empty on every row checked; `prts.wiki` has no skins-related Cargo table
-at all), so `attach_event_skins()` instead scrapes each event's own wiki
-*page* for its `==Outfits==` section, which names any newly-added paid
-outfit directly (e.g. the "Crossing" event's own page lists "Lorem
-Ipsum, The Next Side Quest, The Bloodwing Rose" - independently
-confirmed against those same three skins' own EN `getTime` in
-`skin_table.json`, which lands on that exact event). A scraped name is
-then resolved back to a charId via two more Cargo queries - `Skins`
-(name → operator name) and `OperatorFiles` (operator name → charId, the
-same table `operator_online.py` already trusts for that exact mapping).
-The two wikis aren't always edited consistently with each other, though
-- one event page's own Outfits list read "Unstained Unshaken" with no
-comma at all, while the `Skins` table (and the actual in-game skin) has
-it as "Unstained, Unshaken" - so a scraped name that doesn't match
-`Skins.name` exactly is tried again via `normalize_skin_name()`, which
-lowercases both sides and strips all punctuation and whitespace before
-comparing, specifically to paper over slips like that one.
+at all), so `attach_event_skins()` reads two wiki *pages* instead, in
+order of trust:
 
-Scraping a page is a meaningfully heavier request than this pipeline's
-other, single-batched-query lookups, so it's cached rather than redone
-on every run: `akgcc-extra-data/json/skin_outfit_cache.json` (generated
+1. **The outfit brand pages** (`Outfit/Test Collection`, `Outfit/EPOQUE`,
+   `Outfit/Made by 0011`, ... - discovered dynamically with one batched
+   `generator=allpages` query, so a new brand page is picked up with no
+   code change). Each lists every outfit released under that brand as an
+   `{{Outfit cell}}` whose `release` field names the event it came out
+   with and whose `model` field names the operator. This is the primary,
+   authoritative source: it covers minor events whose own page never lists
+   their outfit (e.g. Greyy's "My Fellow Newsboy" with "Vector
+   Breakthrough Trial from Misery"), and it overrides an event page that
+   claims an outfit belonging to a different event. A `release` can be a
+   plain link, a link with an "(available from ...)" suffix, or several
+   region lines (`*CN: ...` / `*Global: ...`, `*[EN and KR] ...`); only
+   the Global/EN event is used, and CN-only releases (`{{Color|[CN]}}`)
+   are skipped. The pages spell a rerun or multi-part event as
+   "X Rerun" / "X Part 2" where `wikiPage` is "X/Rerun" / "X/Part 2", so
+   events are matched through `normalize_event_key()` (lowercase, drop all
+   punctuation and spacing).
+2. **The event's own `==Outfits==` section**, used only for outfits *no*
+   brand page lists at all (e.g. one too new for its brand page to have
+   caught up) - the event page names any newly-added paid outfit directly
+   (e.g. "Crossing" lists "Lorem Ipsum, The Next Side Quest, The
+   Bloodwing Rose"). An outfit a brand page assigned to a *different*
+   event is dropped from this list rather than trusted twice.
+
+Brand-page outfits resolve to a charId through their `model` (operator
+name → charId via `OperatorFiles`, the same table `operator_online.py`
+already trusts for that exact mapping). Event-page names resolve through
+two Cargo queries - `Skins` (skin name → operator name), then
+`OperatorFiles`. The two wikis aren't always edited consistently, so a
+few slips are handled on that path: a comma inside a skin's own name is
+written `&comma;` and decoded back; one event page's Outfits list read
+"Unstained Unshaken" while the `Skins` table has "Unstained, Unshaken", so
+a name that doesn't match `Skins.name` exactly is retried through
+`normalize_skin_name()`; and one page wrote "Caelum Aeternum, Sankta
+Miksaparato" (skin, then its own operator) as if it were two skins, so a
+leftover fragment that is identical to a sibling skin's operator name is
+dropped.
+
+The brand pages are one cheap batched request, re-read on every run. The
+per-event page scrape is meaningfully heavier (one request per event), so
+it's cached: `akgcc-extra-data/json/skin_outfit_cache.json` (generated
 automatically, not hand-edited) keeps each event's own scraped skin-name
 list keyed by wiki page, and `event_outfits_are_final()` decides when
 it's safe to trust that cache forever - only once an event's Global date
 is wiki-*confirmed* (an estimate can still shift) and its run actually
-ended at least a couple of days ago, giving the wiki's own editors a
-little time to add the section after the fact. Anything not yet final
-(still running, still estimated, or too recently ended) is re-scraped
-every run until it clears that bar - cheap, since only a handful of
-events are ever in that state at once. A skin no event's page ever
-claims (the common case - most purchasable skins are routine shop
-rotations with no tied SideStory at all) is simply left off that
-event entirely, rather than guessed at. An earlier version of this
-also had `js/calendar.js` fall back to a nearest-event date match for
-those, the same stand-in `matchOperatorsToEvents()` uses for operators
-with no scraped gacha-banner calendar to draw on - but that produced
-real wrong associations in practice (a routine, unrelated shop-skin
-rotation landing on the same calendar day as an unconnected SideStory's
-own release, e.g. "Yet Another Autumn (Savage)" showing up attached to
-"Critical Phase Transition" purely by date coincidence), so it was
-removed rather than tuned: for operators there's no better source to
-fall back to, but for skins the wiki page naming them directly (however
-incompletely some pages turn out to be) is strictly more trustworthy
-than inferring one from timing alone. Like the rest of this new-skins
-step, a failure here (a bad Cargo query, one page that fails to fetch)
-is caught and logged rather than taking down the whole run - worst
-case, that run's `events.json` just keeps whatever skins were already
-cached from before.
+ended at least a couple of days ago. Anything not yet final is re-scraped
+every run - cheap, since only a handful of events are ever in that state
+at once. An outfit neither source ties to an event (a routine shop
+rotation with no tied SideStory) is simply left off the calendar, rather
+than guessed at: an earlier version had `js/calendar.js` fall back to a
+nearest-event date match, but that produced real wrong associations (an
+unrelated skin landing on the same calendar day as a SideStory, e.g.
+"Yet Another Autumn (Savage)" on "Critical Phase Transition"), so it was
+removed rather than tuned. If the brand-page request itself fails, the
+run falls back to event pages alone instead of losing skins. Like the
+rest of this step, any failure is caught and logged rather than taking
+down the whole run.
 
 `events.py`'s Cargo queries (against the same `arknights.wiki.gg` API the
 other scripts use) target the `EventServerDetails` and `Operators`
