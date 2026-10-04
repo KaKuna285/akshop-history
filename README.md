@@ -329,6 +329,27 @@ run falls back to event pages alone instead of losing skins. Like the
 rest of this step, any failure is caught and logged rather than taking
 down the whole run.
 
+**Integrated Strategies and Reclamation Algorithm** are game modes, not
+SideStory events, so they have no `EventServerDetails` rows - but the
+outfits tied to a theme (e.g. "Sui's Garden of Grotesqueries") need an
+event to attach to. Each mode's own page (`Integrated Strategies`,
+`Reclamation Algorithm`) lists every theme in a `{{Game mode themes
+cell}}` with a `cn date` and a `global date`, read in one batched request
+by `fetch_game_mode_theme_rows()` and turned into the same row shape
+`build_events()` already consumes - so an upcoming theme gets an
+*estimated* Global date from its CN one exactly like any other event
+(e.g. Reclamation Algorithm's "Relaunch Anchor", CN-only so far). The wiki
+gives a date *range* for only the oldest themes; every other theme is a
+single release day, so a window with no end of its own is shown as
+`GAME_MODE_THEME_DAYS` (7) days - a display length, not a real one, since a
+theme stays playable afterwards. Themes are tagged `mode` in `events.json`:
+the preview says why it's only a week, and `js/calendar.js` /
+`js/operator-page.js` skip them when matching operators to events by
+release date (a theme often drops the same day as a SideStory whose
+operators they aren't). They are also kept out of the CN→Global lag model
+and its backtest, so they don't shift the estimates or accuracy figures
+for regular events. If the request fails, the run just builds without them.
+
 `events.py`'s Cargo queries (against the same `arknights.wiki.gg` API the
 other scripts use) target the `EventServerDetails` and `Operators`
 tables, whose exact field names were confirmed against each table's own

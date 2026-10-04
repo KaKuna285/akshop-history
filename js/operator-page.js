@@ -500,6 +500,11 @@
     const day = dayKeyFromTimestamp(op.onlineTime);
     if (day == null) return null;
     for (const ev of events) {
+      // Skip game-mode themes (Integrated Strategies / Reclamation
+      // Algorithm; events.py tags them with `mode`): they often drop the
+      // same day as the SideStory an operator actually debuted with, and
+      // being first in date order here would make this return the theme.
+      if (ev.mode) continue;
       const evDay = dayKeyFromTimestamp(ev.globalStart);
       if (evDay != null && Math.abs(evDay - day) <= EVENT_MATCH_WINDOW_DAYS) return ev;
     }

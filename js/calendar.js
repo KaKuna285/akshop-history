@@ -200,6 +200,11 @@
       byDay.get(day).push(op);
     }
     for (const ev of events) {
+      // A game-mode theme (Integrated Strategies / Reclamation Algorithm --
+      // events.py tags these with `mode`) often drops the same day as a
+      // SideStory, and the operators released that day belong to the
+      // SideStory, not the theme -- date proximity can't tell them apart.
+      if (ev.mode) continue;
       const day = dayKeyFromTimestamp(ev.globalStart);
       if (day == null) continue;
       const seen = new Set();
@@ -378,6 +383,16 @@
     countdown.textContent = countdownLabel(ev.globalStart, new Date());
     dates.appendChild(countdown);
     eventPreviewBodyEl.appendChild(dates);
+
+    if (ev.mode) {
+      // Not a limited-time event: a theme's wiki entry only has a release
+      // date (events.py gives it a fixed one-week window), and the content
+      // itself stays playable afterwards.
+      const modeLine = document.createElement("div");
+      modeLine.className = "eventPreviewSource";
+      modeLine.textContent = `${ev.mode} theme \u2013 release date shown, content stays available`;
+      eventPreviewBodyEl.appendChild(modeLine);
+    }
 
     if (ev.announced && ev.source) {
       const sourceLine = document.createElement("div");

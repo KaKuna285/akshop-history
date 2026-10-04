@@ -114,6 +114,13 @@ An outfit neither source ties to an event is left off the calendar
 entirely -- guessing by release date was tried and removed, since an
 unrelated shop-skin rotation landing on the same day as a SideStory is
 indistinguishable from a real tie.
+
+Integrated Strategies / Reclamation Algorithm themes aren't in
+EventServerDetails (they're game modes), so their release dates are read
+from each mode page's own {{Game mode themes cell}} entries and added as
+extra events -- see fetch_game_mode_theme_rows(). They're tagged with
+`mode`, given a fixed-length window when the wiki has no end date, and
+kept out of the lag model; see GAME_MODE_THEME_DAYS and build_events().
 """
 import requests
 import re
@@ -1186,8 +1193,126 @@ def attach_event_skins(events, cache):
     return events
 
 
-def build_events(rows, overrides=None, operators_by_event=None):
+# Integrated Strategies and Reclamation Algorithm are game modes, not
+# SideStory events, so they have no EventServerDetails rows at all -- but
+# each mode's own page lists every "theme" (a content drop: e.g. "Sui's
+# Garden of Grotesqueries") with its CN and Global release date in a
+# {{Game mode themes cell}}, which is what's read here instead. Outfits
+# (and so skins on the calendar) are tied to these themes the same way as
+# to any event, so without them those outfits had nothing to attach to.
+GAME_MODE_PAGES = ["Integrated Strategies", "Reclamation Algorithm"]
+
+# A theme is a release day, not a limited-time event (all but one are
+# permanently playable afterwards), and the wiki only gives a date range
+# for the oldest one or two -- so a theme with no end date is shown as a
+# fixed-length window starting on its release day. Only applied when the
+# wiki gives no end of its own.
+GAME_MODE_THEME_DAYS = 7
+
+_GAME_MODE_CELL_SPLIT_RE = re.compile(r"\{\{\s*Game mode themes cell\b", re.IGNORECASE)
+_WIKI_DATE_RE = re.compile(r"(\d{4})/(\d{2})/(\d{2})")
+
+
+def _first_dates(value):
+    """(start, end-or-None) from a cn/global date value such as
+    "2022/07/14" or "2021/02/25&ndash;2021/03/18"; (None, None) when
+    there's no date in it at all (a theme not out on that server yet)."""
+    found = [datetime(int(y), int(m), int(d)) for y, m, d in _WIKI_DATE_RE.findall(value or "")]
+    if not found:
+        return None, None
+    return found[0], (found[1] if len(found) > 1 else None)
+
+
+def parse_game_mode_themes(wikitext):
+    """[{"theme", "cn": (start, end), "global": (start, end)}, ...] for
+    every {{Game mode themes cell}} on one mode page. `theme` is also the
+    theme's own wiki page title. Only the first occurrence of each
+    parameter counts, so prose after the last cell can't overwrite it."""
+    themes = []
+    for chunk in _GAME_MODE_CELL_SPLIT_RE.split(wikitext or "")[1:]:
+        params = {}
+        for line in chunk.split("\n"):
+            m = _TEMPLATE_PARAM_LINE_RE.match(line)
+            if m:
+                params.setdefault(m.group(1).strip().lower(), m.group(2).strip())
+        theme = (params.get("theme") or "").strip()
+        if not theme:
+            continue
+        themes.append(
+            {
+                "theme": theme,
+                "cn": _first_dates(params.get("cn date")),
+                "global": _first_dates(params.get("global date")),
+            }
+        )
+    return themes
+
+
+def game_mode_theme_rows(themes):
+    """EventServerDetails-shaped rows (page/event/startTime/endTime/server)
+    for parse_game_mode_themes()'s output, so build_events() treats a theme
+    exactly like any other event -- including estimating an upcoming Global
+    date from its CN one. A window with no end of its own gets
+    GAME_MODE_THEME_DAYS days, ending at the last second of the final day
+    (the same convention as the wiki's own end times)."""
+    rows = []
+    for t in themes:
+        for server, (start, end) in (("CN", t["cn"]), ("Global", t["global"])):
+            if start is None:
+                continue
+            if end is None or end < start:
+                end = start + timedelta(days=GAME_MODE_THEME_DAYS) - timedelta(seconds=1)
+            rows.append(
+                {
+                    "page": t["theme"],
+                    "event": t["theme"],
+                    "server": server,
+                    "startTime": start.strftime("%Y-%m-%d %H:%M:%S"),
+                    "endTime": end.strftime("%Y-%m-%d %H:%M:%S"),
+                    "image": None,
+                    "mode": t.get("mode"),  # not an EventServerDetails field; read back in __main__
+                }
+            )
+    return rows
+
+
+def fetch_game_mode_theme_rows():
+    """Rows for every theme on every GAME_MODE_PAGES page, in one batched
+    request. Raises on a failed request -- the caller decides whether to
+    carry on without them."""
+    params = {
+        "action": "query",
+        "prop": "revisions",
+        "rvprop": "content",
+        "rvslots": "main",
+        "titles": "|".join(GAME_MODE_PAGES),
+        "format": "json",
+        "formatversion": 2,
+    }
+    r = http_get(WIKI_API, params=params, headers=HEADERS)
+    data = r.json()
+    if "error" in data:
+        raise RuntimeError(f"Game mode page query error: {data['error']}")
+    themes = []
+    for page in (data.get("query") or {}).get("pages", []):
+        revisions = page.get("revisions") or []
+        if revisions:
+            content = ((revisions[0].get("slots") or {}).get("main") or {}).get("content", "")
+            for theme in parse_game_mode_themes(content):
+                theme["mode"] = page["title"]
+                themes.append(theme)
+    return game_mode_theme_rows(themes)
+
+
+def build_events(rows, overrides=None, operators_by_event=None, lag_excluded_events=None):
+    """`lag_excluded_events`: event names still built and estimated like any
+    other, but kept out of the CN->Global lag model and its backtest --
+    game-mode themes (see fetch_game_mode_theme_rows()) are released on
+    their own schedule, so their lags shouldn't shift what the regular
+    events' estimates (and the accuracy figures reported for them) are
+    based on."""
     overrides = overrides or {}
+    lag_excluded_events = lag_excluded_events or set()
     operators_by_event = operators_by_event or {}
     # Group every row by event name, then by a normalized server key.
     by_event = {}
@@ -1244,6 +1369,8 @@ def build_events(rows, overrides=None, operators_by_event=None):
     # the raw rows), so this is its own sorted pass.
     confirmed_pairs = []
     for event, servers in by_event.items():
+        if event in lag_excluded_events:
+            continue
         cn_start, _ = clean_window(servers.get("cn"))
         gl_start, _ = clean_window(servers.get("global"))
         if not (cn_start and gl_start):
@@ -1367,6 +1494,19 @@ def build_events(rows, overrides=None, operators_by_event=None):
 if __name__ == "__main__":
     rows = fetch_event_server_details()
     print(f"Fetched {len(rows)} EventServerDetails rows")
+    # Game-mode themes (Integrated Strategies / Reclamation Algorithm) --
+    # optional, so a failure here just means a run without them. Put first
+    # so a real EventServerDetails row for the same name (should the wiki
+    # ever add one) overwrites ours in build_events().
+    try:
+        mode_rows = fetch_game_mode_theme_rows()
+    except Exception as exc:
+        print(f"Couldn't read the game-mode theme dates (building without them): {exc}")
+        mode_rows = []
+    mode_by_theme = {r["event"]: r["mode"] for r in mode_rows if r.get("mode")}
+    mode_theme_names = set(mode_by_theme)
+    print(f"Read {len(mode_theme_names)} game-mode themes")
+    rows = mode_rows + rows
     overrides = load_overrides()
     print(f"Loaded {len(overrides)} manual overrides")
     operator_rows = fetch_event_operators()
@@ -1376,8 +1516,16 @@ if __name__ == "__main__":
         f"across {len(operators_by_event)} events"
     )
     events, median_lag_days, current_lag_days, backtest = build_events(
-        rows, overrides, operators_by_event
+        rows, overrides, operators_by_event, lag_excluded_events=mode_theme_names
     )
+    # Tag each theme with its mode ("Integrated Strategies" / "Reclamation
+    # Algorithm") so calendar.js can tell it isn't an ordinary event: it
+    # must not be given operators by release-date proximity (a theme often
+    # drops the same day as a SideStory, whose operators these aren't), and
+    # its preview says why it's only a week long.
+    for e in events:
+        if e["event"] in mode_by_theme:
+            e["mode"] = mode_by_theme[e["event"]]
     events = localize_images(events, operators_by_event)
     with_image = sum(1 for e in events if e.get("image"))
     with_operators = sum(1 for e in events if e.get("operators"))
