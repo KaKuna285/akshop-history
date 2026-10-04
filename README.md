@@ -309,6 +309,15 @@ Miksaparato" (skin, then its own operator) as if it were two skins, so a
 leftover fragment that is identical to a sibling skin's operator name is
 dropped.
 
+The same outfit can also be spelled slightly differently on the two pages
+("Summer Flowers FA240" on the brand page, "Summer Flower FA240" on the
+event page), which would list it twice, so "already claimed by a brand
+page" and "the event page corroborates this CN-marked outfit" both use
+`skin_keys_match()`: same operator, identical digits, and at least 90%
+similar once punctuation and spacing are stripped. The digits rule matters
+because numbered outfits ("Holiday HD91" vs "HD92") are different outfits
+that otherwise look nearly identical.
+
 The brand pages are one cheap batched request, re-read on every run. The
 per-event page scrape is meaningfully heavier (one request per event), so
 it's cached: `akgcc-extra-data/json/skin_outfit_cache.json` (generated

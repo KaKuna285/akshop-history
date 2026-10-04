@@ -124,6 +124,7 @@ kept out of the lag model; see GAME_MODE_THEME_DAYS and build_events().
 """
 import requests
 import re
+from difflib import SequenceMatcher
 import os
 import json
 import time
@@ -774,6 +775,28 @@ def normalize_skin_name(name):
     return _NORMALIZE_NAME_RE.sub("", name.lower())
 
 
+# Two spellings of one operator's skin count as the same outfit above this
+# similarity (on normalize_skin_name() keys). Confirmed live: the wiki has
+# "Summer Flowers FA240" (Meteorite) on its brand page but "Summer Flower
+# FA240" on the event page -- one stray letter, which exact matching sees
+# as two different outfits and listed twice. Only ever compared between
+# skins of the *same* operator, so two genuinely different outfits would
+# have to be near-identical in name *and* belong to one operator to merge.
+SKIN_NAME_SIMILARITY = 0.9
+
+
+def skin_keys_match(a, b):
+    """Same outfit, allowing a small spelling slip. The digits must agree
+    exactly, though: many outfits are numbered codes ("Holiday HD91" vs
+    "Holiday HD92", "Summer Flowers FA098" vs "FA099"), which are
+    different outfits that look 90%+ alike as plain text."""
+    if a == b:
+        return True
+    if re.sub(r"\D", "", a) != re.sub(r"\D", "", b):
+        return False
+    return SequenceMatcher(None, a, b).ratio() >= SKIN_NAME_SIMILARITY
+
+
 def fetch_operator_name_to_charid():
     """Operator display name -> charId, from the wiki's own
     OperatorFiles table (F.name/F.id) -- the same fields/table
@@ -979,9 +1002,9 @@ def _event_global_end(ev):
 def index_outfit_brand_releases(releases, events, now):
     """(brand_by_event, claimed_pairs, claimed_names): brand_by_event maps
     normalize_event_key(event page) -> [{"skinName", "operatorName"[,
-    "cnOnly": True]}, ...]; claimed_pairs / claimed_names are every
-    (operator, normalized skin name) / normalized skin name some brand
-    page assigned to an event -- tracked here or not -- which is what lets
+    "cnOnly": True]}, ...]; claimed_pairs ({operator: {normalized skin
+    names}}) / claimed_names ({normalized skin names}) are every outfit
+    some brand page assigned to an event -- tracked here or not -- which is what lets
     attach_event_skins() tell "an event page names a skin no brand page
     knows about" (keep it) from "an event page names a skin a brand page
     already assigned to a different event" (drop it; the brand page wins).
@@ -999,7 +1022,7 @@ def index_outfit_brand_releases(releases, events, now):
             event_ends[normalize_event_key(ev.get("wikiPage") or ev.get("event") or "")] = end
 
     brand_by_event = {}
-    claimed_pairs = set()
+    claimed_pairs = {}  # operator -> {normalized skin names}
     claimed_names = set()
     entries = {}  # (event_key, operator, skin_key) -> entry, so a Global listing beats a CN one
     for rel in releases:
@@ -1010,7 +1033,7 @@ def index_outfit_brand_releases(releases, events, now):
                 end = event_ends.get(event_key)
                 if end is None or end < now:
                     continue
-            claimed_pairs.add((rel["operatorName"], skin_key))
+            claimed_pairs.setdefault(rel["operatorName"], set()).add(skin_key)
             claimed_names.add(skin_key)
             key = (event_key, rel["operatorName"], skin_key)
             existing = entries.get(key)
@@ -1170,18 +1193,21 @@ def attach_event_skins(events, cache):
         # A CN-marked brand skin (see index_outfit_brand_releases()) that
         # this event's own page *also* names as new is corroborated by that
         # page, so it stops being flagged as unconfirmed for Global.
-        page_keys = {(s.get("operatorName"), normalize_skin_name(s["skinName"])) for s in page_skins}
+        page_keys = [(s.get("operatorName"), normalize_skin_name(s["skinName"])) for s in page_skins]
         for skin in skins:
             if skin.get("cnOnly"):
                 skin_key = normalize_skin_name(skin["skinName"])
-                if (skin["operatorName"], skin_key) in page_keys or (None, skin_key) in page_keys:
+                if any(
+                    op in (None, skin["operatorName"]) and skin_keys_match(skin_key, key)
+                    for op, key in page_keys
+                ):
                     del skin["cnOnly"]
 
         for skin in page_skins:
             skin_key = normalize_skin_name(skin["skinName"])
             operator_name = skin.get("operatorName")
             if operator_name:
-                claimed = (operator_name, skin_key) in claimed_pairs
+                claimed = any(skin_keys_match(skin_key, k) for k in claimed_pairs.get(operator_name, ()))
             else:
                 claimed = skin_key in claimed_names
             if not claimed:
