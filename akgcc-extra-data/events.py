@@ -852,30 +852,42 @@ def parse_outfit_cells(wikitext):
 
 
 def parse_outfit_release_targets(release):
-    """Page titles of the *Global* event(s) an outfit's "release" field
-    names, in order. Every pattern seen live across all brand pages:
-    a plain "[[Event]]" (the overwhelming majority -- unmarked means
-    Global/EN here); "[[Event]] (available from ... to ...)"; a CN-only
-    "{{Color|[CN]}} [[Event]]" (not out on Global yet, so skipped -- the
-    event it names is CN's, and this calendar is the Global one);
-    several region lines like "*CN: [[A]]" / "*Global: [[B]]" or
-    "*[CN and JP] [[A]]" / "*[EN and KR] [[B]]" (only the Global/EN line
-    is kept); "Alongside ''[[Event]]''"; and plain text with no link at
-    all (e.g. a web event or a bare date), which names no event and so
-    yields nothing."""
-    targets = []
+    """[{"title": event page title, "cnOnly": bool}, ...] -- the event(s)
+    an outfit's "release" field names. Every pattern seen live across all
+    brand pages: a plain "[[Event]]" (the overwhelming majority --
+    unmarked means Global/EN here); "[[Event]] (available from ... to
+    ...)"; "Alongside ''[[Event]]''"; a CN-only "{{Color|[CN]}}
+    [[Event]]"; several region lines like "*CN: [[A]]" / "*Global: [[B]]"
+    or "*[CN and JP] [[A]]" / "*[EN and KR] [[B]]"; and plain text with no
+    link at all (a web event, a bare date), which names no event and so
+    yields nothing.
+
+    If any line is Global/EN (or unmarked) only those are returned -- the
+    outfit's Global release is known, so a CN line is just CN's own
+    (different) event and says nothing about Global. Only when *every*
+    linked line is CN-marked does it return those, flagged cnOnly: the
+    outfit is out on CN but the wiki has no Global release for it. That
+    is either "not on Global *yet*" (its CN event simply hasn't reached
+    Global, so it's expected with that event) or "never" (a CN-exclusive
+    collab) -- the page alone can't tell which, so the caller decides by
+    whether that event's Global run is still ahead (see
+    index_outfit_brand_releases())."""
+    global_targets = []
+    cn_targets = []
     for line in (release or "").split("\n"):
         line = re.sub(r"^\*+\s*", "", line.strip())
         link = _WIKILINK_TARGET_RE.search(line)
         if not link:
             continue
+        title = link.group(1).strip().replace("_", " ")
         marker = _RELEASE_REGION_MARKER_RE.search(line)
         if marker:
             label = marker.group(1) if marker.group(1) is not None else marker.group(2)
             if not _RELEASE_GLOBAL_WORD_RE.search(label):
+                cn_targets.append({"title": title, "cnOnly": True})
                 continue
-        targets.append(link.group(1).strip().replace("_", " "))
-    return targets
+        global_targets.append({"title": title, "cnOnly": False})
+    return global_targets or cn_targets
 
 
 def normalize_event_key(title):
@@ -926,13 +938,13 @@ def fetch_outfit_brand_wikitexts():
 
 
 def fetch_outfit_brand_releases():
-    """[{"skinName", "operatorName", "targets": [event page title, ...]}]
+    """[{"skinName", "operatorName", "targets": [{"title", "cnOnly"}]}]
     -- one entry per outfit across every brand page whose release field
-    names at least one Global event. This is the authoritative skin ->
-    event link: unlike an event page's own Outfits section (which some
-    pages simply never fill in -- e.g. "Vector Breakthrough Trial from
-    Misery" never lists Greyy's "My Fellow Newsboy", though its brand
-    page, Outfit/EPOQUE, does name it), every outfit has to be listed on
+    links at least one event. This is the authoritative skin -> event
+    link: unlike an event page's own Outfits section (which some pages
+    simply never fill in -- e.g. "Vector Breakthrough Trial from Misery"
+    never lists Greyy's "My Fellow Newsboy", though its brand page,
+    Outfit/EPOQUE, does name it), every outfit has to be listed on
     exactly one brand page, with its event, for the brand page to be
     complete at all."""
     releases = []
@@ -946,31 +958,65 @@ def fetch_outfit_brand_releases():
     return releases
 
 
-def index_outfit_brand_releases(releases):
+def _event_global_end(ev):
+    end = ev.get("globalEnd") or ev.get("globalStart")
+    if not end:
+        return None
+    try:
+        end_dt = datetime.fromisoformat(end)
+    except ValueError:
+        return None
+    return end_dt if end_dt.tzinfo else end_dt.replace(tzinfo=timezone.utc)
+
+
+def index_outfit_brand_releases(releases, events, now):
     """(brand_by_event, claimed_pairs, claimed_names): brand_by_event maps
-    normalize_event_key(event page) -> [{"skinName", "operatorName"}, ...];
-    claimed_pairs / claimed_names are every (operator, normalized skin
-    name) / normalized skin name some brand page assigned to *any* event
-    -- tracked here or not -- which is what lets attach_event_skins() tell
-    "an event page names a skin no brand page knows about" (keep it) from
-    "an event page names a skin a brand page already assigned to a
-    different event" (drop it; the brand page wins)."""
+    normalize_event_key(event page) -> [{"skinName", "operatorName"[,
+    "cnOnly": True]}, ...]; claimed_pairs / claimed_names are every
+    (operator, normalized skin name) / normalized skin name some brand
+    page assigned to an event -- tracked here or not -- which is what lets
+    attach_event_skins() tell "an event page names a skin no brand page
+    knows about" (keep it) from "an event page names a skin a brand page
+    already assigned to a different event" (drop it; the brand page wins).
+
+    A CN-marked outfit (cnOnly) is kept only when its event is tracked
+    here and its Global run hasn't ended yet -- ongoing or upcoming -- so
+    an upcoming event can show the skins it's expected to bring, while a
+    CN-exclusive outfit tied to an event that already ran on Global
+    without it (or to one we don't track) never shows up. It stays flagged
+    cnOnly, since the wiki hasn't confirmed it for Global."""
+    event_ends = {}
+    for ev in events:
+        end = _event_global_end(ev)
+        if end is not None:
+            event_ends[normalize_event_key(ev.get("wikiPage") or ev.get("event") or "")] = end
+
     brand_by_event = {}
     claimed_pairs = set()
     claimed_names = set()
-    seen = set()
+    entries = {}  # (event_key, operator, skin_key) -> entry, so a Global listing beats a CN one
     for rel in releases:
         skin_key = normalize_skin_name(rel["skinName"])
-        claimed_pairs.add((rel["operatorName"], skin_key))
-        claimed_names.add(skin_key)
         for target in rel["targets"]:
-            event_key = normalize_event_key(target)
-            if (event_key, rel["operatorName"], skin_key) in seen:
+            event_key = normalize_event_key(target["title"])
+            if target["cnOnly"]:
+                end = event_ends.get(event_key)
+                if end is None or end < now:
+                    continue
+            claimed_pairs.add((rel["operatorName"], skin_key))
+            claimed_names.add(skin_key)
+            key = (event_key, rel["operatorName"], skin_key)
+            existing = entries.get(key)
+            if existing is not None and not existing.get("cnOnly"):
                 continue
-            seen.add((event_key, rel["operatorName"], skin_key))
-            brand_by_event.setdefault(event_key, []).append(
-                {"skinName": rel["skinName"], "operatorName": rel["operatorName"]}
-            )
+            entry = {"skinName": rel["skinName"], "operatorName": rel["operatorName"]}
+            if target["cnOnly"]:
+                entry["cnOnly"] = True
+            if existing is None:
+                brand_by_event.setdefault(event_key, []).append(entry)
+            else:
+                brand_by_event[event_key][brand_by_event[event_key].index(existing)] = entry
+            entries[key] = entry
     return brand_by_event, claimed_pairs, claimed_names
 
 
@@ -1030,8 +1076,8 @@ def attach_event_skins(events, cache):
     except Exception as exc:
         print(f"Couldn't read the Outfit brand pages (using event pages only): {exc}")
         brand_releases = []
-    brand_by_event, claimed_pairs, claimed_names = index_outfit_brand_releases(brand_releases)
-    print(f"{len(brand_releases)} outfit(s) across the Outfit brand pages name a Global event")
+    brand_by_event, claimed_pairs, claimed_names = index_outfit_brand_releases(brand_releases, events, now)
+    print(f"{len(brand_releases)} outfit(s) across the Outfit brand pages name an event")
 
     # Fetched lazily -- only once some event actually has a skin to resolve.
     skin_to_operator = None
@@ -1113,6 +1159,16 @@ def attach_event_skins(events, cache):
                 s for s in page_skins
                 if s.get("operatorName") or s["skinName"] not in resolved_operator_names
             ]
+
+        # A CN-marked brand skin (see index_outfit_brand_releases()) that
+        # this event's own page *also* names as new is corroborated by that
+        # page, so it stops being flagged as unconfirmed for Global.
+        page_keys = {(s.get("operatorName"), normalize_skin_name(s["skinName"])) for s in page_skins}
+        for skin in skins:
+            if skin.get("cnOnly"):
+                skin_key = normalize_skin_name(skin["skinName"])
+                if (skin["operatorName"], skin_key) in page_keys or (None, skin_key) in page_keys:
+                    del skin["cnOnly"]
 
         for skin in page_skins:
             skin_key = normalize_skin_name(skin["skinName"])

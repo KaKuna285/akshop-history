@@ -476,6 +476,19 @@
           name.className = "eventPreviewSkinName";
           name.textContent = skin.operatorName ? `${skin.skinName} (${skin.operatorName})` : skin.skinName;
           chip.appendChild(name);
+          // Out on CN already but not yet confirmed for Global (events.py
+          // flags it cnOnly -- see index_outfit_brand_releases()): shown
+          // so an upcoming event lists what it's expected to bring, but
+          // tagged, since it's the same "estimated" caveat the event's own
+          // badge carries, not a promise.
+          if (skin.cnOnly) {
+            chip.classList.add("eventPreviewSkinChipUnconfirmed");
+            chip.title = "Out on CN, not yet confirmed for Global";
+            const tag = document.createElement("span");
+            tag.className = "eventPreviewSkinTag";
+            tag.textContent = "CN";
+            chip.appendChild(tag);
+          }
           skinsList.appendChild(chip);
         });
       skinsSection.appendChild(skinsList);

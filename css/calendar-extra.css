@@ -403,6 +403,22 @@ span.eventPreviewSkinChip {
   color: #eee;
 }
 
+/* Out on CN already, not yet confirmed for Global -- see showEventPreview(). */
+.eventPreviewSkinChipUnconfirmed {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.eventPreviewSkinTag {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: #f8d511;
+  border: 1px solid rgba(248, 213, 17, 0.4);
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 1.4;
+}
+
 .eventPreviewLink {
   margin-top: auto;
   font-size: 0.8rem;

@@ -273,9 +273,18 @@ order of trust:
    Breakthrough Trial from Misery"), and it overrides an event page that
    claims an outfit belonging to a different event. A `release` can be a
    plain link, a link with an "(available from ...)" suffix, or several
-   region lines (`*CN: ...` / `*Global: ...`, `*[EN and KR] ...`); only
-   the Global/EN event is used, and CN-only releases (`{{Color|[CN]}}`)
-   are skipped. The pages spell a rerun or multi-part event as
+   region lines (`*CN: ...` / `*Global: ...`, `*[EN and KR] ...`); when a
+   Global/EN line exists only that is used. An outfit whose *every* line
+   is CN-marked (`{{Color|[CN]}}`) is out on CN but not confirmed for
+   Global - either "not here *yet*" or "never" (a CN-exclusive collab), and
+   the page can't say which. So it is kept only when its event is tracked
+   and its Global run hasn't ended yet (ongoing or upcoming - which is how
+   an upcoming event shows the skins it's expected to bring), and it's
+   flagged `cnOnly`, which the calendar renders as a dashed chip with a
+   "CN" tag. If the event's own page also names it as new, that
+   corroborates it and the flag is dropped. A CN-marked outfit tied to an
+   event that already ran on Global without it, or to one we don't track,
+   is never shown. The pages spell a rerun or multi-part event as
    "X Rerun" / "X Part 2" where `wikiPage` is "X/Rerun" / "X/Part 2", so
    events are matched through `normalize_event_key()` (lowercase, drop all
    punctuation and spacing).
