@@ -57,13 +57,9 @@ fetch(extraDataUrl("banner_history.json"))
 		// generatedAt is new as of this scraper patch -- cached data fetched
 		// before the next daily run picks it up won't have it yet, so this
 		// stays blank (rather than showing a broken/undefined date) until then.
-		if (js.generatedAt) {
-			const freshnessEl = document.getElementById("dataFreshness");
-			if (freshnessEl) {
-				const d = new Date(js.generatedAt);
-				freshnessEl.textContent = ` · Updated ${d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
-			}
-		}
+		// (meta.json from health.py is what says whether the update is healthy;
+		// banner_history's own timestamp is the fallback until it exists)
+		DataHealth.mount(document.getElementById("dataFreshness"), { generatedAt: js.generatedAt });
 		return get_char_table(false, SERVERS.CN, true);
 	})
 	.then((js) => {

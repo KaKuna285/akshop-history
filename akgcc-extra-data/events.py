@@ -188,6 +188,26 @@ def http_get(url, **kwargs):
     raise last_exc
 
 
+# Parts of a run that failed without taking the whole run down (the
+# game-mode themes, the skin scrape, a batch of image downloads, ...). Each
+# of those is wrapped in its own try/except on purpose -- one wiki hiccup
+# shouldn't cost every other event its dates -- but that also makes them
+# *silent*: the run still goes green and the page just quietly carries less
+# data. note_degraded() keeps a list of them, written into events.json as
+# `warnings` (so the calendar can say "some details may be incomplete") and
+# read by health.py for json/meta.json and the workflow's failure issue.
+RUN_WARNINGS = []
+
+
+def note_degraded(step, message):
+    print(f"[degraded] {step}: {message}")
+    RUN_WARNINGS.append({"step": step, "message": message})
+
+
+def any_note_for(step):
+    return any(w["step"] == step for w in RUN_WARNINGS)
+
+
 WIKI_API = "https://arknights.wiki.gg/api.php"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -575,6 +595,14 @@ def localize_images(events, operators_by_event=None):
             else:
                 del op["icon"]
 
+    # One image that won't download (a file deleted from the wiki, say) is
+    # routine and would just nag on every run, so only a pattern counts:
+    # at least two failures making up half or more of what was attempted
+    # is what a blocked/rate-limited image host looks like.
+    failed = sum(1 for v in cache.values() if v is None)
+    if failed >= 2 and failed * 2 >= len(cache):
+        note_degraded("images", f"{failed} of {len(cache)} image downloads failed this run")
+
     return events
 
 
@@ -695,7 +723,11 @@ def parse_outfit_skin_names(wikitext):
 def fetch_event_outfit_skin_names(wiki_page):
     """Scrapes one event's own wiki page for parse_outfit_skin_names().
     Returns [] (not an error) for a missing/renamed page or a page with
-    no Outfits section -- neither should take down the whole run."""
+    no Outfits section -- neither should take down the whole run -- but
+    None when the request itself failed (a timeout, a rate limit, an API
+    error): "couldn't ask" must stay distinguishable from "asked, and
+    there are none", or attach_event_skins() would cache a transient
+    failure as an empty list and, for a finished event, trust it forever."""
     try:
         params = {
             "action": "parse",
@@ -707,12 +739,13 @@ def fetch_event_outfit_skin_names(wiki_page):
         data = r.json()
         if "error" in data:
             print(f"Couldn't fetch wikitext for {wiki_page!r}: {data['error']}")
-            return []
+            code = (data["error"] or {}).get("code") if isinstance(data["error"], dict) else None
+            return [] if code == "missingtitle" else None
         wikitext = ((data.get("parse") or {}).get("wikitext") or {}).get("*", "")
         return parse_outfit_skin_names(wikitext)
     except Exception as exc:
         print(f"Couldn't fetch wikitext for {wiki_page!r}: {exc}")
-        return []
+        return None
 
 
 def fetch_skin_operator_names():
@@ -1104,8 +1137,12 @@ def attach_event_skins(events, cache):
     try:
         brand_releases = fetch_outfit_brand_releases()
     except Exception as exc:
-        print(f"Couldn't read the Outfit brand pages (using event pages only): {exc}")
+        note_degraded("skins", f"couldn't read the Outfit brand pages, using event pages only: {exc}")
         brand_releases = []
+    if not brand_releases and not any_note_for("skins"):
+        # Zero outfits from ~25 pages isn't "nothing released" -- it means
+        # the page layout (or the Outfit/ prefix) changed under the parser.
+        note_degraded("skins", "the Outfit brand pages produced no outfits at all (page layout changed?)")
     brand_by_event, claimed_pairs, claimed_names = index_outfit_brand_releases(brand_releases, events, now)
     print(f"{len(brand_releases)} outfit(s) across the Outfit brand pages name an event")
 
@@ -1132,6 +1169,7 @@ def attach_event_skins(events, cache):
         ensure_operator_lookup()
 
     scraped = 0
+    page_fetch_failures = 0
     for ev in events:
         wiki_page = ev.get("wikiPage") or ev.get("event")
         if not wiki_page:
@@ -1153,7 +1191,15 @@ def attach_event_skins(events, cache):
             names = cached.get("skinNames", [])
         else:
             names = fetch_event_outfit_skin_names(wiki_page)
-            cache[wiki_page] = {"skinNames": names, "scrapedAt": now.isoformat()}
+            if names is None:
+                # The request failed -- don't overwrite the cache with an
+                # empty list. Keep whatever an earlier run scraped (if
+                # anything) so this event doesn't lose its skins, and try
+                # again next run.
+                page_fetch_failures += 1
+                names = (cached or {}).get("skinNames", [])
+            else:
+                cache[wiki_page] = {"skinNames": names, "scrapedAt": now.isoformat()}
             scraped += 1
             time.sleep(REQUEST_PACING)
 
@@ -1216,6 +1262,12 @@ def attach_event_skins(events, cache):
         if skins:
             ev["skins"] = skins
     print(f"Scraped {scraped} event page(s) for new-outfit names this run")
+    if page_fetch_failures:
+        note_degraded(
+            "skins",
+            f"{page_fetch_failures} event page(s) couldn't be read this run (their skins keep "
+            "whatever an earlier run found)",
+        )
     return events
 
 
@@ -1517,7 +1569,133 @@ def build_events(rows, overrides=None, operators_by_event=None, lag_excluded_eve
     return out, median_lag_days, estimate_lag_days, backtest
 
 
+EVENTS_JSON_PATH = "./json/events.json"
+
+# An event's date can move between runs: the estimate follows the CN date
+# and the trailing-window lag (both can change), Yostar can announce or
+# the wiki can confirm the real date, or a confirmed date can be
+# rescheduled. `dateHistory` records those moves so the calendar can say
+# "moved +4 days" / "now confirmed" instead of the date just silently
+# differing from what someone saw last week.
+#
+# A move smaller than this many days is ignored for estimates -- the lag
+# is a median that nudges by a day or so run to run, which would otherwise
+# put a "moved" note on nearly every estimated event. A change of *status*
+# (estimated -> announced -> confirmed) is always recorded.
+DATE_HISTORY_MIN_SHIFT_DAYS = 2
+DATE_HISTORY_MAX_ENTRIES = 6
+
+
+def event_date_status(ev):
+    if ev.get("globalConfirmed"):
+        return "confirmed"
+    if ev.get("announced"):
+        return "announced"
+    return "estimated"
+
+
+def load_previous_events(path=EVENTS_JSON_PATH):
+    """The previous run's events.json, as ({event name: entry}, its
+    generatedAt) -- the baseline update_date_history() diffs against. A
+    missing or unreadable file just means there's nothing to compare to
+    (first run, or a bad file): ({}, None), never an error."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}, None
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Couldn't read the previous {path} (no date-change tracking this run): {exc}")
+        return {}, None
+    events = data.get("events") if isinstance(data, dict) else None
+    if not isinstance(events, list):
+        return {}, None
+    by_event = {e["event"]: e for e in events if isinstance(e, dict) and e.get("event")}
+    return by_event, data.get("generatedAt")
+
+
+def _history_day(iso):
+    return datetime.fromisoformat(iso).date()
+
+
+def _valid_history(history):
+    if not isinstance(history, list):
+        return []
+    out = []
+    for h in history:
+        if isinstance(h, dict) and h.get("at") and h.get("start") and h.get("status"):
+            try:
+                _history_day(h["start"])
+            except (TypeError, ValueError):
+                continue
+            out.append(h)
+    return out
+
+
+def update_date_history(events, previous, previous_generated_at, now):
+    """Sets ev["dateHistory"] = [{at, start, status, reason?}, ...] (oldest
+    first) on every event that hasn't finished yet, carrying forward what
+    the previous run recorded and appending an entry whenever the date or
+    status has moved since the last recorded one.
+
+    Each entry is a state the event was *in*: `start` is its Global start
+    then, `status` is "estimated" / "announced" / "confirmed", and `reason`
+    (not on the first entry) says why it changed:
+      "estimate"    -- still an estimate, same CN date: the lag model moved
+      "cn"          -- still an estimate, but its CN date changed
+      "announced" / "confirmed" -- it just became that
+      "rescheduled" -- an announced/confirmed date moved
+
+    Moves are measured against the last *recorded* entry, not the previous
+    run, so a slow drift of a day per run still shows up once it adds up
+    past DATE_HISTORY_MIN_SHIFT_DAYS instead of being rounded away forever.
+    A finished event's history is dropped (it only matters ahead of time).
+    The first entry for an event the previous run already knew, but with
+    no history yet, is that previous state, so the very first run after
+    this feature ships already reports moves since the run before it."""
+    for ev in events:
+        ev.pop("dateHistory", None)
+        end_dt = _event_global_end(ev)
+        if end_dt is None or end_dt < now:
+            continue
+        name = ev["event"]
+        status = event_date_status(ev)
+        prev = previous.get(name)
+        history = _valid_history(prev.get("dateHistory")) if prev else []
+        if prev and not history and prev.get("globalStart"):
+            history = [
+                {
+                    "at": previous_generated_at or now.isoformat(),
+                    "start": prev["globalStart"],
+                    "status": event_date_status(prev),
+                }
+            ]
+        if not history:
+            history = [{"at": now.isoformat(), "start": ev["globalStart"], "status": status}]
+        else:
+            last = history[-1]
+            shift = (_history_day(ev["globalStart"]) - _history_day(last["start"])).days
+            status_changed = status != last["status"]
+            if status_changed or abs(shift) >= DATE_HISTORY_MIN_SHIFT_DAYS:
+                if status_changed and status != "estimated":
+                    reason = status
+                elif status_changed:
+                    reason = "estimate"
+                elif status == "estimated":
+                    cn_moved = prev is not None and prev.get("cnStart") != ev.get("cnStart")
+                    reason = "cn" if cn_moved else "estimate"
+                else:
+                    reason = "rescheduled"
+                history.append(
+                    {"at": now.isoformat(), "start": ev["globalStart"], "status": status, "reason": reason}
+                )
+        ev["dateHistory"] = history[-DATE_HISTORY_MAX_ENTRIES:]
+    return events
+
+
 if __name__ == "__main__":
+    # Read the previous run's output first -- it's overwritten at the end.
+    previous_events, previous_generated_at = load_previous_events()
     rows = fetch_event_server_details()
     print(f"Fetched {len(rows)} EventServerDetails rows")
     # Game-mode themes (Integrated Strategies / Reclamation Algorithm) --
@@ -1527,7 +1705,7 @@ if __name__ == "__main__":
     try:
         mode_rows = fetch_game_mode_theme_rows()
     except Exception as exc:
-        print(f"Couldn't read the game-mode theme dates (building without them): {exc}")
+        note_degraded("themes", f"couldn't read the Integrated Strategies / Reclamation Algorithm dates: {exc}")
         mode_rows = []
     mode_by_theme = {r["event"]: r["mode"] for r in mode_rows if r.get("mode")}
     mode_theme_names = set(mode_by_theme)
@@ -1571,7 +1749,7 @@ if __name__ == "__main__":
         with_skins = sum(1 for e in events if e.get("skins"))
         print(f"{with_skins}/{len(events)} events list new skins")
     except Exception as exc:
-        print(f"Couldn't attach new-skin data to events (leaving events.json's skins as-is): {exc}")
+        note_degraded("skins", f"couldn't attach new-skin data to events: {exc}")
     print(
         f"Built {len(events)} events; median CN->Global lag = {median_lag_days} days, "
         f"current CN->Global lag = {current_lag_days} days"
@@ -1583,10 +1761,17 @@ if __name__ == "__main__":
         f"p90 = {backtest['p90AbsErrDays']:.1f}d, "
         f"max = {backtest['maxAbsErrDays']:.1f}d"
     )
+    run_time = datetime.now(timezone.utc)
+    try:
+        events = update_date_history(events, previous_events, previous_generated_at, run_time)
+        print(f"{sum(1 for e in events if len(e.get('dateHistory', ())) > 1)} event(s) have a recorded date change")
+    except Exception as exc:
+        note_degraded("dateHistory", f"couldn't track date changes: {exc}")
     with open("./json/events.json", "w") as f:
         json.dump(
             {
-                "generatedAt": datetime.now(timezone.utc).isoformat(),
+                "generatedAt": run_time.isoformat(),
+                "warnings": RUN_WARNINGS,
                 "medianLagDays": median_lag_days,
                 "currentLagDays": current_lag_days,
                 "backtest": backtest,

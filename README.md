@@ -374,6 +374,80 @@ nothing, check that step's own log in the Actions tab first; the daily
 workflow runs this step with `continue-on-error: true` specifically so a
 problem here doesn't take down the shop tracker's own data update.
 
+**Date changes.** An estimate isn't fixed: it follows the CN date and the
+trailing-window lag (both can move), and Yostar can announce or the wiki
+can confirm the real date later, or reschedule a confirmed one. Without a
+record of that, a date just silently differs from what someone saw last
+week. So `update_date_history()` compares each run against the previous
+`events.json` (read at the very start of the run, before it's
+overwritten) and gives every event that hasn't finished yet a
+`dateHistory`: a short list (newest `DATE_HISTORY_MAX_ENTRIES`, 6) of
+`{at, start, status, reason}` entries, one per recorded state. `reason` says
+why it moved - `estimate` (same CN date, so the lag model moved), `cn` (its
+CN date changed), `announced` / `confirmed` (it just became that), or
+`rescheduled` (an announced/confirmed date moved). Moves are measured
+against the last *recorded* entry rather than the previous run, and an
+estimate has to move at least `DATE_HISTORY_MIN_SHIFT_DAYS` (2) days to
+count: the lag is a median that nudges by a day or so from run to run,
+which would otherwise put a "moved" note on nearly every estimated event,
+while measuring against the last recorded entry means a slow drift still
+shows up once it adds up. A change of *status* is always recorded, and a
+finished event's history is dropped. The calendar shows the latest move
+for 14 days (`RECENT_CHANGE_DAYS` in `js/calendar.js`) as a line on the
+event's card and preview - "Estimate moved 4 days later (CN→Global lag
+updated)", "Now confirmed - 3 days later than the estimate", "Rescheduled -
+7 days later" - and the preview lists the whole history. An event the
+previous `events.json` already had, but with no history yet (the first run
+after this shipped), is seeded from that previous state, so that very
+first run already reports moves since the run before it.
+
+## Knowing when the update breaks
+
+Every part of this pipeline is wrapped so that one failure doesn't cost the
+site everything else - which also means a scraper that breaks (the wiki
+changes a template, an API starts erroring) can leave the site quietly
+serving old or incomplete data while the run stays green. Three layers
+make that visible:
+
+- **`events.py` reports what it had to skip.** The game-mode themes, the
+  skin step, a pattern of failed image downloads, and the date tracking
+  each fail on their own without ending the run; `note_degraded()` collects
+  them into events.json's `warnings`. Related fix: a failed event-page
+  fetch used to come back as `[]`, which was cached as "this event has no
+  outfits" and, once the event was finished, trusted forever.
+  `fetch_event_outfit_skin_names()` now returns `None` for a failed
+  request (a missing page or no Outfits section is still `[]`), and a
+  `None` never touches the cache. An empty result from the Outfit brand
+  pages is also reported, since ~25 pages yielding nothing means the layout
+  changed under the parser, not that nothing was released.
+- **`health.py` writes `json/meta.json` after every run.** The workflow
+  gives each update step an `id` and `continue-on-error`, so the three
+  (shop history, operator dates, events) are independent and the commit
+  still happens for whatever worked; `health.py` then gets each step's
+  outcome and records, per step, the outcome and `lastSuccess` (carried
+  over from the previous file when this run's step failed), how many
+  records each file holds, and a list of warnings: failed steps, events.py's
+  own, and any count that dropped below 80% of its previous value (when it
+  was at least 20) - the check that catches a scraper that still exits 0
+  but now parses nothing. `problemRuns` counts consecutive runs that had
+  any warning. The run is still made to fail at the end if a step did, so a
+  broken scraper is a red run, not a swallowed one.
+- **A GitHub issue for a problem that lasts.** When `problemRuns` reaches 2
+  the workflow opens one "Data update problem" issue (listing the warnings
+  and linking the run); the first healthy run comments and closes it. Two
+  runs rather than one so a single wiki timeout doesn't open and close an
+  issue by itself. This needs the workflow's `issues: write` permission,
+  which is declared at the top of the workflow file.
+
+On the site, `js/data-health.js` turns `meta.json` into the muted footer
+line on the calendar and shop pages: "Updated 6 hours ago", or in amber
+"Updated 6 hours ago - some details may be incomplete" (hover for the
+reasons) when there are warnings, or "Last updated 3 days ago - automatic
+updates may be delayed" when the run itself hasn't happened in 36 hours
+(`DataHealth.STALE_HOURS`) - which is what the Cloudflare cron or GitHub
+being down looks like. Until the first run writes `meta.json`, the line
+falls back to the page's own data timestamp.
+
 ## If you want to push this somewhere
 
 This is a plain local git repo — it isn't linked to any remote. If you want

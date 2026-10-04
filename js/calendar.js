@@ -248,6 +248,39 @@
     return "estimated";
   }
 
+  // events.py records every move of an unfinished event's date or status in
+  // `dateHistory` (oldest first; see update_date_history()). The latest move
+  // is worth pointing out for a while after it happens -- long enough that
+  // someone who looked at the calendar a week or two ago can see what
+  // changed since -- and then it's just how things are.
+  const RECENT_CHANGE_DAYS = 14;
+
+  function describeDateChange(ev, now) {
+    const h = ev.dateHistory;
+    if (!Array.isArray(h) || h.length < 2) return null;
+    const last = h[h.length - 1];
+    const prev = h[h.length - 2];
+    const at = new Date(last.at);
+    if (isNaN(at) || now.getTime() - at.getTime() > RECENT_CHANGE_DAYS * DAY_MS) return null;
+    const days = toDayNum(last.start) - toDayNum(prev.start);
+    const by = Math.abs(days);
+    const shift = `${by} day${by === 1 ? "" : "s"} ${days > 0 ? "later" : "earlier"}`;
+    let text;
+    let kind = "moved";
+    if (last.reason === "confirmed" || last.reason === "announced") {
+      kind = "firmed";
+      const word = last.reason === "confirmed" ? "Now confirmed" : "Now announced";
+      const was = prev.status === "announced" ? "the announcement" : "the estimate";
+      text = days === 0 ? `${word} \u2013 matches ${was}` : `${word} \u2013 ${shift} than ${was}`;
+    } else if (last.reason === "rescheduled") {
+      text = `Rescheduled \u2013 ${shift}`;
+    } else {
+      const why = last.reason === "cn" ? "CN date changed" : "CN\u2192Global lag updated";
+      text = days === 0 ? "Estimate updated" : `Estimate moved ${shift} (${why})`;
+    }
+    return { kind, text, at };
+  }
+
   // "Announced" only ever shows up when something is currently pinned via
   // overrides.json -- most of the time nothing is, so its legend swatch and
   // filter checkbox would just be clutter for a status that never appears.
@@ -383,6 +416,31 @@
     countdown.textContent = countdownLabel(ev.globalStart, new Date());
     dates.appendChild(countdown);
     eventPreviewBodyEl.appendChild(dates);
+
+    const change = describeDateChange(ev, new Date());
+    if (change) {
+      const changeLine = document.createElement("div");
+      changeLine.className = "eventPreviewDateChange " + change.kind;
+      changeLine.textContent = change.text;
+      changeLine.title = `Changed ${fmtDate(change.at)}`;
+      eventPreviewBodyEl.appendChild(changeLine);
+    }
+    if (Array.isArray(ev.dateHistory) && ev.dateHistory.length > 1) {
+      const histEl = document.createElement("div");
+      histEl.className = "eventPreviewHistory";
+      const histHeading = document.createElement("div");
+      histHeading.className = "eventPreviewHistoryHeading";
+      histHeading.textContent = "Date history";
+      histEl.appendChild(histHeading);
+      ev.dateHistory.forEach((h, i) => {
+        const row = document.createElement("div");
+        row.className = "eventPreviewHistoryRow";
+        const label = STATUS_LABEL[h.status] || h.status;
+        row.textContent = `${fmtDate(h.at)} \u2013 ${i === 0 ? "first seen" : "changed to"} ${fmtDate(h.start)} (${label.toLowerCase()})`;
+        histEl.appendChild(row);
+      });
+      eventPreviewBodyEl.appendChild(histEl);
+    }
 
     if (ev.mode) {
       // Not a limited-time event: a theme's wiki entry only has a release
@@ -646,6 +704,15 @@
       sourceLine.textContent = `Announced via ${ev.source}`;
       if (ev.note) sourceLine.title = ev.note;
       dates.appendChild(sourceLine);
+    }
+
+    const change = describeDateChange(ev, now);
+    if (change) {
+      const changeLine = document.createElement("span");
+      changeLine.className = "dateChange " + change.kind;
+      changeLine.textContent = change.text;
+      changeLine.title = `Changed ${fmtDate(change.at)}`;
+      dates.appendChild(changeLine);
     }
 
     const countdown = document.createElement("span");
@@ -1063,9 +1130,8 @@
       }
       // generatedAt is only as fresh as events.py's last successful daily
       // run -- see the "Update banner history" GitHub Action.
-      if (data.generatedAt && dataFreshnessEl) {
-        dataFreshnessEl.textContent = ` · Updated ${fmtDate(data.generatedAt)}`;
-      }
+      // (and meta.json, from health.py, says whether that run was healthy)
+      DataHealth.mount(dataFreshnessEl, { generatedAt: data.generatedAt, warnings: data.warnings });
 
       render();
 

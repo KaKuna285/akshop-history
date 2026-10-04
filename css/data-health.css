@@ -1,0 +1,7 @@
+/* "Updated X ago" line (js/data-health.js): muted normally, amber when the
+   daily update is late or partly failed. The base .dataFreshness colour
+   lives in each page's own stylesheet; this only adds the warning state. */
+.dataFreshness.warn {
+  color: #f0a35e;
+  cursor: help;
+}
