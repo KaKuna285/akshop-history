@@ -9,6 +9,11 @@ on:
   # Cloudflare, which is the point: one less thing tied to GitHub staying
   # "active" on its own.
   workflow_dispatch:
+permissions:
+  # contents: the commit step below pushes the refreshed json/images.
+  # issues: the "Data update problem" issue at the end (see that step).
+  contents: write
+  issues: write
 jobs:
   run:
     name: Update banner history
@@ -27,16 +32,36 @@ jobs:
           python-version: "3.x"
       - name: Install dependencies
         run: pip install requests
-      - run: python shop_operators.py
-      - run: python operator_online.py
+      # The three updates are independent: each one failing must not stop
+      # the other two (or the commit below) from running, so each has
+      # `continue-on-error` and an id whose `outcome` the health step reads.
+      # The job is still made to fail at the very end if any of them did --
+      # see "Fail the run" -- so a broken scraper shows up as a red run
+      # rather than being swallowed.
+      - name: Update shop history
+        id: shop
+        continue-on-error: true
+        run: python shop_operators.py
+      - name: Update operator release dates
+        id: operators
+        continue-on-error: true
+        run: python operator_online.py
       - name: Update EN event dates (past + estimated upcoming)
+        id: events
         # This is newer/less proven than the two scrapers above -- if its
         # Cargo query turns out to need a field/table name fix, it
         # shouldn't take the whole daily update down with it. Check this
         # step's own log for the actual error if it goes red.
         continue-on-error: true
         run: python events.py
+      - name: Record data health
+        # Writes json/meta.json (see health.py): which steps worked, how
+        # much data each produced, and anything degraded -- the site shows
+        # "Updated X ago" and a warning from it.
+        if: always()
+        run: python health.py shop=${{ steps.shop.outcome }} operators=${{ steps.operators.outcome }} events=${{ steps.events.outcome }}
       - name: Commit changes
+        if: always()
         uses: EndBug/add-and-commit@v9
         with:
           default_author: github_actions
@@ -52,3 +77,39 @@ jobs:
           # rebase right before the push picks up whatever's new on main and
           # replays this commit on top of it instead of failing outright.
           pull: "--rebase --autostash"
+      - name: Open / close the data problem issue
+        # A problem that lasts two runs in a row (meta.json's problemRuns --
+        # one transient wiki hiccup shouldn't open an issue) gets a GitHub
+        # issue, which emails the repo owner; the first healthy run after
+        # that comments and closes it. Never fails the run itself.
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          title="Data update problem"
+          runs=$(jq -r '.problemRuns // 0' json/meta.json)
+          open=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ "$runs" -ge 2 ] && [ -z "$open" ]; then
+            {
+              echo "The daily data update has had a problem for $runs runs in a row. The site is still serving the last good data."
+              echo
+              jq -r '.warnings[] | "- " + .message' json/meta.json
+              echo
+              echo "Latest run: $run_url"
+              echo
+              echo "This issue closes itself once a run comes back healthy."
+            } > issue_body.md
+            gh issue create --title "$title" --body-file issue_body.md
+          elif [ "$runs" -eq 0 ] && [ -n "$open" ]; then
+            gh issue close "$open" --comment "Recovered: the update is healthy again ($run_url)."
+          fi
+      - name: Fail the run if any update failed
+        if: always()
+        run: |
+          if [ "${{ steps.shop.outcome }}" != "success" ] || [ "${{ steps.operators.outcome }}" != "success" ] || [ "${{ steps.events.outcome }}" != "success" ]; then
+            echo "::error::An update step failed (shop=${{ steps.shop.outcome }}, operators=${{ steps.operators.outcome }}, events=${{ steps.events.outcome }}) -- see its log above."
+            exit 1
+          fi
