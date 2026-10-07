@@ -23,8 +23,11 @@ cancelled / skipped). The result, json/meta.json:
                   "last good data from ..." survives a bad run)
     counts        how much data each step produced
     warnings      [{step, message}] -- failed steps, degraded sub-steps
-                  events.py reported (events.json `warnings`), and any
-                  count that shrank suspiciously since the last run
+                  events.py reported (events.json `warnings`), a data
+                  file the site can't parse, any count that shrank
+                  suspiciously or disappeared since the last run, and
+                  shop-history names that match no operator (see
+                  name_check.py)
 
 The shrink check is the part that catches *silent* breakage: a scraper
 that still exits 0 but now parses nothing (events 320 -> 12) is exactly
@@ -47,6 +50,16 @@ STEPS = {
     "shop": ("Shop history", "banner_history.json"),
     "operators": ("Operator release dates", "operator_release_dates.json"),
     "events": ("Event calendar", "events.json"),
+}
+
+# Which data file each count is read from (to report a vanished count once,
+# as its file being unreadable, rather than once per count).
+COUNT_FILES = {
+    "shopOperatorsEN": "banner_history.json",
+    "shopOperatorsCN": "banner_history.json",
+    "operatorDates": "operator_release_dates.json",
+    "events": "events.json",
+    "eventsWithSkins": "events.json",
 }
 
 # A count that falls below this fraction of its previous value is flagged.
@@ -108,11 +121,48 @@ def build_meta(outcomes, previous, now):
             if isinstance(w, dict) and w.get("message"):
                 warnings.append({"step": w.get("step") or "events", "message": w["message"]})
 
+    # A data file the site can't parse at all (missing, empty, truncated) --
+    # the worst case, since the page that reads it shows nothing. Checked
+    # directly rather than inferred from counts, so it's caught on the very
+    # first run too.
+    unreadable = set()
+    for key, (label, filename) in STEPS.items():
+        if read_json(f"{JSON_DIR}/{filename}") is None:
+            unreadable.add(filename)
+            warnings.append({"step": key, "message": f"{label}: {filename} is missing or unreadable"})
+
     counts = gather_counts()
     for name, value in counts.items():
         before = prev_counts.get(name)
         if isinstance(before, int) and before >= SHRINK_MIN_PREVIOUS and value < before * SHRINK_FRACTION:
             warnings.append({"step": "counts", "message": f"{name} dropped from {before} to {value}"})
+    # A count the last run had that this one doesn't: its file lost that
+    # part of its shape (an unreadable file is already reported above).
+    for name, before in prev_counts.items():
+        if name not in counts and COUNT_FILES.get(name) not in unreadable:
+            warnings.append({"step": "counts", "message": f"{name} is missing (was {before})"})
+
+    # Shop-history names the site can't match to an operator (see
+    # name_check.py) -- the one thing here that needs a person: an alias in
+    # js/util.js (GAMEPRESS_NAME_MAP / CN_ID_MAP) or shop_operators.py (ALIAS).
+    banners = read_json(f"{JSON_DIR}/banner_history.json")
+    if isinstance(banners, dict):
+        unmatched = banners.get("unmatchedNames")
+        if isinstance(unmatched, dict):
+            for server, label in (("NA", "EN"), ("CN", "CN")):
+                names = unmatched.get(server) or []
+                if names:
+                    warnings.append(
+                        {
+                            "step": "names",
+                            "message": f"{len(names)} {label} shop-history name(s) don't match any operator and are "
+                            f"left off the shop chart: {', '.join(names)} (needs an alias)",
+                        }
+                    )
+        if banners.get("nameCheckError"):
+            warnings.append(
+                {"step": "names", "message": f"couldn't check shop-history names against game data: {banners['nameCheckError']}"}
+            )
 
     problem_runs = (previous.get("problemRuns") if isinstance(previous.get("problemRuns"), int) else 0) + 1
     return {

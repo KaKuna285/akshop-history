@@ -1,6 +1,8 @@
 import requests
 import re
 import json
+import os
+import sys
 import time
 from datetime import datetime
 from pprint import pprint
@@ -368,6 +370,11 @@ CORRECT_LAUNCH_DATE = "2020-01-16 00:00:00"
 
 
 scrape_PRTS()
+if not DATA:
+    # PRTS gave back nothing parseable -- keep the existing file and fail
+    # the step rather than writing out an (almost) empty one.
+    print("No operators scraped from PRTS -- leaving operator_release_dates.json as it was")
+    sys.exit(1)
 scrape_wiki() # must call AFTER scrape_PRTS as it will update DATA (and relies on it being filled)
 
 _launch_date_corrected = 0
@@ -389,5 +396,7 @@ for _charid, _online_time in _operator_overrides.items():
     _overrides_applied += 1
 print(f"Applied {_overrides_applied} manual operator release-date override(s)")
 
-with open('./json/operator_release_dates.json','w') as f:
+# Temp file + swap, so a crash mid-write never leaves a truncated file.
+with open('./json/operator_release_dates.json.tmp','w') as f:
     json.dump(DATA,f)
+os.replace('./json/operator_release_dates.json.tmp', './json/operator_release_dates.json')

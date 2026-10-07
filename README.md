@@ -432,6 +432,33 @@ make that visible:
   but now parses nothing. `problemRuns` counts consecutive runs that had
   any warning. The run is still made to fail at the end if a step did, so a
   broken scraper is a red run, not a swallowed one.
+- **The scrapers never write an empty file.** `shop_operators.py` used to
+  open `banner_history.json` for writing *before* checking it had scraped
+  anything, so a wiki that came back with nothing parseable emptied the
+  file, exited 0, and the empty file was committed (breaking the shop
+  page). Now, if either server's list is empty, it leaves the file as it
+  was and exits 1; `operator_online.py` does the same when PRTS returns no
+  operators. Both write through a temp file and swap it in, so a crash
+  mid-write can't leave a truncated file either. `health.py` also reports
+  any data file that is missing or doesn't parse, and any count that the
+  previous run had but this one doesn't - not only counts that shrank.
+- **Operator names the shop page can't place.** `banner_history.json` is
+  keyed by the name the wikis use, and the shop page turns it into a
+  charId through game data (`name` / `appellation` in the EN and CN
+  `character_table.json`) plus three alias maps in `js/util.js`
+  (`GAMEPRESS_NAME_MAP`, `CN_ID_MAP`, `SHORT_NAMES`). A name that matches
+  nothing is quietly left off the chart, with only a console message in
+  the visitor's browser - and that's the one job here that needs a person
+  (a new operator spelled differently on the wiki than in game data needs
+  an alias). `name_check.py`, run at the end of `shop_operators.py`, does
+  the same lookup against the same game-data mirror, reading the alias
+  maps straight out of `util.js` so there's still only one list to edit,
+  and records any misses in `banner_history.json` as `unmatchedNames`.
+  `health.py` turns them into a warning naming the operators. To fix one,
+  add the wiki spelling -> game-data spelling to `GAMEPRESS_NAME_MAP` in
+  `js/util.js` (or to `ALIAS` in `shop_operators.py`, which rewrites the
+  name before it's saved). If the check itself can't run (the mirror is
+  down), the data is still written and the warning says the check failed.
 - **A GitHub issue for a problem that lasts.** When `problemRuns` reaches 2
   the workflow opens one "Data update problem" issue (listing the warnings
   and linking the run); the first healthy run comments and closes it. Two

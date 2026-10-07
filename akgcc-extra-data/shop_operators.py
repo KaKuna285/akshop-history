@@ -3,6 +3,8 @@
 import requests
 import re
 import json
+import os
+import sys
 import time
 from datetime import datetime, timezone
 from pprint import pprint
@@ -253,14 +255,41 @@ def get_operator_lists_prts():
                 if 'shop' in op['args'] or 'shop2' in op['args']:
                     l['shop'].append({'date': date, 'blue': int(is_blue)})
 
-get_operator_lists_prts()
-# get_operator_lists_gp(live=True)
-get_operator_lists_wiki()
-with open('./json/banner_history.json','w') as f:
-    if NA_OPS and CN_OPS:
-        # generatedAt powers the "data updated" note on the shop history
-        # page (js/shoplist.js) -- a top-level key alongside NA/CN, same
-        # pattern events.py already uses for events.json. Consumers only
-        # ever read .NA/.CN off this object, so an extra top-level key is
-        # harmless to them.
-        json.dump({'NA':NA_OPS,'CN':CN_OPS,'generatedAt':datetime.now(timezone.utc).isoformat()},f)
+def write_json_atomic(path, data):
+    """Write to a temp file, then swap it in, so a crash halfway through
+    never leaves a truncated file behind to be committed."""
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+
+
+if __name__ == '__main__':
+    get_operator_lists_prts()
+    # get_operator_lists_gp(live=True)
+    get_operator_lists_wiki()
+    if not NA_OPS or not CN_OPS:
+        # Nothing parseable from one of the wikis (a changed template, an
+        # error page). Keep yesterday's banner_history.json untouched and
+        # fail this step, so the run goes red and health.py reports it --
+        # this used to open the file for writing *before* this check, which
+        # emptied it and still exited 0, so the empty file got committed.
+        print(f'No banner data scraped (EN: {len(NA_OPS)}, CN: {len(CN_OPS)}) -- leaving banner_history.json as it was')
+        sys.exit(1)
+    # generatedAt powers the "data updated" note on the shop history
+    # page (js/shoplist.js) -- a top-level key alongside NA/CN, same
+    # pattern events.py already uses for events.json. Consumers only
+    # ever read .NA/.CN off this object, so extra top-level keys are
+    # harmless to them.
+    output = {'NA': NA_OPS, 'CN': CN_OPS, 'generatedAt': datetime.now(timezone.utc).isoformat()}
+    # Names the shop page won't be able to match to an operator (see
+    # name_check.py) -- read by health.py. Optional: if the check itself
+    # can't run, the data is still written and health.py says so.
+    try:
+        import name_check
+        output['unmatchedNames'] = name_check.check(output, http_get)
+        print(f"Unmatched operator names: {output['unmatchedNames']}")
+    except Exception as exc:
+        output['nameCheckError'] = str(exc)
+        print(f"Couldn't check operator names against game data: {exc}")
+    write_json_atomic('./json/banner_history.json', output)
