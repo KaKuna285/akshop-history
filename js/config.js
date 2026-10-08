@@ -1,11 +1,10 @@
-// Shared config for every page in this fork. Load this before util.js,
-// shoplist.js, or calendar.js -- they all reference EXTRA_DATA_REPO_RAW_BASE.
+// Shared config for every page. Load this before any other script -- they
+// all reference EXTRA_DATA_REPO_RAW_BASE (via extraDataUrl() or util.js).
 
-// Where banner_history.json / operator_release_dates.json / events.json
-// are fetched from. Point this at YOUR OWN fork's raw JSON (set up with
-// its own scraper schedule -- see .github/workflows/) instead of
-// depending on akgcc/akgcc-extra-data's own (twice-weekly) refresh
-// cadence.
+// Where the daily pipeline's output (akgcc-extra-data/json/: shop history,
+// operator release dates, events, meta.json, and the slim game data under
+// gamedata/) is fetched from. Point this at your own repo's raw JSON if you
+// run your own copy (see the README's setup section).
 const EXTRA_DATA_REPO_RAW_BASE =
   "https://raw.githubusercontent.com/KaKuna285/akshop-history/main/akgcc-extra-data/json/";
 
@@ -27,3 +26,14 @@ function extraDataUrl(filename) {
 // that feature hidden entirely -- the planner only shows the import UI
 // once this is set to a real deployed Worker URL.
 const DEPOT_IMPORT_ENDPOINT = "https://akshop-depot-import.freddyhansson.workers.dev";
+
+// Cloudflare Image Transformations on this site's own zone (dashboard:
+// Images -> Transformations, enabled for the zone, with api.myrtle.moe
+// added as an allowed source origin). The operator page's skin preview
+// fetches its full illustration through this: Cloudflare pulls the art
+// from myrtle.moe once, converts it to WebP/AVIF, and serves later views
+// from its own cache, so myrtle.moe sees about one request per skin
+// instead of one per visitor. If it isn't set up, or the free monthly
+// quota runs out, the page falls back to fetching from myrtle.moe
+// directly. Leave blank to always fetch directly.
+const IMAGE_TRANSFORM_BASE = "https://ak.athansson.com/cdn-cgi/image/";

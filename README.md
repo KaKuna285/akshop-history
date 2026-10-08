@@ -1,31 +1,48 @@
-# akshop-history (local fork)
+# akshop-history
 
-A trimmed, local fork of the "Shop Operator History" page from
-[akgcc.github.io](https://akgcc.github.io/shoplist/) — the chart tracking
-which Arknights operators have rotated through the Purchase Certificate
-(yellow certificate) shop, and when.
+The code and data pipeline behind **[ak.athansson.com](https://ak.athansson.com)**,
+a set of Arknights (EN server) tools. It started as a trimmed fork of the
+"Shop Operator History" chart from
+[akgcc.github.io](https://akgcc.github.io/shoplist/) and has grown from
+there.
 
-This is **not** a clone of the full `akgcc.github.io` repo. That repo is
-~3.7GB (mostly years of assets for its many *other* tools — CC tracker,
-recruit calculator, story reader, etc.) and none of that is needed to run
-just this one page. Instead, this folder has only what the shop-history
-page actually loads, vendored from two upstream repos:
+| Page | Path | What it is | Main code |
+|---|---|---|---|
+| Home | `/` | Landing page, account sync, backup/restore of saved data | `index.html`, `js/account-sync.js`, `js/backup.js` |
+| Shop history | `/store/` | Which operators have rotated through the Purchase Certificate shop, and when | `js/shoplist.js` |
+| Event calendar | `/calendar/` | Past and upcoming EN events - confirmed, announced or estimated dates, new operators and skins | `js/calendar.js` |
+| Planner | `/planner/` | Materials needed to raise a roster of operators, minus your depot | `js/planner.js`, `js/operator-edit-modal.js` |
+| Operator details | `/operator/` | Release info, stats, talents, skills, modules and skins per operator | `js/operator-page.js` |
+| Account | `/account/` | Your synced roster and medal progress | `js/account-page.js` |
 
-- `store/` (vendored as `shoplist/` upstream — renamed here since this
-  fork is served at `/store/`), `js/`, `css/`, `webfonts/`, `images/`,
-  `LICENSE`, `UPSTREAM_README.md` — from
-  [akgcc/akgcc.github.io](https://github.com/akgcc/akgcc.github.io)
-  @ `e51a17c62db332f19f1b031095c3cd6d2472d5c4`
-- `akgcc-extra-data/` — from
-  [akgcc/akgcc-extra-data](https://github.com/akgcc/akgcc-extra-data)
-  @ `c3bcc0cf3ef107f44294568d21d5d46f84f4bcea` (the scripts + generated
-  JSON that actually feed the chart — see "How the data works" below)
+Everything is a static site (no build step) plus a daily data pipeline:
 
-Check the git log (`git log --oneline`): the first commit is the
-unmodified vendored files, the second is everything that was changed.
-`git show ef2eda4` (or `git log -p`) shows exactly what changed and why.
+- **`akgcc-extra-data/`** - the Python scripts that scrape and build the
+  site's data (`shop_operators.py`, `operator_online.py`, `events.py`,
+  `game_data.py`, with `health.py` / `name_check.py` checking the result
+  and `common.py` holding shared helpers), and their output in `json/`
+  and `images/`. The pages fetch that output straight from this repo on
+  GitHub (`EXTRA_DATA_REPO_RAW_BASE` in `js/config.js`), so new data needs
+  no redeploy.
+- **`.github/workflows/banner_history_update.yml`** - runs the pipeline
+  once a day and commits the results (see "Knowing when the update
+  breaks" and "Hands-off forever" below).
+- **`cloudflare/`** - two small Cloudflare Workers: the account sync
+  endpoint (`depot-import/`) and the daily trigger for the workflow
+  (`dispatch-cron/`). See "Deploying the Cloudflare Workers".
+- **`js/`, `css/`, `*/index.html`** - the site itself, served by a third
+  Worker (`wrangler.jsonc` at the root).
 
-## What changed from upstream
+`js/`, `css/`, `webfonts/`, `images/`, `LICENSE` and `UPSTREAM_README.md`
+originally came from
+[akgcc/akgcc.github.io](https://github.com/akgcc/akgcc.github.io)
+@ `e51a17c62db332f19f1b031095c3cd6d2472d5c4` and `akgcc-extra-data/` from
+[akgcc/akgcc-extra-data](https://github.com/akgcc/akgcc-extra-data)
+@ `c3bcc0cf3ef107f44294568d21d5d46f84f4bcea` - only what the shop page
+needed out of a ~3.7 GB repo. The first commit is those files unmodified,
+so `git log -p` shows everything changed since.
+
+## Shop history (`/store/`)
 
 The original chart has all native Chart.js interactivity turned off
 (`events: []`, `tooltip: {enabled: false}`), because the portrait bubbles
@@ -57,13 +74,13 @@ It's a static site — no build step. From this folder:
 python3 -m http.server 8000
 ```
 
-then open <http://localhost:8000/store/>. (Opening `store/index.html`
+then open <http://localhost:8000/>. (Opening an `index.html`
 directly as a `file://` URL won't work — the page fetches `/js/...` and
 `/css/...` as root-relative paths, which need an actual server.)
 
-You'll need normal internet access for the page itself to load data (it
-fetches JSON straight from `raw.githubusercontent.com` and character
-portraits from `cdn.jsdelivr.net` — see below), same as the live site.
+You'll need normal internet access for the pages to load data (they
+fetch JSON straight from `raw.githubusercontent.com` and images from
+`cdn.jsdelivr.net` — see below), same as the live site.
 
 ## How the data works
 
@@ -86,11 +103,11 @@ portraits from `cdn.jsdelivr.net` — see below), same as the live site.
    `akgcc-extra-data/operator_online.py`.
 4. Character portraits, from jsDelivr's mirror of `akgcc/arkdata`.
 
-If you want to regenerate `banner_history.json` or
-`operator_release_dates.json` yourself, the scripts are in
-`akgcc-extra-data/` — `shop_operators.py` and `operator_online.py`
-respectively. They need their own Python dependencies (requests, etc.)
-which aren't vendored here.
+To regenerate any of the data yourself, run the scripts from inside
+`akgcc-extra-data/` (they import `common.py` from there and write to
+`json/`), in the same order as the workflow: `shop_operators.py`,
+`operator_online.py`, `events.py`, `game_data.py`, then `health.py`. They
+need `requests` and `pillow` (`pip install requests pillow`).
 
 ## Game data (slim copies)
 
@@ -139,11 +156,9 @@ few rows fails instead of writing, leaving yesterday's files in place, and
 
 ## The EN event calendar (`/calendar/`)
 
-A second page, separate from the shop tracker, showing past and upcoming
-EN server events. `js/calendar.js` fetches
+Past and upcoming EN server events. `js/calendar.js` fetches
 `akgcc-extra-data/json/events.json`, generated by
-`akgcc-extra-data/events.py` (same daily workflow step as the two scripts
-above).
+`akgcc-extra-data/events.py` (a step in the same daily workflow).
 
 Yostar (the EN publisher) only ever confirms an event's actual EN date a
 week or two ahead of release - there's no source anywhere for genuinely
@@ -536,20 +551,12 @@ updates may be delayed" when the run itself hasn't happened in 36 hours
 being down looks like. Until the first run writes `meta.json`, the line
 falls back to the page's own data timestamp.
 
-## If you want to push this somewhere
-
-This is a plain local git repo — it isn't linked to any remote. If you want
-it on GitHub: fork `akgcc/akgcc.github.io` for real (so you keep full
-history and can realistically send a PR upstream), or just `git remote add
-origin <your-repo-url>` here and push this trimmed version as its own thing.
-
 ## Running your own daily-refreshed copy on your own domain (Cloudflare)
 
 This fork no longer depends on akgcc's own refresh schedule (their GitHub
 Action only runs twice a week — see `akgcc-extra-data/.github/workflows/`
-upstream). Instead, `js/util.js`'s `EXTRA_DATA_REPO_RAW_BASE` constant near
-the top of the file controls where `banner_history.json` and
-`operator_release_dates.json` are fetched from, and this repo's own copy of
+upstream). Instead, `js/config.js`'s `EXTRA_DATA_REPO_RAW_BASE` constant controls
+where the pages fetch the pipeline's JSON from, and this repo's own copy of
 the scraper workflow (`.github/workflows/banner_history_update.yml` — at
 the repo root, since that's the only place GitHub Actions looks for
 workflow files, even though the scripts it runs live under
@@ -567,7 +574,7 @@ running end to end, on your own domain, under your own Cloudflare account:
    authentication, and that endpoint 404s on a private repo. Then, from
    this folder: `git remote add origin <the repo's URL>` and
    `git push -u origin main`.
-2. **Check `EXTRA_DATA_REPO_RAW_BASE` in `js/util.js` matches that repo.**
+2. **Check `EXTRA_DATA_REPO_RAW_BASE` in `js/config.js` matches that repo.**
    It's currently set to
    `https://raw.githubusercontent.com/KaKuna285/akshop-history/main/akgcc-extra-data/json/`
    as a guess at your GitHub username and a repo name matching this
@@ -595,13 +602,23 @@ running end to end, on your own domain, under your own Cloudflare account:
 5. **Point your domain at it**: in that same project, the **Domains** tab
    → add the (sub)domain you want. Since your domain's already in your
    Cloudflare account, Cloudflare sets up the DNS for you automatically.
+6. **Optional: turn on Image Transformations** for the skin previews on
+   the operator page. Dashboard → Images → Transformations → enable it for
+   your domain's zone, then under its source origins allow
+   `api.myrtle.moe`. Set `IMAGE_TRANSFORM_BASE` in `js/config.js` to
+   `https://<your domain>/cdn-cgi/image/` (or leave it blank to skip
+   this). Cloudflare then fetches each skin's art from myrtle.moe once,
+   serves it as WebP/AVIF from its own cache, and the page falls back to
+   myrtle.moe directly if transformations fail. The free plan's 5,000
+   unique transformations a month is several times the number of skins.
 
 After that initial setup, everything is hands-off: the daily Action commits
 fresh JSON to your repo, and the site (wherever it's deployed) fetches that
 JSON live from GitHub on every page load — no redeploy needed for new shop
-data. A Cloudflare Pages redeploy only happens (automatically, on push)
-when you change the site's own code, same as we've been doing this
-session.
+data. The site's Worker redeploys itself (Workers Builds, on push) only
+when the site's own code changes - its build watch paths exclude
+`akgcc-extra-data/*` and `cloudflare/*`. The two standalone Workers are
+set up the same way; see "Deploying the Cloudflare Workers" below.
 
 ## Hands-off forever: why the scraper doesn't use GitHub's own schedule
 

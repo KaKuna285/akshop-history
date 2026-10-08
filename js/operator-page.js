@@ -668,6 +668,71 @@
     return "Outfit";
   }
 
+  // Full illustration for a skin, resolved once per skin and cached:
+  // skinId -> Promise of the first URL that loaded (null if none did).
+  // Sources, in order:
+  //  1. myrtle.moe's art through Cloudflare Image Transformations
+  //     (uri_transformed(), IMAGE_TRANSFORM_BASE in config.js) -- WebP/
+  //     AVIF from Cloudflare's cache, and myrtle.moe itself only gets hit
+  //     when Cloudflare doesn't have the skin cached yet
+  //  2. myrtle.moe directly, if transformations aren't set up or the
+  //     monthly quota is used up
+  //  3. Aceship -- frozen since May 2024 and ~3s for 1MB; last resort
+  // For myrtle.moe, the 1024px "b" copy comes first (~0.3-1MB); some
+  // default/Elite art only has the 2048-2560px original (1-6MB).
+  // Each is fetched through a detached Image(), so the visible <img> only
+  // switches over once the file is fully loaded, and the browser cache
+  // serves it instantly when the preview then uses the same URL. Also
+  // called ahead of the click (see renderSkins()), so the art is often
+  // already downloaded by the time the preview opens.
+  const fullArtBySkinId = new Map();
+  // The preview is at most 480 CSS px wide (css/operator-extra.css), so
+  // 1024px covers a 2x screen; the "b" copies are already this size.
+  const SKIN_ART_WIDTH = 1024;
+
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => resolve(url);
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  function loadFullArt(skin) {
+    const key = skin.skinId;
+    if (fullArtBySkinId.has(key)) return fullArtBySkinId.get(key);
+    // Keyed by portraitId, not avatarId: they match for every skin except
+    // the base "Default outfit" (ILLUST_0), e.g. Amiya's avatarId is the
+    // bare "char_002_amiya" while her art is "char_002_amiya_1".
+    const portraitId = skin.portraitId || skin.avatarId || skin.skinId;
+    const myrtle = [
+      uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, "display"),
+      uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, "full"),
+    ];
+    const candidates = [
+      ...myrtle.map((url) => uri_transformed(url, SKIN_ART_WIDTH)).filter(Boolean),
+      ...myrtle,
+      uri_skin_illust(portraitId),
+    ];
+    const promise = (async () => {
+      for (const url of candidates) {
+        try {
+          return await loadImage(url);
+        } catch {
+          // try the next source
+        }
+      }
+      // Nothing loaded -- forget the miss so a later click retries (it may
+      // have been a network blip rather than missing art).
+      fullArtBySkinId.delete(key);
+      return null;
+    })();
+    fullArtBySkinId.set(key, promise);
+    return promise;
+  }
+
   function hideSkinPreview() {
     skinPreviewOverlayEl.classList.add("hidden");
   }
@@ -675,18 +740,6 @@
   function showSkinPreview(skin) {
     const d = (skin && skin.displaySkin) || {};
     const avatarId = skin.avatarId || skin.skinId;
-    // The full illustration is keyed by the skin's own *portraitId*, not
-    // avatarId -- they're the same string for a real purchasable skin and
-    // for the Elite 1/Elite 2 default-outfit entries, which is how Phase
-    // 1's research missed this, but for the base/"Default outfit"
-    // (ILLUST_0) entry they differ: e.g. Amiya's avatarId is the bare
-    // "char_002_amiya" (no file by that name in the illustration mirror),
-    // while her portraitId is "char_002_amiya_1" (a real ~300KB file that
-    // IS there) -- confirmed directly against skin_table.json and the
-    // mirror's file listing. Using portraitId here is what actually
-    // enables full-size art for the default outfit, not a separate
-    // special case.
-    const portraitId = skin.portraitId || avatarId;
     // Show the small avatar immediately as a placeholder -- cheap, and
     // usually already in the browser's cache from this same skin's grid
     // card -- while the full illustration (several times bigger, up to a
@@ -704,34 +757,18 @@
     skinPreviewImgEl.style.display = "none";
     setSkinAvatarIcon(skinPreviewImgEl, avatarId);
 
-    // Aceship first (the long-established mirror, usually fastest/most
-    // cached), then myrtle.moe's own asset pipeline as a second try -- it
-    // extracts straight from the official game CDN rather than waiting on
-    // community contributors, so it reliably has art Aceship doesn't yet
-    // for very recent/collab-exclusive skins. A handful of skins (see the
-    // "Check skin art coverage" debug page linked at the bottom of this
-    // page) still have no full illustration on either mirror; that last
-    // 404 just silently leaves the avatar showing.
-    const fullUrlCandidates = [uri_skin_illust(portraitId), uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin)];
-    function tryNextFullUrl(i) {
-      if (i >= fullUrlCandidates.length) return; // nothing worked -- stay on the avatar
-      const url = fullUrlCandidates[i];
-      const preload = new Image();
-      preload.onload = () => {
-        // The user may already have clicked a different skin card before
-        // this background load finished -- only apply it if the preview
-        // is still showing the same skin it was requested for.
-        if (skinPreviewImgEl.dataset.avatarId !== avatarId) return;
-        skinPreviewImgEl.onload = null;
-        skinPreviewImgEl.onerror = null;
-        skinPreviewImgEl.src = url;
-        skinPreviewImgEl.classList.add("skinPreviewImgFull");
-        skinPreviewImgEl.style.display = "block";
-      };
-      preload.onerror = () => tryNextFullUrl(i + 1);
-      preload.src = url;
-    }
-    tryNextFullUrl(0);
+    loadFullArt(skin).then((url) => {
+      // The user may already have clicked a different skin card before
+      // this background load finished -- only apply it if the preview is
+      // still showing the same skin it was requested for. No URL means no
+      // source had it: the avatar just stays.
+      if (!url || skinPreviewImgEl.dataset.avatarId !== avatarId) return;
+      skinPreviewImgEl.onload = null;
+      skinPreviewImgEl.onerror = null;
+      skinPreviewImgEl.src = url;
+      skinPreviewImgEl.classList.add("skinPreviewImgFull");
+      skinPreviewImgEl.style.display = "block";
+    });
 
     skinPreviewNameEl.textContent = skinDisplayName(skin);
     skinPreviewMetaEl.textContent = d.skinGroupName || "";
@@ -792,6 +829,19 @@
       label.textContent = skinDisplayName(skin);
       card.appendChild(label);
       card.addEventListener("click", () => showSkinPreview(skin));
+      // Start downloading the full art as soon as a click looks likely:
+      // resting the pointer on a card for a moment, keyboard focus, or the
+      // press itself (which lands ~100ms before the click fires, and is
+      // the only early signal on touch screens). A pointer just passing
+      // over the grid doesn't trigger anything.
+      let hoverTimer = null;
+      card.addEventListener("pointerenter", (e) => {
+        if (e.pointerType !== "mouse") return;
+        hoverTimer = setTimeout(() => loadFullArt(skin), 150);
+      });
+      card.addEventListener("pointerleave", () => clearTimeout(hoverTimer));
+      card.addEventListener("pointerdown", () => loadFullArt(skin));
+      card.addEventListener("focus", () => loadFullArt(skin));
       skinsInfoEl.appendChild(card);
     }
   }

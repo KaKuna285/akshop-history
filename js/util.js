@@ -9,13 +9,11 @@ const DATA_SOURCE_LOCAL = "https://cdn.jsdelivr.net/gh/akgcc/arkdata@main/";
 const ASSET_SOURCE = {
   LOCAL: `${DATA_SOURCE_LOCAL}assets/`,
   ACESHIP: "https://cdn.jsdelivr.net/gh/Aceship/Arknight-Images@main/",
-  // Third fallback tier for full skin illustrations only (see
-  // uri_skin_illust_myrtle() below) -- myrtle.moe runs its own asset
-  // pipeline that extracts directly from the official game CDN rather
-  // than waiting on community contributors, so its coverage of very
-  // recent/collab-exclusive skins is noticeably better than Aceship's.
-  // Confirmed via direct fetch: open CORS (access-control-allow-origin:
-  // *), fronted by Cloudflare, cache-control: public.
+  // Full skin illustrations only (see uri_skin_illust_myrtle() below) --
+  // myrtle.moe runs its own asset pipeline that extracts directly from
+  // the official game CDN, so it has every current skin, and it serves a
+  // pre-shrunk display copy. Open CORS, fronted by Cloudflare,
+  // cache-control: public.
   MYRTLE: "https://api.myrtle.moe/api/assets/textures/",
 };
 
@@ -57,14 +55,11 @@ function uri_skin_avatar(avatarId, source = ASSET_SOURCE.LOCAL) {
   }
 }
 
-// The full splash illustration for a skin -- multiple MB each (confirmed:
-// real samples ranged ~0.2-5.7MB), only ever meant to be lazy-loaded one
-// at a time on an explicit user action (see showSkinPreview() in
-// operator-page.js), never preloaded in bulk or embedded as a grid
-// thumbnail. Only confirmed reliable on the Aceship mirror (LOCAL/akgcc
-// doesn't have a matching flat "characters/<id>.png" convention -- its
-// own "characters/" folder is nested by charId instead and only covers
-// default-outfit art, not purchased skins).
+// The full splash illustration for a skin on the Aceship mirror -- only
+// the last fallback in showSkinPreview() (operator-page.js) now: Aceship
+// hasn't been updated since May 2024, has only the full-size file, and
+// is slow through jsDelivr (~3s for a 1MB file, measured). Loaded one at
+// a time on user action, never in bulk.
 //
 // Callers must pass the skin's "portraitId" here, NOT "avatarId" and NOT
 // skin_table.json's "illustId" field:
@@ -89,28 +84,29 @@ function uri_skin_illust(portraitId, source = ASSET_SOURCE.ACESHIP) {
   }
 }
 
-// Fallback full-illustration source for when Aceship doesn't have a skin
-// yet (confirmed via the skin art coverage debug page: ~328 skins,
-// mostly recent/collab-exclusive content) -- myrtle.moe's own asset
-// pipeline, laid out differently from Aceship's flat "characters/<id>"
-// convention:
-//  - non-purchased entries (the "Default outfit"/Elite 1/Elite 2 art
-//    every operator has) live under "chararts/<charId>/<portraitId>.png"
-//  - real purchasable skins live under
-//    "skinpack/<charId>/<portraitId>b.png" -- note the trailing "b" on
-//    the filename itself, confirmed against several real skins (not
-//    assumed from one sample): it's the smaller of two variants Myrtle
-//    exposes per skin (~1-1.3MB) and the one its own frontend actually
-//    displays: the non-"b" file at the same path is a much larger (~5MB+)
-//    source texture, not meant for direct display.
-// Both forms are nested by charId, unlike Aceship's flat layout, so this
-// needs isBuySkin and charId as well as portraitId.
-function uri_skin_illust_myrtle(charId, portraitId, isBuySkin) {
-  const encChar = encodeURIComponent(charId);
-  const encPortrait = encodeURIComponent(portraitId);
-  return isBuySkin
-    ? `${ASSET_SOURCE.MYRTLE}skinpack/${encChar}/${encPortrait}b.png`
-    : `${ASSET_SOURCE.MYRTLE}chararts/${encChar}/${encPortrait}.png`;
+// Full-illustration URLs on myrtle.moe, the primary source for the skin
+// preview. Layout (nested by charId, unlike Aceship's flat folder, so it
+// needs charId and isBuySkin as well as portraitId):
+//  - default/Elite 1/Elite 2 art: "chararts/<charId>/<portraitId>.png"
+//  - purchasable skins:           "skinpack/<charId>/<portraitId>.png"
+// Each also has a "<portraitId>b.png" next to it: a 1024x1024 copy
+// (measured: ~0.3-1MB vs 1-6MB for the 2048-2560px original), plenty for
+// a preview capped at 480px wide. Every sampled skin has the original;
+// the "b" copy is missing for some default/Elite art (12 of 38 sampled),
+// so callers try size "display" first and fall back to "full".
+function uri_skin_illust_myrtle(charId, portraitId, isBuySkin, size = "display") {
+  const dir = isBuySkin ? "skinpack" : "chararts";
+  const suffix = size === "full" ? "" : "b";
+  return `${ASSET_SOURCE.MYRTLE}${dir}/${encodeURIComponent(charId)}/${encodeURIComponent(portraitId)}${suffix}.png`;
+}
+
+// The same image through Cloudflare Image Transformations
+// (IMAGE_TRANSFORM_BASE in config.js): scaled down to at most `width`
+// pixels wide, in the best format the browser accepts (AVIF/WebP), cached
+// at Cloudflare. null when transformations aren't configured.
+function uri_transformed(url, width) {
+  if (typeof IMAGE_TRANSFORM_BASE === "undefined" || !IMAGE_TRANSFORM_BASE) return null;
+  return `${IMAGE_TRANSFORM_BASE}width=${width},fit=scale-down,format=auto/${url}`;
 }
 
 function setSkinAvatarIcon(imgEl, avatarId) {
