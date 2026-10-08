@@ -681,8 +681,10 @@
   // For each, myrtle.moe's 1024px "b" copy comes first (~0.3-1MB); some
   // default/Elite art only has the 2048-2560px original (1-6MB).
   const fullArtBySkinId = new Map();
-  // The preview is at most 480 CSS px wide (css/operator-extra.css), so
-  // 1024px covers a 2x screen; the "b" copies are already this size.
+  // The size of myrtle.moe's "b" copies, so they're converted without
+  // resizing; the 2048px+ originals are scaled down to match. The preview
+  // shows the art at up to 80vh (css/operator-extra.css) -- about 860px on
+  // a 1080p screen.
   const SKIN_ART_WIDTH = 1024;
 
   function loadImage(url) {

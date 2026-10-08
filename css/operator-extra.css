@@ -585,11 +585,12 @@
 .skinPreview {
   position: relative;
   width: 100%;
-  /* Wide enough to show a full illustration (tall/portrait-oriented
-     splash art) at a reasonable size, while still looking fine for the
-     small circular avatar placeholder shown before that finishes
-     loading -- see showSkinPreview() in js/operator-page.js. */
-  max-width: 480px;
+  /* Wide enough to show a full illustration large -- the art is a
+     1024px square, so on a typical desktop it ends up limited by the
+     image's max-height below rather than by this -- while still looking
+     fine for the small circular avatar placeholder shown before that
+     finishes loading (see showSkinPreview() in js/operator-page.js). */
+  max-width: 880px;
   margin: 0;
   padding: 14px 40px 16px 14px;
   background: #232323;
@@ -648,7 +649,7 @@
   width: auto;
   height: auto;
   max-width: 100%;
-  max-height: 70vh;
+  max-height: 80vh;
   border-radius: 8px;
   object-fit: contain;
 }
@@ -670,6 +671,10 @@
 }
 
 .skinPreviewContent {
+  /* Keep the flavour text to a readable line length in the wider modal. */
+  max-width: 60ch;
+  margin-left: auto;
+  margin-right: auto;
   font-size: 0.85rem;
   color: #ccc;
   line-height: 1.5;

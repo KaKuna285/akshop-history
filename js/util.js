@@ -90,8 +90,8 @@ function uri_skin_illust(portraitId, source = ASSET_SOURCE.ACESHIP) {
 //  - default/Elite 1/Elite 2 art: "textures/chararts/<charId>/<portraitId>.png"
 //  - purchasable skins:           "textures/skinpack/<charId>/<portraitId>.png"
 // Each also has a "<portraitId>b.png" next to it: a 1024x1024 copy
-// (measured: ~0.3-1MB vs 1-6MB for the 2048-2560px original), plenty for
-// a preview capped at 480px wide. Every sampled skin has the original;
+// (measured: ~0.3-1MB vs 1-6MB for the 2048-2560px original), enough for
+// the preview's ~860px on a 1080p screen. Every sampled skin has the original;
 // the "b" copy is missing for some default/Elite art (12 of 38 sampled),
 // so callers try size "display" first and fall back to "full".
 function uri_skin_illust_myrtle(charId, portraitId, isBuySkin, size = "display") {
