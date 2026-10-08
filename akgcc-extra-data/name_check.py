@@ -15,7 +15,7 @@ a GitHub issue).
 
 The alias maps are read straight out of js/util.js rather than copied here,
 so there is only one list to edit. Game data comes from the same mirror
-util.js's DATA_BASE uses (USE_ALTERNATE_DATA_SOURCE = true).
+util.js's DATA_BASE uses (GAME_DATA_MIRROR).
 """
 
 import json

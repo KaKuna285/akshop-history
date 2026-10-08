@@ -197,10 +197,9 @@
 
   // There's no reliable data field marking a medal as permanently missed
   // (expireTimes exists but wasn't confirmed to mean that, and plenty of
-  // non-expired medals have odd values there too) -- same "no trustworthy
-  // signal, so maintain it by hand" situation as util.js's own
-  // LINKAGE_LIMITEDS list. Add a medalId below (see a medal's own id in
-  // the catalog) for anything you've confirmed is gone for good, and the
+  // non-expired medals have odd values there too) -- no trustworthy signal,
+  // so this is maintained by hand. Add a medalId below (see a medal's own
+  // id in the catalog) for anything you've confirmed is gone for good, and the
   // "hide medals I can no longer obtain" toggle (only shown once this list
   // actually has something in it) will filter it out of both the grid and
   // the overall/group counts.
@@ -246,10 +245,9 @@
     if (typeof ts !== "number" || ts <= 0) return null;
     // Every other timestamp this site reads from game data (medal_table.
     // json's own displayTime, event dates, etc.) is Unix seconds, not
-    // milliseconds -- same assumption here for consistency, though (like
-    // the rest of obtainedMedals) the obtain timestamp's own field name
-    // was a guess on the Worker side, so this stays defensive about
-    // producing a garbage date rather than trusting it blindly.
+    // milliseconds -- and so is the obtained timestamp itself (the account
+    // sync's `fts` field, see cloudflare/depot-import.js). Still defensive
+    // about producing a garbage date rather than trusting it blindly.
     const d = new Date(ts * 1000);
     if (isNaN(d.getTime()) || d.getFullYear() < 2017 || d.getFullYear() > 2100) return null;
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });

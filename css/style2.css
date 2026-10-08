@@ -98,38 +98,17 @@ html {
   border: 5px solid transparent;
   margin: 0;
 }
-#chartjs-tooltip.xleft::after {
-  left: 7px;
-  border-color: transparent;
-  border-right-color: rgba(0, 0, 0, 0.7);
-}
-#chartjs-tooltip.ycenter.xleft::after {
-  left: -10px;
-}
-#chartjs-tooltip.xright::after {
-  left: calc(100% - 17px);
-  border-color: transparent;
-  border-left-color: rgba(0, 0, 0, 0.7);
-}
-#chartjs-tooltip.ycenter.xright::after {
-  left: 100%;
-}
+
 #chartjs-tooltip.xcenter::after {
   left: calc(50% - 5px);
 }
-#chartjs-tooltip.ytop::after {
-  top: -10px;
-  border-color: transparent;
-  border-bottom-color: rgba(0, 0, 0, 0.7);
-}
+
 #chartjs-tooltip.ybottom::after {
   top: 100%;
   border-color: transparent;
   border-top-color: rgba(0, 0, 0, 0.7);
 }
-#chartjs-tooltip.ycenter::after {
-  top: calc(50% - 5px);
-}
+
 #chartjs-tooltip {
   box-sizing: border-box;
   display: inline-flex;
@@ -212,7 +191,4 @@ html {
 }
 
 /* #pieChart, */
-#pieChartContainer {
-  height: 90%;
-  padding-top: 2%;
-}
+

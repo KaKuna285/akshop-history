@@ -1,5 +1,7 @@
-'''Get banner history from gamepress and convert to json format.'''
-## NOTE: if gamepress revives check to make sure kernal locating banners are ignored
+'''Build json/banner_history.json: every operator's headhunting-banner and
+shop appearances, per server -- EN from arknights.wiki.gg's yearly
+Headhunting/Banners pages, CN from PRTS's banner-list pages (which is also
+where CN's Kernel vs Limited pool distinction comes from).'''
 import requests
 import re
 import json
@@ -7,11 +9,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
-from pprint import pprint
-from urllib.parse import quote
 from html import unescape
-# import xml.etree.ElementTree as ET
-# from lxml import etree
 
 # Plain requests.get() has no timeout by default, so a slow or rate-limited
 # wiki can hang a run indefinitely instead of failing loudly (this is what
@@ -45,49 +43,6 @@ ALIAS = {
     'Leto':'Лето',
     '麒麟X夜刀':'麒麟R夜刀',
     }
-def get_operator_lists_gp(live = True):
-    # xml is malformed, so we use regex instead.
-    if live:
-        r = http_get('https://gamepress.gg/arknights/database/banner-list-gacha')
-        r.encoding = 'utf8'
-        content = r.text
-        with open('i_oplist_cache','w',encoding='utf8') as f:
-            f.write(content)
-    else:
-        with open('i_oplist_cache','r',encoding='utf8') as f:
-            content = f.read()
-    tables = re.compile('<tbody>.*?</tbody>',re.DOTALL)
-    # skip the first table as it's just upcoming for global
-    for table in tables.findall(content)[1:]:
-        rows = re.compile('<tr>.*?</tr>',re.DOTALL)
-        for row in rows.findall(table):
-            cn_date = re.compile('<td[^>]*views-field-field-cn-end-date[^>]*>(.*?)</td>',re.DOTALL)
-            na_date = re.compile('<td[^>]*views-field-field-start-time[^>]*>(.*?)</td>',re.DOTALL)
-            shop_ops = re.compile('<td[^>]*views-field-field-store-operators[^>]*>(.*?)</td>',re.DOTALL)
-            banner_ops = re.compile('<td[^>]*views-field-field-featured-characters[^>]*>(.*?)</td>',re.DOTALL)
-            time_parser = re.compile('<time[^>]*?>([^<]*)</time>',re.DOTALL)
-            op_parser = re.compile('<a[^>]*?>([^<]*)</a>',re.DOTALL)
-            link_parser = re.compile('<td[^>]*views-field-field-event-banner[^>]*>[^<]*<a\\s+href="([^"]*)',re.DOTALL)
-            na_times = na_date.findall(row)[0]
-            cn_times = cn_date.findall(row)[0]
-            na_m = time_parser.match(na_times)
-            cn_m = time_parser.match(cn_times)
-            sim_link = link_parser.findall(row)[0]
-            blue = int('#BB_'.lower() in sim_link.lower())
-            for op_name in op_parser.findall(shop_ops.findall(row)[0]):
-                if na_m:
-                    l = NA_OPS.setdefault(op_name,{'shop':[],'banner':[]})
-                    l['shop'].append({'date': na_m.group(1), 'blue': blue})
-                if cn_m:
-                    l = CN_OPS.setdefault(op_name,{'shop':[],'banner':[]})
-                    l['shop'].append({'date': cn_m.group(1), 'blue': blue})
-            for op_name in op_parser.findall(banner_ops.findall(row)[0]):
-                if na_m:
-                    l = NA_OPS.setdefault(op_name,{'shop':[],'banner':[]})
-                    l['banner'].append({'date': na_m.group(1), 'blue': blue})
-                if cn_m:
-                    l = CN_OPS.setdefault(op_name,{'shop':[],'banner':[]})
-                    l['banner'].append({'date': cn_m.group(1), 'blue': blue})
 def extract_banners_cell_templates(wikitext):
     # chatGPT function
     # Regex pattern to match {{Banners cell|...}} templates
@@ -159,7 +114,6 @@ def get_operator_lists_wiki():
     }
     r = http_get(url, params=params)
     pages = [p["title"] for p in r.json()["query"]["categorymembers"] if p['ns'] == 0 and 'Upcoming' not in p['title']]
-    # pages.append('Headhunting/Banners')
     params = {
         "action": "query",
         "prop": "revisions",
@@ -266,7 +220,6 @@ def write_json_atomic(path, data):
 
 if __name__ == '__main__':
     get_operator_lists_prts()
-    # get_operator_lists_gp(live=True)
     get_operator_lists_wiki()
     if not NA_OPS or not CN_OPS:
         # Nothing parseable from one of the wikis (a changed template, an

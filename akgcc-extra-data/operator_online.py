@@ -1,13 +1,9 @@
 import requests
-import re
 import json
 import os
 import sys
 import time
 from datetime import datetime
-from pprint import pprint
-from urllib.parse import quote
-from html import unescape
 
 # Plain requests.get() has no timeout by default, so a slow or rate-limited
 # wiki can hang a run indefinitely instead of failing loudly. http_get()
