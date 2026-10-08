@@ -148,6 +148,11 @@ SKIN = {
     "avatarId": True,
     "portraitId": True,
     "isBuySkin": True,
+    # Which animated chibi the operator page shows for this outfit (see
+    # chibiFiles() in js/chibi-viewer.js).
+    "tmplId": True,
+    "buildingId": True,
+    "battleSkin": True,
     "displaySkin": {
         k: True for k in ("sortId", "skinName", "skinGroupId", "skinGroupName", "content", "usage")
     },

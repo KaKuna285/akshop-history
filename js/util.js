@@ -9,12 +9,11 @@ const DATA_SOURCE_LOCAL = "https://cdn.jsdelivr.net/gh/akgcc/arkdata@main/";
 const ASSET_SOURCE = {
   LOCAL: `${DATA_SOURCE_LOCAL}assets/`,
   ACESHIP: "https://cdn.jsdelivr.net/gh/Aceship/Arknight-Images@main/",
-  // Full skin illustrations only (see uri_skin_illust_myrtle() below) --
-  // myrtle.moe runs its own asset pipeline that extracts directly from
-  // the official game CDN, so it has every current skin, and it serves a
-  // pre-shrunk display copy. Open CORS, fronted by Cloudflare,
-  // cache-control: public.
-  MYRTLE: "https://api.myrtle.moe/api/assets/textures/",
+  // myrtle.moe's asset API: skin illustrations and chibi Spine files,
+  // extracted straight from the official game CDN, so it has every current
+  // skin. Normally reached through this site's own mirror instead -- see
+  // myrtleAssetUrl() below.
+  MYRTLE: "https://api.myrtle.moe/api/assets/",
 };
 
 // do not modify SERVERS even if you change data source as this is used locally as well.
@@ -84,11 +83,12 @@ function uri_skin_illust(portraitId, source = ASSET_SOURCE.ACESHIP) {
   }
 }
 
-// Full-illustration URLs on myrtle.moe, the primary source for the skin
-// preview. Layout (nested by charId, unlike Aceship's flat folder, so it
-// needs charId and isBuySkin as well as portraitId):
-//  - default/Elite 1/Elite 2 art: "chararts/<charId>/<portraitId>.png"
-//  - purchasable skins:           "skinpack/<charId>/<portraitId>.png"
+// Full-illustration URLs for myrtle.moe's files (through the mirror, see
+// myrtleAssetUrl()), the primary source for the skin preview. Layout
+// (nested by charId, unlike Aceship's flat folder, so it needs charId and
+// isBuySkin as well as portraitId):
+//  - default/Elite 1/Elite 2 art: "textures/chararts/<charId>/<portraitId>.png"
+//  - purchasable skins:           "textures/skinpack/<charId>/<portraitId>.png"
 // Each also has a "<portraitId>b.png" next to it: a 1024x1024 copy
 // (measured: ~0.3-1MB vs 1-6MB for the 2048-2560px original), plenty for
 // a preview capped at 480px wide. Every sampled skin has the original;
@@ -97,7 +97,16 @@ function uri_skin_illust(portraitId, source = ASSET_SOURCE.ACESHIP) {
 function uri_skin_illust_myrtle(charId, portraitId, isBuySkin, size = "display") {
   const dir = isBuySkin ? "skinpack" : "chararts";
   const suffix = size === "full" ? "" : "b";
-  return `${ASSET_SOURCE.MYRTLE}${dir}/${encodeURIComponent(charId)}/${encodeURIComponent(portraitId)}${suffix}.png`;
+  return myrtleAssetUrl(`textures/${dir}/${charId}/${portraitId}${suffix}.png`);
+}
+
+// A myrtle.moe asset path ("textures/...", "spine/...", unencoded) as a URL:
+// through this site's R2 mirror (MYRTLE_MIRROR_BASE in config.js) when
+// that's set, so myrtle.moe only ever sees one request per file, else
+// straight from myrtle.moe.
+function myrtleAssetUrl(path) {
+  const base = (typeof MYRTLE_MIRROR_BASE !== "undefined" && MYRTLE_MIRROR_BASE) || ASSET_SOURCE.MYRTLE;
+  return base + path.split("/").map(encodeURIComponent).join("/");
 }
 
 // The same image through Cloudflare Image Transformations

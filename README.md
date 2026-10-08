@@ -12,7 +12,7 @@ there.
 | Shop history | `/store/` | Which operators have rotated through the Purchase Certificate shop, and when | `js/shoplist.js` |
 | Event calendar | `/calendar/` | Past and upcoming EN events - confirmed, announced or estimated dates, new operators and skins | `js/calendar.js` |
 | Planner | `/planner/` | Materials needed to raise a roster of operators, minus your depot | `js/planner.js`, `js/operator-edit-modal.js` |
-| Operator details | `/operator/` | Release info, stats, talents, skills, modules and skins per operator | `js/operator-page.js` |
+| Operator details | `/operator/` | Release info, stats, talents, skills, modules and skins (full art and animated chibis) per operator | `js/operator-page.js`, `js/chibi-viewer.js` |
 | Account | `/account/` | Your synced roster and medal progress | `js/account-page.js` |
 
 Everything is a static site (no build step) plus a daily data pipeline:
@@ -31,7 +31,11 @@ Everything is a static site (no build step) plus a daily data pipeline:
   endpoint (`depot-import/`) and the daily trigger for the workflow
   (`dispatch-cron/`). See "Deploying the Cloudflare Workers".
 - **`js/`, `css/`, `*/index.html`** - the site itself, served by a third
-  Worker (`wrangler.jsonc` at the root).
+  Worker (`wrangler.jsonc` at the root). That Worker's own code,
+  `worker/index.js`, only handles `/mirror/myrtle/*`: a permanent copy, in
+  Cloudflare R2, of the myrtle.moe skin art and animated chibis the
+  operator page shows, so myrtle.moe gets one request per file ever
+  rather than one per visitor.
 
 `js/`, `css/`, `webfonts/`, `images/`, `LICENSE` and `UPSTREAM_README.md`
 originally came from
@@ -602,15 +606,22 @@ running end to end, on your own domain, under your own Cloudflare account:
 5. **Point your domain at it**: in that same project, the **Domains** tab
    → add the (sub)domain you want. Since your domain's already in your
    Cloudflare account, Cloudflare sets up the DNS for you automatically.
-6. **Optional: turn on Image Transformations** for the skin previews on
-   the operator page. Dashboard → Images → Transformations → enable it for
-   your domain's zone, then under its source origins allow
-   `api.myrtle.moe`. Set `IMAGE_TRANSFORM_BASE` in `js/config.js` to
-   `https://<your domain>/cdn-cgi/image/` (or leave it blank to skip
-   this). Cloudflare then fetches each skin's art from myrtle.moe once,
-   serves it as WebP/AVIF from its own cache, and the page falls back to
-   myrtle.moe directly if transformations fail. The free plan's 5,000
-   unique transformations a month is several times the number of skins.
+6. **Create the R2 bucket for the skin art / chibi mirror**: dashboard →
+   R2 → Create bucket, named `akshop-mirror` (it's bound to the site
+   Worker as `MIRROR` in `wrangler.jsonc`; the deploy fails until it
+   exists). The Worker fills it on its own as visitors open skin previews.
+   `MYRTLE_MIRROR_BASE` in `js/config.js` points the pages at it - set it
+   to `https://<your domain>/mirror/myrtle/`, or blank to load from
+   myrtle.moe directly.
+7. **Optional: turn on Image Transformations** for the skin previews:
+   dashboard → Images → Transformations → enable it for your domain's
+   zone, and add your own domain to its allowed source origins (the art
+   is read from the mirror above). Set `IMAGE_TRANSFORM_BASE` in
+   `js/config.js` to `https://<your domain>/cdn-cgi/image/` (or blank to
+   skip this). Each skin's art is then served as WebP/AVIF at preview
+   size, and the page falls back to the mirror's PNG if transformations
+   fail. The free plan's 5,000 unique transformations a month is several
+   times the number of skins.
 
 After that initial setup, everything is hands-off: the daily Action commits
 fresh JSON to your repo, and the site (wherever it's deployed) fetches that
@@ -649,7 +660,7 @@ into the dashboard:
 
 | Worker | Root directory | What it is |
 |---|---|---|
-| `akshop-history` | (repo root) | The site itself (`wrangler.jsonc` at the root serves the static files) |
+| `akshop-history` | (repo root) | The site itself (`wrangler.jsonc` at the root serves the static files; `worker/index.js` runs the R2 mirror at `/mirror/myrtle/*`) |
 | `akshop-depot-import` | `cloudflare/depot-import` | The account-sync endpoint (`index.js`) |
 | `akshop-history-cron` | `cloudflare/dispatch-cron` | The daily trigger for the data workflow (`index.js`) |
 

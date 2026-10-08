@@ -27,13 +27,19 @@ function extraDataUrl(filename) {
 // once this is set to a real deployed Worker URL.
 const DEPOT_IMPORT_ENDPOINT = "https://akshop-depot-import.freddyhansson.workers.dev";
 
+// This site's permanent copy of the myrtle.moe assets the operator page
+// uses -- skin illustrations and animated chibis -- kept in Cloudflare R2
+// by the site Worker (worker/index.js, route /mirror/myrtle/). Each file is
+// fetched from myrtle.moe once and served from R2 after that. Leave blank
+// to fetch from myrtle.moe directly (e.g. a copy of the site without the
+// Worker and bucket).
+const MYRTLE_MIRROR_BASE = "https://ak.athansson.com/mirror/myrtle/";
+
 // Cloudflare Image Transformations on this site's own zone (dashboard:
-// Images -> Transformations, enabled for the zone, with api.myrtle.moe
-// added as an allowed source origin). The operator page's skin preview
-// fetches its full illustration through this: Cloudflare pulls the art
-// from myrtle.moe once, converts it to WebP/AVIF, and serves later views
-// from its own cache, so myrtle.moe sees about one request per skin
-// instead of one per visitor. If it isn't set up, or the free monthly
-// quota runs out, the page falls back to fetching from myrtle.moe
-// directly. Leave blank to always fetch directly.
+// Images -> Transformations, enabled for the zone, with this site's own
+// domain as an allowed source origin). The skin preview fetches its full
+// illustration through this: Cloudflare reads it from the mirror above,
+// converts it to WebP/AVIF at preview size, and caches the result. If it
+// isn't set up, or the free monthly quota runs out, the page falls back
+// to the mirror's original PNG. Leave blank to skip it.
 const IMAGE_TRANSFORM_BASE = "https://ak.athansson.com/cdn-cgi/image/";

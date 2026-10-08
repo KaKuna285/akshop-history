@@ -671,20 +671,15 @@
   // Full illustration for a skin, resolved once per skin and cached:
   // skinId -> Promise of the first URL that loaded (null if none did).
   // Sources, in order:
-  //  1. myrtle.moe's art through Cloudflare Image Transformations
-  //     (uri_transformed(), IMAGE_TRANSFORM_BASE in config.js) -- WebP/
-  //     AVIF from Cloudflare's cache, and myrtle.moe itself only gets hit
-  //     when Cloudflare doesn't have the skin cached yet
-  //  2. myrtle.moe directly, if transformations aren't set up or the
-  //     monthly quota is used up
+  //  1. through Cloudflare Image Transformations (uri_transformed(),
+  //     IMAGE_TRANSFORM_BASE in config.js): WebP/AVIF at preview size,
+  //     read from the site's R2 mirror of myrtle.moe and cached
+  //  2. the mirror's original PNG, if transformations aren't set up or the
+  //     monthly quota is used up (myrtleAssetUrl() in util.js -- straight
+  //     from myrtle.moe if the mirror isn't configured)
   //  3. Aceship -- frozen since May 2024 and ~3s for 1MB; last resort
-  // For myrtle.moe, the 1024px "b" copy comes first (~0.3-1MB); some
+  // For each, myrtle.moe's 1024px "b" copy comes first (~0.3-1MB); some
   // default/Elite art only has the 2048-2560px original (1-6MB).
-  // Each is fetched through a detached Image(), so the visible <img> only
-  // switches over once the file is fully loaded, and the browser cache
-  // serves it instantly when the preview then uses the same URL. Also
-  // called ahead of the click (see renderSkins()), so the art is often
-  // already downloaded by the time the preview opens.
   const fullArtBySkinId = new Map();
   // The preview is at most 480 CSS px wide (css/operator-extra.css), so
   // 1024px covers a 2x screen; the "b" copies are already this size.
@@ -707,13 +702,13 @@
     // the base "Default outfit" (ILLUST_0), e.g. Amiya's avatarId is the
     // bare "char_002_amiya" while her art is "char_002_amiya_1".
     const portraitId = skin.portraitId || skin.avatarId || skin.skinId;
-    const myrtle = [
+    const mirrored = [
       uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, "display"),
       uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, "full"),
     ];
     const candidates = [
-      ...myrtle.map((url) => uri_transformed(url, SKIN_ART_WIDTH)).filter(Boolean),
-      ...myrtle,
+      ...mirrored.map((url) => uri_transformed(url, SKIN_ART_WIDTH)).filter(Boolean),
+      ...mirrored,
       uri_skin_illust(portraitId),
     ];
     const promise = (async () => {
@@ -733,8 +728,12 @@
     return promise;
   }
 
+  // The animated chibi under the art -- see js/chibi-viewer.js.
+  const skinChibi = ChibiViewer.create(document.getElementById("skinPreviewChibi"));
+
   function hideSkinPreview() {
     skinPreviewOverlayEl.classList.add("hidden");
+    skinChibi.clear();
   }
 
   function showSkinPreview(skin) {
@@ -783,6 +782,7 @@
     skinPreviewContentEl.textContent = formatDescription(d.content || d.usage || "", null);
     skinPreviewOverlayEl.classList.remove("hidden");
     skinPreviewOverlayEl.scrollTop = 0;
+    skinChibi.show(skin);
   }
 
   skinPreviewCloseBtn.addEventListener("click", hideSkinPreview);

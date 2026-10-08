@@ -1057,3 +1057,63 @@
     font-size: 0.78rem;
   }
 }
+
+/* --- Animated chibi in the skin preview (js/chibi-viewer.js) ----------- */
+
+.chibiPanel {
+  margin: 4px 0 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chibiPanel.hidden {
+  display: none;
+}
+
+.chibiHeading {
+  font-size: 0.75rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.chibiControls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.chibiAnimSelect {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #1a1a1a;
+  color: #ddd;
+  font-size: 0.78rem;
+}
+
+.chibiStage {
+  position: relative;
+  height: 240px;
+  margin-top: 6px;
+}
+
+.chibiPlayerHost {
+  width: 100%;
+  height: 100%;
+}
+
+/* The player draws its own loading animation; keep it out of sight and
+   show the plain "Loading..." line under the stage instead. */
+.chibiStageLoading .chibiPlayerHost {
+  visibility: hidden;
+}
+
+.chibiStatus {
+  min-height: 1em;
+  font-size: 0.75rem;
+  color: #999;
+}

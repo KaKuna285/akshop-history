@@ -29,6 +29,9 @@ akgcc-extra-data/
 # an asset of this one.
 cloudflare/
 
+# This Worker's own code (the /mirror/ route), not a static file to serve.
+worker/
+
 # Repo/project bookkeeping, not site content.
 LICENSE
 README.md
