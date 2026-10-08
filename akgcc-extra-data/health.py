@@ -59,6 +59,7 @@ COUNT_FILES = {
     "shopOperatorsEN": "banner_history.json",
     "shopOperatorsCN": "banner_history.json",
     "operatorDates": "operator_release_dates.json",
+    "operatorENDates": "operator_release_dates.json",
     "events": "events.json",
     "eventsWithSkins": "events.json",
     "gameDataOperatorsEN": "gamedata/manifest.json",
@@ -89,6 +90,11 @@ def gather_counts():
     dates = read_json(f"{JSON_DIR}/operator_release_dates.json")
     if hasattr(dates, "__len__"):
         counts["operatorDates"] = len(dates)
+    if isinstance(dates, dict):
+        # Operators with an EN release date -- these come from a different
+        # wiki than the operator list itself, so they can collapse on their
+        # own while operatorDates stays put.
+        counts["operatorENDates"] = sum(1 for v in dates.values() if isinstance(v, dict) and v.get("onlineTime"))
     events = read_json(f"{JSON_DIR}/events.json")
     if isinstance(events, dict) and isinstance(events.get("events"), list):
         counts["events"] = len(events["events"])

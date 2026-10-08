@@ -15,5 +15,16 @@
   // ALLOWED_ORIGIN (and the optional ACCESS_KEY_HASH) are set in the
   // dashboard; without this, a deploy would delete any dashboard variable
   // not listed here. Secrets are never touched by a deploy either way.
-  "keep_vars": true
+  "keep_vars": true,
+  // Per-IP and per-email limits (see rateLimited() in index.js). The
+  // period can only be 10 or 60 seconds. namespace_id just has to be a
+  // number unique within this Cloudflare account.
+  //  - CODE_LIMITER: /request-code, i.e. Yostar emailing a login code --
+  //    3 a minute is plenty for a person who mistyped or didn't get it.
+  //  - FETCH_LIMITER: /fetch-depot, i.e. a code attempt -- 5 a minute
+  //    allows typos but not guessing.
+  "ratelimits": [
+    { "name": "CODE_LIMITER", "namespace_id": "1001", "simple": { "limit": 3, "period": 60 } },
+    { "name": "FETCH_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }
+  ]
 }

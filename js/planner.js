@@ -137,6 +137,14 @@
   let itemList = []; // item records (incl. LMD/EXP), sorted by name, for the depot search
   let roster = []; // [{ charId, current: {...}, target: {...} }] -- see defaultState()
   let depot = {}; // itemId -> count you already own (incl. "4001" LMD, "5001" EXP)
+  // Saved entries that don't resolve to anything in this session's game
+  // data. Usually that means the best-effort CN data didn't load (see
+  // loadData()), so a CN-only operator or item can't be shown -- they're
+  // kept as-is and written back on every save rather than deleted, and
+  // show up again on the next load that has the CN data.
+  let heldRoster = [];
+  let heldDepot = {};
+  let cnDataLoaded = false;
   let dataReady = false;
   let highlightedIndex = -1;
   let currentResults = [];
@@ -161,13 +169,13 @@
     return getPref("planner", "roster", [], (v) => Array.isArray(v));
   }
   function saveRosterPref() {
-    setPref("planner", "roster", roster);
+    setPref("planner", "roster", roster.concat(heldRoster));
   }
   function loadDepotPref() {
     return getPref("planner", "depot", {}, (v) => v && typeof v === "object");
   }
   function saveDepotPref() {
-    setPref("planner", "depot", depot);
+    setPref("planner", "depot", Object.assign({}, heldDepot, depot));
   }
   function loadActiveTabPref() {
     return getPref("planner", "activeTab", "roster", (v) => v === "roster" || v === "depot");
@@ -252,6 +260,7 @@
       for (const [uniEquipId, equip] of Object.entries(cnEquipDict)) {
         if (!equipDict[uniEquipId]) equipDict[uniEquipId] = equip;
       }
+      cnDataLoaded = true;
     } catch (err) {
       console.warn(
         "Couldn't load CN-exclusive operator/material data (EN data still loaded fine):",
@@ -308,9 +317,18 @@
     return totals;
   }
 
+  // Normalizes saved entries against the game data. An entry whose charId
+  // isn't in this session's data is only dropped when the CN data loaded
+  // too (so it really is unknown); otherwise it's held, see heldRoster.
   function sanitizeRoster() {
+    heldRoster = [];
     roster = roster
-      .filter((entry) => entry && typeof entry.charId === "string" && charTable[entry.charId])
+      .filter((entry) => {
+        if (!entry || typeof entry.charId !== "string") return false;
+        if (Object.prototype.hasOwnProperty.call(charTable, entry.charId)) return true;
+        if (!cnDataLoaded) heldRoster.push(entry);
+        return false;
+      })
       .map((entry) => {
         const op = charTable[entry.charId];
         const current = Object.assign(defaultState(op), entry.current || {});
@@ -797,10 +815,11 @@
   // hand-edited.
   function sanitizeDepot() {
     const clean = {};
+    heldDepot = {};
     for (const [id, count] of Object.entries(depot)) {
-      if (itemTable[id] && Number.isFinite(count) && count > 0) {
-        clean[id] = Math.floor(count);
-      }
+      if (!Number.isFinite(count) || count <= 0) continue;
+      if (Object.prototype.hasOwnProperty.call(itemTable, id)) clean[id] = Math.floor(count);
+      else if (!cnDataLoaded) heldDepot[id] = Math.floor(count); // see heldRoster
     }
     depot = clean;
   }

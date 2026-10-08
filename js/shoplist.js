@@ -394,7 +394,8 @@ fetch(extraDataUrl("banner_history.json"))
 					5) /
 					5) *
 					2 +
-				axesPadding;
+				axesPadding +
+				"px";
 		}
 
 		const sorters = {

@@ -6,7 +6,37 @@ from common import http_get, parse_date
 
 
 DATA = {}
-    
+
+RELEASE_DATES_PATH = './json/operator_release_dates.json'
+# Refuse to write a file where far fewer operators have an EN date than
+# last time -- that's a broken scrape, not the game removing operators.
+ONLINE_TIME_KEEP_FRACTION = 0.8
+ONLINE_TIME_MIN_PREVIOUS = 50
+
+
+def cargo_rows(r, what):
+    """The rows of a Cargo API response, or a RuntimeError saying why there
+    aren't any. A failed query (renamed table/field, bad syntax, wiki
+    trouble) comes back as HTTP 200 with {"error": {...}} and no
+    "cargoquery" key -- treating that as "zero rows" would silently blank
+    every date that query feeds."""
+    try:
+        body = r.json()
+    except ValueError:
+        raise RuntimeError(f"{what}: HTTP {r.status_code}, response isn't JSON")
+    if "error" in body:
+        err = body["error"]
+        info = (err.get("info") or err.get("code")) if isinstance(err, dict) else err
+        raise RuntimeError(f"{what}: Cargo query failed: {info}")
+    if not isinstance(body.get("cargoquery"), list):
+        raise RuntimeError(f"{what}: response has no cargoquery rows (HTTP {r.status_code})")
+    return body["cargoquery"]
+
+
+def count_online_times(data):
+    return sum(1 for v in data.values() if isinstance(v, dict) and v.get('onlineTime'))
+
+
 def scrape_PRTS():
     headers = {
         "User-Agent": (
@@ -57,7 +87,7 @@ def scrape_PRTS():
         params['limit'] = limit
         params['offset'] = offset
         r = http_get(url, params=params, headers=headers)
-        pages = r.json()['cargoquery']
+        pages = cargo_rows(r, "prts.wiki char_obtain")
         for page in pages:
             charId = page['title']['charId']
             # A real obtainMethod value can be a SINGLE method (e.g. just
@@ -134,7 +164,7 @@ def wiki_cargo_query(url, headers, tables, fields, where=None):
         if where:
             params["where"] = where
         r = http_get(url, params=params, headers=headers)
-        page_rows = r.json().get("cargoquery", [])
+        page_rows = cargo_rows(r, f"arknights.wiki.gg {tables}")
         for row in page_rows:
             rows.append(row["title"])
         offset += limit
@@ -349,7 +379,20 @@ for _charid, _online_time in _operator_overrides.items():
     _overrides_applied += 1
 print(f"Applied {_overrides_applied} manual operator release-date override(s)")
 
+# A scrape that "worked" but lost most EN dates (e.g. the wiki's tables
+# changed shape without an outright error) mustn't replace good data.
+try:
+    with open(RELEASE_DATES_PATH) as f:
+        _previous_online = count_online_times(json.load(f))
+except (OSError, ValueError):
+    _previous_online = 0
+_online = count_online_times(DATA)
+print(f"{_online} operator(s) with an EN release date (previously {_previous_online})")
+if _previous_online >= ONLINE_TIME_MIN_PREVIOUS and _online < _previous_online * ONLINE_TIME_KEEP_FRACTION:
+    print(f"EN release dates dropped from {_previous_online} to {_online} -- leaving {RELEASE_DATES_PATH} as it was")
+    sys.exit(1)
+
 # Temp file + swap, so a crash mid-write never leaves a truncated file.
-with open('./json/operator_release_dates.json.tmp','w') as f:
+with open(RELEASE_DATES_PATH + '.tmp','w') as f:
     json.dump(DATA,f)
-os.replace('./json/operator_release_dates.json.tmp', './json/operator_release_dates.json')
+os.replace(RELEASE_DATES_PATH + '.tmp', RELEASE_DATES_PATH)

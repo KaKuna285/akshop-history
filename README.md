@@ -650,7 +650,12 @@ schedule (`0 7 * * *`, daily 07:00 UTC) is in that folder's
 `GITHUB_PAT` (a fine-grained GitHub token scoped only to this repo's
 Actions: Read and write — nothing broader) and a `TRIGGER_KEY` (any random
 string, used only to gate the manual `/trigger?key=...` test route). It
-deploys itself from this repo - see the next section.
+deploys itself from this repo - see the next section. If the dispatch
+fails it retries twice (a few minutes apart) for errors that might pass,
+then fails the scheduled run, so it shows as an error in the Worker's
+logs/Cron Events rather than looking fine; a bad or revoked token fails
+straight away. Either way the site's footer turns into "automatic updates
+may be delayed" after 36 hours.
 
 ## Deploying the Cloudflare Workers
 
@@ -673,7 +678,11 @@ variables and secrets set in the dashboard (`ALLOWED_ORIGIN`,
 `ACCESS_KEY_HASH`, `GITHUB_PAT`, `TRIGGER_KEY` - secrets are never in this
 repo). The cron Worker's schedule lives in its config too: a deploy
 replaces the dashboard's cron triggers with the config's, so change the
-schedule there.
+schedule there. Likewise the account-sync Worker's rate limits
+(`ratelimits` in `cloudflare/depot-import/wrangler.jsonc`: login-code
+emails and code attempts, per IP and per email address) - its Origin
+check only stops other websites, not scripts, so those limits are what
+keep it from being used to spam Yostar code emails or guess codes.
 
 One-time setup per Worker, in the dashboard: Workers & Pages -> the
 Worker -> Settings -> Build -> Connect -> pick this GitHub repo, branch

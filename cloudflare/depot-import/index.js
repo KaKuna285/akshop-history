@@ -48,10 +48,14 @@
 //      keep_vars: true, so deploys never touch these):
 //        ALLOWED_ORIGIN - the origin the planner is served from, e.g.
 //                         "https://ak.athansson.com". Requests from any
-//                         other Origin header are rejected. A request
-//                         whose Origin starts with "http://localhost" or
-//                         "http://127.0.0.1" is always allowed too, for
-//                         local testing.
+//                         other Origin header are rejected. Origins on
+//                         http://localhost or http://127.0.0.1 (any port)
+//                         are always allowed too, for local testing.
+//     The Origin check only stops other websites from calling this from a
+//     visitor's browser -- a script can send any Origin it likes. What
+//     actually limits abuse (mailing codes to arbitrary addresses, guessing
+//     codes) is the rate limiting below (RATE_LIMITS, bindings in
+//     wrangler.jsonc), plus ACCESS_KEY_HASH if set.
 //     There's no access-key secret here on purpose: this file is served
 //     to anyone who views the planner's page source, so anything baked in
 //     there isn't actually secret. Instead, the planner's import UI asks
@@ -107,6 +111,8 @@ export default {
       if (url.pathname === "/request-code") {
         const { email } = await safeJson(request);
         requireEmail(email);
+        const limited = await rateLimited(env.CODE_LIMITER, request, email);
+        if (limited) return json({ error: limited }, 429, cors);
         await sendEmailCode(email);
         return json({ ok: true }, 200, cors);
       }
@@ -116,6 +122,8 @@ export default {
         if (!code || typeof code !== "string") {
           throw new StepError("validate code", "Enter the code Yostar emailed you.");
         }
+        const limited = await rateLimited(env.FETCH_LIMITER, request, email);
+        if (limited) return json({ error: limited }, 429, cors);
         const result = await fetchDepot(email, code);
         return json(result, 200, cors);
       }
@@ -125,7 +133,9 @@ export default {
       const message = err instanceof Error ? err.message : String(err);
       // Deliberately no email/code/token/secret/inventory in this log line.
       console.log(`depot-import failed at step "${step}": ${message}`);
-      return json({ error: message, step }, 502, cors);
+      // Bad input from the caller is a 400; anything else failed upstream.
+      const status = INPUT_STEPS.has(step) ? 400 : 502;
+      return json({ error: message, step }, status, cors);
     }
   },
 };
@@ -139,12 +149,43 @@ class StepError extends Error {
   }
 }
 
+const INPUT_STEPS = new Set(["parse request", "validate email", "validate code"]);
+
 function isAllowedOrigin(origin, env) {
   if (!origin) return false;
-  if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) {
-    return true;
+  if (env.ALLOWED_ORIGIN && origin === env.ALLOWED_ORIGIN) return true;
+  // Local testing: exactly localhost / 127.0.0.1 on any port. Compared as
+  // a parsed hostname, so "http://localhost.example.com" doesn't count.
+  let url;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
   }
-  return !!env.ALLOWED_ORIGIN && origin === env.ALLOWED_ORIGIN;
+  return url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+}
+
+// Workers Rate Limiting (bindings CODE_LIMITER and FETCH_LIMITER in
+// wrangler.jsonc): each call is counted twice, once per caller IP and once
+// per email address, so neither one IP cycling through addresses nor many
+// IPs hammering one address gets past the limit. Returns an error message
+// when over the limit, else null. Without the binding (e.g. local dev) it
+// never limits; if the limiter itself errors, the request is let through
+// rather than locking real users out.
+async function rateLimited(limiter, request, email) {
+  if (!limiter) return null;
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  try {
+    const results = await Promise.all([
+      limiter.limit({ key: `ip:${ip}` }),
+      limiter.limit({ key: `email:${email.trim().toLowerCase()}` }),
+    ]);
+    if (results.every((r) => r.success)) return null;
+  } catch (err) {
+    console.log(`rate limiter unavailable: ${err && err.message}`);
+    return null;
+  }
+  return "Too many attempts. Wait a minute and try again.";
 }
 
 function corsHeaders(origin) {
