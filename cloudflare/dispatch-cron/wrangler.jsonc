@@ -1,0 +1,23 @@
+{
+  // Deployed by Cloudflare Workers Builds on every push that changes this
+  // folder (root directory: cloudflare/dispatch-cron) -- see the README's
+  // "Deploying the Cloudflare Workers" section.
+  //
+  // Must match the Worker's name in the dashboard exactly, or the build fails.
+  "name": "akshop-history-cron",
+  "main": "index.js",
+  // The date this Worker was created with -- kept so a deploy doesn't change
+  // its runtime behaviour. Only bump it deliberately.
+  "compatibility_date": "2026-09-27",
+  // The manual test route (/trigger?key=...) lives on the *.workers.dev URL.
+  "workers_dev": true,
+  // GITHUB_PAT and TRIGGER_KEY are dashboard secrets, which a deploy never
+  // touches; keep_vars also keeps any plain dashboard variables.
+  "keep_vars": true,
+  // The daily schedule: 07:00 UTC, firing the "Update banner history"
+  // workflow. A deploy replaces the dashboard's cron triggers with this
+  // list, so change the schedule here.
+  "triggers": {
+    "crons": ["0 7 * * *"]
+  }
+}

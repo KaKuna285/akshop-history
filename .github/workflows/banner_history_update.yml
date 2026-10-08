@@ -4,7 +4,7 @@ on:
   # workflow after 60 days with no repo activity, so instead a Cloudflare
   # Worker (with its own Cron Trigger, running entirely on Cloudflare) calls
   # the GitHub API once a day to fire this via workflow_dispatch below. See
-  # cloudflare/dispatch-cron.js and the "Hands-off forever" section of the
+  # cloudflare/dispatch-cron/index.js and the "Hands-off forever" section of the
   # README for the Worker setup. This also means the schedule lives on
   # Cloudflare, which is the point: one less thing tied to GitHub staying
   # "active" on its own.

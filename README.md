@@ -616,11 +616,42 @@ Cloudflare Worker with its own Cron Trigger — running entirely on
 Cloudflare's infrastructure, nothing to do with GitHub's uptime or
 activity rules — calls the GitHub API once a day to fire it.
 
-That Worker's code is at `cloudflare/dispatch-cron.js`, with full setup
-instructions in the comment at the top of that file: create it in the
-Cloudflare dashboard (Quick Edit — no Wrangler or npm install needed),
-add a `GITHUB_PAT` secret (a fine-grained GitHub token scoped only to
-this repo's Actions: Read and write — nothing broader), add a
-`TRIGGER_KEY` secret (any random string, used only to gate the file's
-manual `/trigger?key=...` test route), and add a Cron Trigger under that
-Worker's Settings -> Triggers.
+That Worker's code is at `cloudflare/dispatch-cron/index.js` and its
+schedule (`0 7 * * *`, daily 07:00 UTC) is in that folder's
+`wrangler.jsonc`. It needs two secrets, set once in the dashboard: a
+`GITHUB_PAT` (a fine-grained GitHub token scoped only to this repo's
+Actions: Read and write — nothing broader) and a `TRIGGER_KEY` (any random
+string, used only to gate the manual `/trigger?key=...` test route). It
+deploys itself from this repo - see the next section.
+
+## Deploying the Cloudflare Workers
+
+There are three Workers, all deployed by Cloudflare's **Workers Builds**
+straight from this repo on every push to `main`, so nothing is ever pasted
+into the dashboard:
+
+| Worker | Root directory | What it is |
+|---|---|---|
+| `akshop-history` | (repo root) | The site itself (`wrangler.jsonc` at the root serves the static files) |
+| `akshop-depot-import` | `cloudflare/depot-import` | The account-sync endpoint (`index.js`) |
+| `akshop-history-cron` | `cloudflare/dispatch-cron` | The daily trigger for the data workflow (`index.js`) |
+
+Each folder's `wrangler.jsonc` holds the Worker's `name` (which must match
+the dashboard name exactly, or the build fails), its `compatibility_date`
+(kept at the date the Worker was originally created with, so behaviour
+doesn't shift), `workers_dev: true` (the pages call each Worker on its
+`*.workers.dev` URL), and `keep_vars: true`, so a deploy never touches the
+variables and secrets set in the dashboard (`ALLOWED_ORIGIN`,
+`ACCESS_KEY_HASH`, `GITHUB_PAT`, `TRIGGER_KEY` - secrets are never in this
+repo). The cron Worker's schedule lives in its config too: a deploy
+replaces the dashboard's cron triggers with the config's, so change the
+schedule there.
+
+One-time setup per Worker, in the dashboard: Workers & Pages -> the
+Worker -> Settings -> Build -> Connect -> pick this GitHub repo, branch
+`main`, set **Root directory** to the folder in the table, leave the
+deploy command as `npx wrangler deploy`, and under **Build watch paths**
+set Include to that folder (`cloudflare/depot-import/*` or
+`cloudflare/dispatch-cron/*`), so a Worker only rebuilds when its own
+code changes. The site Worker excludes `akgcc-extra-data/*` (the daily
+data commits don't change anything it serves) and `cloudflare/*`.

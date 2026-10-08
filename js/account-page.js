@@ -136,7 +136,7 @@
   // solid -- medal_table.json was fetched and inspected directly while
   // building this feature. The account side (which medals a sync actually
   // reports as obtained) is the least-confirmed data this whole site
-  // reads (see cloudflare/depot-import.js's extractObtainedMedals()), so
+  // reads (see cloudflare/depot-import/index.js's extractObtainedMedals()), so
   // this gates the entire section on AccountSync.getObtainedMedals() not
   // being null rather than ever showing a confidently-wrong 0%.
 
@@ -246,7 +246,7 @@
     // Every other timestamp this site reads from game data (medal_table.
     // json's own displayTime, event dates, etc.) is Unix seconds, not
     // milliseconds -- and so is the obtained timestamp itself (the account
-    // sync's `fts` field, see cloudflare/depot-import.js). Still defensive
+    // sync's `fts` field, see cloudflare/depot-import/index.js). Still defensive
     // about producing a garbage date rather than trusting it blindly.
     const d = new Date(ts * 1000);
     if (isNaN(d.getTime()) || d.getFullYear() < 2017 || d.getFullYear() > 2100) return null;

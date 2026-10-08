@@ -34,12 +34,18 @@
 //     integration -- see the Operator Planner's import UI for the
 //     disclosure shown to whoever uses it.
 //
-// Setup (Cloudflare dashboard, no Wrangler/npm needed -- same pattern as
-// this repo's other standalone Worker, cloudflare/dispatch-cron.js):
-//   1. Workers & Pages -> Create -> Create Worker -> name it (e.g.
-//      "akshop-depot-import") -> Deploy -> Edit code -> paste this file's
-//      contents in over the default template -> Save and deploy.
-//   2. Settings -> Variables and Secrets -> add:
+// Deployed automatically: this folder's wrangler.jsonc plus Cloudflare's
+// Workers Builds, connected to this repo with root directory
+// cloudflare/depot-import -- a push that changes this folder redeploys
+// the Worker; nothing to paste into the dashboard. See the README's
+// "Deploying the Cloudflare Workers" section. (Same setup as this repo's
+// other standalone Worker, cloudflare/dispatch-cron/.)
+//
+// One-time setup (Cloudflare dashboard):
+//   1. The Worker itself ("akshop-depot-import") and its Git connection --
+//      see the README section above.
+//   2. Settings -> Variables and Secrets -> add (wrangler.jsonc has
+//      keep_vars: true, so deploys never touch these):
 //        ALLOWED_ORIGIN - the origin the planner is served from, e.g.
 //                         "https://ak.athansson.com". Requests from any
 //                         other Origin header are rejected. A request

@@ -3,10 +3,15 @@
 // Cloudflare instead of depending on GitHub's own `schedule:` trigger
 // (which GitHub auto-disables after 60 days of no repo activity).
 //
-// Setup (all in the Cloudflare dashboard, no Wrangler/npm needed):
-//   1. Workers & Pages -> Create -> Create Worker -> name it (e.g.
-//      "akshop-history-cron") -> Deploy -> Edit code -> paste this file's
-//      contents in over the default template -> Save and deploy.
+// Deployed automatically: this folder's wrangler.jsonc (name, schedule)
+// plus Cloudflare's Workers Builds, connected to this repo with root
+// directory cloudflare/dispatch-cron -- a push that changes this folder
+// redeploys the Worker; nothing to paste into the dashboard. See the
+// README's "Deploying the Cloudflare Workers" section.
+//
+// One-time setup (Cloudflare dashboard):
+//   1. The Worker itself ("akshop-history-cron") and its Git connection --
+//      see the README section above.
 //   2. Settings -> Variables and Secrets -> add two secrets:
 //        GITHUB_PAT   - a GitHub fine-grained personal access token,
 //                       scoped ONLY to the akshop-history repo, with
@@ -17,9 +22,9 @@
 //                       test route below (see README's "Hands-off
 //                       forever" section for one already generated for
 //                       you).
-//   3. Settings -> Triggers -> Cron Triggers -> Add Cron Trigger ->
-//      "0 7 * * *" (daily, 07:00 UTC -- matches this project's old
-//      GitHub schedule; edit to taste, cron here is always UTC too).
+//   3. The daily schedule ("0 7 * * *", 07:00 UTC) is in wrangler.jsonc's
+//      triggers.crons -- edit it there, not in the dashboard (a deploy
+//      replaces the dashboard's cron triggers with the config's).
 //   4. Test it once: visit
 //        https://<your-worker>.<your-subdomain>.workers.dev/trigger?key=<TRIGGER_KEY>
 //      in a browser. It should show "OK: dispatched", and a new run

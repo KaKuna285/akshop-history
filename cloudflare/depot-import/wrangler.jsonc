@@ -1,0 +1,19 @@
+{
+  // Deployed by Cloudflare Workers Builds on every push that changes this
+  // folder (root directory: cloudflare/depot-import) -- see the README's
+  // "Deploying the Cloudflare Workers" section.
+  //
+  // Must match the Worker's name in the dashboard exactly, or the build fails.
+  "name": "akshop-depot-import",
+  "main": "index.js",
+  // The date this Worker was created with -- kept so a deploy doesn't change
+  // its runtime behaviour. Only bump it deliberately.
+  "compatibility_date": "2026-09-29",
+  // The planner/account sync call this Worker on its *.workers.dev URL
+  // (DEPOT_IMPORT_ENDPOINT in js/config.js).
+  "workers_dev": true,
+  // ALLOWED_ORIGIN (and the optional ACCESS_KEY_HASH) are set in the
+  // dashboard; without this, a deploy would delete any dashboard variable
+  // not listed here. Secrets are never touched by a deploy either way.
+  "keep_vars": true
+}

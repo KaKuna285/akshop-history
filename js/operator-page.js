@@ -123,7 +123,7 @@
   // control that could disagree with it. Sourced from
   // AccountSync.getOwnedSkins() (populated by a sync whose Worker
   // response included skin ownership data -- see
-  // cloudflare/depot-import.js's extractOwnedSkins()); computed once
+  // cloudflare/depot-import/index.js's extractOwnedSkins()); computed once
   // here rather than per-render since a sync only changes via a full
   // page reload. `hasOwnedSkinData` kept apart from an empty
   // ownedSkinIdSet on purpose (same reasoning as the operator-roster
@@ -1119,7 +1119,7 @@
     // "Your stats" also starts the Module/Stage dropdowns on whichever
     // module is actually equipped (Arknights only applies one module's
     // effect at a time, even when several are leveled up -- see
-    // cloudflare/depot-import.js's extractOwnedOperatorProgress()
+    // cloudflare/depot-import/index.js's extractOwnedOperatorProgress()
     // comment on `currentEquip`), at the stage it's actually reached.
     if (owned && moduleSelect && progress.currentEquip) {
       const equipped = modules.find((m) => m.uniEquipId === progress.currentEquip);
@@ -1810,7 +1810,7 @@
   }
 
   // Owned/not-owned reads AccountSync's synced roster (see
-  // js/account-sync.js and cloudflare/depot-import.js's
+  // js/account-sync.js and cloudflare/depot-import/index.js's
   // extractOwnedOperators()) fresh on every render rather than being
   // cached, so syncing a different account or re-syncing on the home
   // page shows up here the next time this page (re)renders without

@@ -7,7 +7,7 @@
 // so the "Synced as <name>" nav badge shows up everywhere, but only the
 // home page actually calls mount() to show the full sync form.
 //
-// Talks to the Cloudflare Worker at cloudflare/depot-import.js (base URL
+// Talks to the Cloudflare Worker at cloudflare/depot-import/index.js (base URL
 // in js/config.js's DEPOT_IMPORT_ENDPOINT). That Worker's fetch-depot
 // response includes `nickname`/`level` alongside the depot, plus the
 // owned-operator roster (`ownedOperators`), for each owned operator its
@@ -38,7 +38,7 @@ const AccountSync = (function () {
       nickname,
       level: level || null,
       // Array of charIds ("char_002_amiya", ...), or null when the last
-      // sync couldn't read a roster at all (see cloudflare/depot-import.js's
+      // sync couldn't read a roster at all (see cloudflare/depot-import/index.js's
       // extractOwnedOperators()) -- kept apart from an empty array on
       // purpose so getOwnedOperators() callers (the operator page's
       // owned/not-owned filter) can tell "synced, owns nothing" from
@@ -47,7 +47,7 @@ const AccountSync = (function () {
       // charId -> { evolvePhase, level, potentialRank, mainSkillLvl,
       // skills, modules, currentEquip } from the same sync, for the
       // operator page's "Your stats" toggle (see
-      // cloudflare/depot-import.js's extractOwnedOperatorProgress() for
+      // cloudflare/depot-import/index.js's extractOwnedOperatorProgress() for
       // the exact shape and its own caveats). Independently nullable
       // from ownedOperators -- an older sync (from before this field
       // existed) or a Worker that hasn't been redeployed since still has
@@ -55,7 +55,7 @@ const AccountSync = (function () {
       ownedOperatorProgress:
         ownedOperatorProgress && typeof ownedOperatorProgress === "object" ? ownedOperatorProgress : null,
       // medalId -> { ts } from the same sync, for the /account overview
-      // page's medal progress section (see cloudflare/depot-import.js's
+      // page's medal progress section (see cloudflare/depot-import/index.js's
       // extractObtainedMedals() -- flagged there as the least-confirmed
       // shape this site reads). Independently nullable from the two
       // fields above for the same reason: an older sync, or a Worker not
@@ -63,7 +63,7 @@ const AccountSync = (function () {
       // medal data to show.
       obtainedMedals: obtainedMedals && typeof obtainedMedals === "object" ? obtainedMedals : null,
       // skinId -> { ts } from the same sync, for the operator page's skin
-      // gallery "grey out owned" toggle (see cloudflare/depot-import.js's
+      // gallery "grey out owned" toggle (see cloudflare/depot-import/index.js's
       // extractOwnedSkins()). Independently nullable from the fields
       // above for the same reason -- an older sync, or a Worker not yet
       // redeployed with this field, still has everything else with no
@@ -98,7 +98,7 @@ const AccountSync = (function () {
 
   // medalId -> { ts } from the last sync, or null if there's no sync or
   // the last sync didn't include medal data at all (see
-  // cloudflare/depot-import.js's extractObtainedMedals()). The /account
+  // cloudflare/depot-import/index.js's extractObtainedMedals()). The /account
   // overview page's medal section gates its whole progress display on
   // this being non-null, rather than treating null the same as "synced,
   // zero medals obtained" -- those are different things and conflating
@@ -110,7 +110,7 @@ const AccountSync = (function () {
 
   // skinId -> { ts } from the last sync, or null if there's no sync or
   // the last sync didn't include skin ownership data at all (see
-  // cloudflare/depot-import.js's extractOwnedSkins()). The operator
+  // cloudflare/depot-import/index.js's extractOwnedSkins()). The operator
   // page's skin gallery gates its "grey out owned" toggle's visibility on
   // this being non-null, same convention as getOwnedOperators() above --
   // a toggle that can't do anything stays hidden rather than visibly
@@ -128,7 +128,7 @@ const AccountSync = (function () {
   // character_table.json record merged the way OperatorEditModal.
   // loadCharTable() returns it (op.skills[].levelUpCostCond and
   // op.modules both need to be present); `progress` is one entry from
-  // ownedOperatorProgress (see cloudflare/depot-import.js's
+  // ownedOperatorProgress (see cloudflare/depot-import/index.js's
   // extractOwnedOperatorProgress()).
 
   // "Skill 7 (M2/M0)" below Skill Level 7 every skill shares the same
@@ -155,7 +155,7 @@ const AccountSync = (function () {
   // "Reflexive Thinking Stage 2" (really "<typeName2> <stage>", since
   // typeName2 -- "A", "B", ... -- is what the Stats section's own Module
   // dropdown already labels modules with) for whichever module is
-  // actually equipped (see cloudflare/depot-import.js's
+  // actually equipped (see cloudflare/depot-import/index.js's
   // extractOwnedOperatorProgress() comment on `currentEquip` for why
   // only one counts). null when nothing's equipped, or the equipped
   // module isn't one of this operator's actual modules (stale data).

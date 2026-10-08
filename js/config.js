@@ -22,7 +22,7 @@ function extraDataUrl(filename) {
 
 // Base URL of the standalone Cloudflare Worker that implements the
 // Operator Planner's "import from Arknights account" feature (see
-// cloudflare/depot-import.js for the Worker itself, and its own header
+// cloudflare/depot-import/index.js for the Worker itself, and its own header
 // comment for deploy steps). No trailing slash. Leave this blank to keep
 // that feature hidden entirely -- the planner only shows the import UI
 // once this is set to a real deployed Worker URL.
