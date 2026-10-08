@@ -1,12 +1,12 @@
 """Write json/meta.json: whether the daily update actually worked.
 
-The three update steps (shop_operators.py, operator_online.py, events.py)
-are each allowed to fail without stopping the others -- but a scraper
+The update steps (shop_operators.py, operator_online.py, events.py,
+game_data.py) are each allowed to fail without stopping the others -- but a scraper
 that breaks quietly (the wiki changes a template, an API starts erroring)
 otherwise just leaves the site showing yesterday's data with nothing to
 say so. This runs last, with `if: always()`, and records what happened:
 
-    python health.py shop=success operators=failure events=success
+    python health.py shop=success operators=failure events=success gamedata=success
 
 Each argument is a workflow step's `outcome` (success / failure /
 cancelled / skipped). The result, json/meta.json:
@@ -50,6 +50,7 @@ STEPS = {
     "shop": ("Shop history", "banner_history.json"),
     "operators": ("Operator release dates", "operator_release_dates.json"),
     "events": ("Event calendar", "events.json"),
+    "gamedata": ("Game data", "gamedata/manifest.json"),
 }
 
 # Which data file each count is read from (to report a vanished count once,
@@ -60,6 +61,8 @@ COUNT_FILES = {
     "operatorDates": "operator_release_dates.json",
     "events": "events.json",
     "eventsWithSkins": "events.json",
+    "gameDataOperatorsEN": "gamedata/manifest.json",
+    "gameDataOperatorsCN": "gamedata/manifest.json",
 }
 
 # A count that falls below this fraction of its previous value is flagged.
@@ -90,6 +93,12 @@ def gather_counts():
     if isinstance(events, dict) and isinstance(events.get("events"), list):
         counts["events"] = len(events["events"])
         counts["eventsWithSkins"] = sum(1 for e in events["events"] if e.get("skins"))
+    manifest = read_json(f"{JSON_DIR}/gamedata/manifest.json")
+    if isinstance(manifest, dict) and isinstance(manifest.get("servers"), dict):
+        for server, name in (("en", "gameDataOperatorsEN"), ("cn", "gameDataOperatorsCN")):
+            n = (manifest["servers"].get(server) or {}).get("character_table")
+            if isinstance(n, int):
+                counts[name] = n
     return counts
 
 

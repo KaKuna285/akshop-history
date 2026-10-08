@@ -54,12 +54,20 @@ jobs:
         # step's own log for the actual error if it goes red.
         continue-on-error: true
         run: python events.py
+      - name: Build slim game data
+        # Slim copies of the game-data tables the site reads (see
+        # game_data.py) -- what the pages load instead of the full tables.
+        # If this fails, yesterday's files stay and the site keeps working
+        # (it also falls back to the full tables if a file is missing).
+        id: gamedata
+        continue-on-error: true
+        run: python game_data.py
       - name: Record data health
         # Writes json/meta.json (see health.py): which steps worked, how
         # much data each produced, and anything degraded -- the site shows
         # "Updated X ago" and a warning from it.
         if: always()
-        run: python health.py shop=${{ steps.shop.outcome }} operators=${{ steps.operators.outcome }} events=${{ steps.events.outcome }}
+        run: python health.py shop=${{ steps.shop.outcome }} operators=${{ steps.operators.outcome }} events=${{ steps.events.outcome }} gamedata=${{ steps.gamedata.outcome }}
       - name: Commit changes
         if: always()
         uses: EndBug/add-and-commit@v9
@@ -70,7 +78,7 @@ jobs:
           # module docstring for why -- hotlinking the wiki's own copies
           # doesn't work) -- that folder only grows here as new/changed
           # banners show up, so this stays cheap after the first run.
-          add: "akgcc-extra-data/json/*.json akgcc-extra-data/images/*"
+          add: "akgcc-extra-data/json/*.json akgcc-extra-data/json/gamedata/* akgcc-extra-data/images/*"
           # If origin/main moved after this job's checkout (e.g. you pushed
           # something else while this was running, or you re-ran an old job),
           # a plain push would get rejected as non-fast-forward. Pulling with
@@ -109,7 +117,7 @@ jobs:
       - name: Fail the run if any update failed
         if: always()
         run: |
-          if [ "${{ steps.shop.outcome }}" != "success" ] || [ "${{ steps.operators.outcome }}" != "success" ] || [ "${{ steps.events.outcome }}" != "success" ]; then
-            echo "::error::An update step failed (shop=${{ steps.shop.outcome }}, operators=${{ steps.operators.outcome }}, events=${{ steps.events.outcome }}) -- see its log above."
+          if [ "${{ steps.shop.outcome }}" != "success" ] || [ "${{ steps.operators.outcome }}" != "success" ] || [ "${{ steps.events.outcome }}" != "success" ] || [ "${{ steps.gamedata.outcome }}" != "success" ]; then
+            echo "::error::An update step failed (shop=${{ steps.shop.outcome }}, operators=${{ steps.operators.outcome }}, events=${{ steps.events.outcome }}, gamedata=${{ steps.gamedata.outcome }}) -- see its log above."
             exit 1
           fi

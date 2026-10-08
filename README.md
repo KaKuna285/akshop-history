@@ -76,7 +76,8 @@ portraits from `cdn.jsdelivr.net` — see below), same as the live site.
    [PRTS Wiki](https://prts.wiki) (the Chinese wiki, which is where CN's
    "Kernel pool" vs "Limited pool" shop/banner distinction comes from).
 2. `character_table.json` / `char_patch_table.json` for each server
-   (via `js/util.js`'s `get_char_table`), currently pointed at the
+   (via `js/util.js`'s `get_char_table`) — the slim copies described in
+   "Game data" below, built from the
    [ArknightsAssets/ArknightsGamedata](https://github.com/ArknightsAssets/ArknightsGamedata)
    mirror — this is what resolves an operator name to a charId, rarity,
    class, etc.
@@ -90,6 +91,51 @@ If you want to regenerate `banner_history.json` or
 `akgcc-extra-data/` — `shop_operators.py` and `operator_online.py`
 respectively. They need their own Python dependencies (requests, etc.)
 which aren't vendored here.
+
+## Game data (slim copies)
+
+Every page that shows operators reads the game's own data tables
+(characters, skills, modules, skins, items, medals), for both EN and CN.
+The full tables from the mirror are huge - loading them directly cost the
+operator page ~100 MB of JSON per visit and the calendar ~49 MB, almost
+all of it fields no page reads. So `akgcc-extra-data/game_data.py` (a step
+in the daily workflow) builds slim copies into
+`akgcc-extra-data/json/gamedata/<en|cn>/<table>.json`: the same top-level
+shape, field names and value formats as the originals, keeping only the
+rows and fields some page actually reads. The CN copies go further: every
+page merges EN and CN with EN winning, so CN only needs what EN doesn't
+have yet (CN-only operators and their skills, modules, skins, items),
+plus the handful of character fields the shop page reads from CN for
+everyone (CN shop history is keyed by Chinese name). Result: ~11 MB for
+EN and ~0.7 MB for CN in total (~1.3 MB gzipped over the wire), instead of
+~107 MB; the operator page now loads ~11 MB, the calendar ~4 MB.
+
+`gameDataFetch()` in `js/util.js` is the only way pages load these: it
+tries the slim copy and, if it's missing or the request fails, falls back
+to the full table on the mirror (a superset, so the page still works).
+All the existing client-side processing (the char_patch merge, rarity and
+class names, Amiya's forms, the EN/CN merges, module grouping) is
+unchanged.
+
+Two things to know:
+
+- **A new field must be added in two places.** The field lists in
+  `game_data.py` (`CHARACTER`, `SKILL`, `BATTLE_EQUIP`, ...) are a
+  whitelist traced from every read in `js/*.js`. If a page starts reading
+  a field that isn't on the list, it simply won't be in the slim file -
+  add it there too.
+- **New game content appears with the daily run.** The slim copies are
+  rebuilt once a day, so after a game update new operators show up after
+  the next run (or a manual one from the Actions tab), not the moment the
+  mirror updates. Files are only rewritten when the content changed, so a
+  day without a game update adds no commit.
+
+The script also normalises the game data's habit of writing an empty list
+as `{}`: a few operators (Lancet-2, Castle-3 and the other robots) have
+`skills: {}`, which made the planner fail to load entirely if one was in
+your roster (`.forEach` on an object). A step that produces suspiciously
+few rows fails instead of writing, leaving yesterday's files in place, and
+`health.py` tracks the operator counts like the other data.
 
 ## The EN event calendar (`/calendar/`)
 

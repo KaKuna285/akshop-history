@@ -185,7 +185,7 @@
       get_char_table(false, SERVER, false),
       loadGameConst(SERVER),
       loadItemTable(SERVER),
-      fetch(`${DATA_BASE[SERVER]}/gamedata/excel/uniequip_table.json`),
+      gameDataFetch(SERVER, "uniequip_table"),
     ]);
     charTable = chars;
     gameConst = const_;
@@ -204,8 +204,8 @@
     try {
       const [cnChars, cnItemRes, cnEquipRes] = await Promise.all([
         get_char_table(false, SERVERS.CN, false),
-        fetch(`${DATA_BASE[SERVERS.CN]}/gamedata/excel/item_table.json`),
-        fetch(`${DATA_BASE[SERVERS.CN]}/gamedata/excel/uniequip_table.json`),
+        gameDataFetch(SERVERS.CN, "item_table"),
+        gameDataFetch(SERVERS.CN, "uniequip_table"),
       ]);
       for (const [charId, op] of Object.entries(cnChars)) {
         if (!charTable[charId]) {

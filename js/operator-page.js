@@ -535,14 +535,14 @@
   // loadItemTable() in util.js) this stays local here rather than
   // getting extracted for a second caller that doesn't exist.
   async function loadSkillTable(server) {
-    const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/skill_table.json`);
+    const res = await gameDataFetch(server, "skill_table");
     return await fixedJson(res);
   }
 
   // Keyed by uniEquipId -- same "not needed anywhere else yet" reasoning
   // as loadSkillTable() above.
   async function loadBattleEquipTable(server) {
-    const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/battle_equip_table.json`);
+    const res = await gameDataFetch(server, "battle_equip_table");
     return await fixedJson(res);
   }
 
@@ -556,7 +556,7 @@
   // outfit entries every operator also gets one of here -- see
   // skinDisplayName() below for how those get labeled.
   async function loadSkinTable(server) {
-    const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/skin_table.json`);
+    const res = await gameDataFetch(server, "skin_table");
     const json = await fixedJson(res);
     return (json && json.charSkins) || {};
   }

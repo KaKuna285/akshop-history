@@ -57,7 +57,7 @@
   }
 
   async function loadSkinTable(server) {
-    const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/skin_table.json`);
+    const res = await gameDataFetch(server, "skin_table");
     const json = await fixedJson(res);
     return (json && json.charSkins) || {};
   }

@@ -354,7 +354,7 @@ const OperatorEditModal = (function () {
     charTablePromise = (async () => {
       const [charTable, equipRes] = await Promise.all([
         get_char_table(false, SERVERS.EN, true),
-        fetch(`${DATA_BASE[SERVERS.EN]}/gamedata/excel/uniequip_table.json`),
+        gameDataFetch(SERVERS.EN, "uniequip_table"),
       ]);
       const equipJson = await fixedJson(equipRes);
       const equipDict = equipJson.equipDict || equipJson;
@@ -365,7 +365,7 @@ const OperatorEditModal = (function () {
       try {
         const [cnChars, cnEquipRes] = await Promise.all([
           get_char_table(false, SERVERS.CN, true),
-          fetch(`${DATA_BASE[SERVERS.CN]}/gamedata/excel/uniequip_table.json`),
+          gameDataFetch(SERVERS.CN, "uniequip_table"),
         ]);
         for (const [charId, op] of Object.entries(cnChars)) {
           if (!charTable[charId]) {

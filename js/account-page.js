@@ -219,7 +219,7 @@
   // here the way OperatorEditModal.loadCharTable() has one, since a
   // medal obtained on an EN account is always in EN's own catalog.
   async function loadMedalTable() {
-    const res = await fetch(`${DATA_BASE[SERVERS.EN]}/gamedata/excel/medal_table.json`);
+    const res = await gameDataFetch(SERVERS.EN, "medal_table");
     const json = await fixedJson(res);
     return Array.isArray(json.medalList) ? json.medalList : [];
   }

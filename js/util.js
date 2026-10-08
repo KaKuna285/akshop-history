@@ -338,6 +338,62 @@ if (USE_ALTERNATE_DATA_SOURCE) {
   DATA_BASE[SERVERS.CN] =
     "https://raw.githubusercontent.com/ArknightsAssets/ArknightsGamedata/master/cn";
 }
+// Slim copies of the game-data tables, built daily by
+// akgcc-extra-data/game_data.py and published next to the rest of this
+// site's data. Same top-level shape and field names as the upstream
+// tables, minus the rows and fields no page reads -- so callers treat the
+// response exactly like the upstream file. The CN copies only carry what
+// EN doesn't have (every page merges EN and CN with EN winning), plus the
+// few fields the shop page reads from CN for every operator. If a slim
+// file is missing or the request fails, this falls back to the full
+// upstream table, which is a superset, so the page still works.
+// NOTE: a page that starts reading a new field from one of these tables
+// needs that field added in game_data.py too.
+const GAME_DATA_SLIM_BASE = `${EXTRA_DATA_REPO_RAW_BASE}gamedata/`;
+const GAME_DATA_SLIM_SERVERS = { [SERVERS.EN]: "en", [SERVERS.CN]: "cn" };
+const GAME_DATA_SLIM_TABLES = new Set([
+  "character_table",
+  "char_patch_table",
+  "uniequip_table",
+  "battle_equip_table",
+  "skill_table",
+  "skin_table",
+  "item_table",
+  "gamedata_const",
+  "medal_table",
+]);
+async function gameDataFetch(server, table) {
+  const upstream = `${DATA_BASE[server]}/gamedata/excel/${table}.json`;
+  const dir = GAME_DATA_SLIM_SERVERS[server];
+  if (!dir || !GAME_DATA_SLIM_TABLES.has(table)) return fetch(upstream);
+  try {
+    const res = await fetch(`${GAME_DATA_SLIM_BASE}${dir}/${table}.json`);
+    if (res.ok) return res;
+  } catch (err) {
+    // fall through to the upstream table
+  }
+  return fetch(upstream);
+}
+
+// operator_release_dates.json, fetched once per page load: get_char_table()
+// asks for it for every server it loads (EN and CN on most pages), and it
+// only ever changes with the daily data update.
+let operatorReleaseDatesPromise = null;
+function loadOperatorReleaseDates() {
+  if (!operatorReleaseDatesPromise) {
+    operatorReleaseDatesPromise = fetch(extraDataUrl("operator_release_dates.json"))
+      .then((res) => {
+        if (!res.ok) throw new Error(`operator_release_dates.json: HTTP ${res.status}`);
+        return res.json();
+      })
+      .catch((err) => {
+        operatorReleaseDatesPromise = null; // let a later caller retry
+        throw err;
+      });
+  }
+  return operatorReleaseDatesPromise;
+}
+
 const serverString = localStorage.getItem("server") || "en_US";
 const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 if (scrollbarWidth > 0) {
@@ -443,9 +499,7 @@ document.addEventListener("DOMContentLoaded", () =>
   document.body.appendChild(tt),
 );
 async function get_cc_list(server = "en_US") {
-  let raw = await fetch(
-    `${DATA_BASE[server]}/gamedata/excel/crisis_table.json`,
-  );
+  let raw = await gameDataFetch(server, "crisis_table");
   let data = await fixedJson(raw);
   data.seasonInfo.forEach((cc) => {
     let cc_num = /rune_season_(\d+)_1/.exec(cc.seasonId)[1];
@@ -474,18 +528,13 @@ async function get_char_table(
   // also builds charIdMap for use elsewhere
   // converts internal profession names to in-game ones
   // if "extra_data" is true, adds "isLimited", "onlineTime", "cnOnlineTime" at the cost of 1 extra github fetch
-  let raw = await fetch(
-    `${DATA_BASE[server]}/gamedata/excel/character_table.json`,
-  );
+  let raw = await gameDataFetch(server, "character_table");
   let json = await fixedJson(raw);
-  raw = await fetch(
-    `${DATA_BASE[server]}/gamedata/excel/char_patch_table.json`,
-  );
+  raw = await gameDataFetch(server, "char_patch_table");
   let patch = await fixedJson(raw);
   updateJSON(json, patch.patchChars);
   if (extra_data) {
-    let extra_raw = await fetch(extraDataUrl("operator_release_dates.json"));
-    let extra_chardata = await extra_raw.json();
+    let extra_chardata = await loadOperatorReleaseDates();
     for (const [charId, data] of Object.entries(extra_chardata)) {
       if (json[charId]) {
         json[charId].isLimited = data.isLimited ?? false;
@@ -547,7 +596,7 @@ async function fixedJson(res) {
 // operator's "cost to fully max" table), so it lives here rather than
 // being fetched twice with two copies of this same normalization.
 async function loadGameConst(server) {
-  const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/gamedata_const.json`);
+  const res = await gameDataFetch(server, "gamedata_const");
   const json = await fixedJson(res);
   return {
     characterExpMap: json.characterExpMap || [],
@@ -559,7 +608,7 @@ async function loadGameConst(server) {
 // Material/LMD/EXP names, icons and rarity -- itemId -> { name, iconId,
 // rarity, ... }. Same reasoning as loadGameConst() above.
 async function loadItemTable(server) {
-  const res = await fetch(`${DATA_BASE[server]}/gamedata/excel/item_table.json`);
+  const res = await gameDataFetch(server, "item_table");
   const json = await fixedJson(res);
   return json.items || json;
 }
