@@ -49,22 +49,25 @@ function createDiagonalPattern(fillcolor) {
 	// create the pattern from the shape
 	return c.createPattern(shape, "repeat");
 }
-fetch(extraDataUrl("banner_history.json"))
-	.then((res) => fixedJson(res))
-	.then((js) => {
+// The shop history and the CN character table download in parallel; the
+// EN table is still loaded after CN, since get_char_table() builds the
+// shared name -> charId map and its CN_ID_MAP step depends on that order.
+Promise.all([
+	fetch(extraDataUrl("banner_history.json")).then((res) => {
+		if (!res.ok) throw new Error(`banner_history.json: HTTP ${res.status}`);
+		return fixedJson(res);
+	}),
+	get_char_table(false, SERVERS.CN, true),
+])
+	.then(([js, cnChars]) => {
 		SHOP_DATA.EN = js.NA;
 		SHOP_DATA.CN = js.CN;
-		// generatedAt is new as of this scraper patch -- cached data fetched
-		// before the next daily run picks it up won't have it yet, so this
-		// stays blank (rather than showing a broken/undefined date) until then.
-		// (meta.json from health.py is what says whether the update is healthy;
-		// banner_history's own timestamp is the fallback until it exists)
+		// (meta.json from health.py is what says whether the update is
+		// healthy; banner_history's own timestamp is the fallback until it
+		// exists)
 		DataHealth.mount(document.getElementById("dataFreshness"), { generatedAt: js.generatedAt });
-		return get_char_table(false, SERVERS.CN, true);
-	})
-	.then((js) => {
-		operatorData = js;
-		OP_DATA.CN = js;
+		operatorData = cnChars;
+		OP_DATA.CN = cnChars;
 		return get_char_table(false, SERVERS.EN, true);
 	})
 	.then((js) => {
@@ -289,13 +292,16 @@ fetch(extraDataUrl("banner_history.json"))
 					);
 					ctx.closePath();
 					ctx.clip();
-					ctx.drawImage(
-						chart.data.datasets[args.index].data[i].img,
-						-imgsize / 2,
-						-imgsize / 2,
-						imgsize,
-						imgsize,
-					);
+					// drawImage() throws on an image that failed to load (and
+					// draws nothing for one still loading) -- show a plain
+					// disc for those instead.
+					const avatar = chart.data.datasets[args.index].data[i].img;
+					if (avatar && avatar.complete && avatar.naturalWidth) {
+						ctx.drawImage(avatar, -imgsize / 2, -imgsize / 2, imgsize, imgsize);
+					} else {
+						ctx.fillStyle = "#555";
+						ctx.fill();
+					}
 					ctx.fillStyle = "#0000";
 					if (first_apperance) ctx.fillStyle = "#0008";
 					if (is_blue) ctx.fillStyle = "#0004";
@@ -557,14 +563,9 @@ fetch(extraDataUrl("banner_history.json"))
 				},
 			},
 		});
-		Promise.all(
-			Object.values(SHOP_DATA[selectedServer]).map((x) => {
-				return new Promise((resolve, reject) => {
-					x.img.onload = resolve;
-					x.img.onerror = reject;
-				});
-			}),
-		).then((p) => {
+		// Redraw once every avatar has loaded or definitely failed (see
+		// imgReady in util.js) -- one missing icon no longer stops this.
+		Promise.all(Object.values(SHOP_DATA[selectedServer]).map((x) => x.imgReady)).then(() => {
 			barGraph.update();
 		});
 
@@ -1026,4 +1027,12 @@ fetch(extraDataUrl("banner_history.json"))
 
 			barGraph.update();
 		}
+	})
+	.catch((err) => {
+		console.error("Couldn't load the shop history:", err);
+		const el = document.getElementById("storeLoadError");
+		el.textContent =
+			"Couldn't load the shop history data. This is usually a brief network or GitHub hiccup -- try reloading the page in a minute.";
+		el.hidden = false;
+		document.getElementById("barChartContainer").hidden = true;
 	});

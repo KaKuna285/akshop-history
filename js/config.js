@@ -11,12 +11,15 @@ const EXTRA_DATA_REPO_RAW_BASE =
 // raw.githubusercontent.com sits behind a CDN, and a branch path like the
 // one above (as opposed to one pinned to a specific commit) can keep
 // serving an old cached response well after a push updates the file --
-// sometimes for hours, not just the usual few minutes. Appending a
-// cache-busting query param makes every page load a distinct URL as far
-// as that CDN is concerned, forcing a real fetch from origin instead of
-// risking a stale cached hit.
+// sometimes for hours, not just the usual few minutes. A query param that
+// changes every hour makes each hour's URL new to that CDN, so data is
+// never more than about an hour behind the daily update. Within the hour
+// the URL stays the same, so the browser's own cache (raw.githubusercontent
+// sends max-age=300, then revalidates cheaply) can actually work -- a
+// per-load timestamp re-downloaded every file on every page view.
+const DATA_CACHE_BUCKET_MS = 3600 * 1000;
 function extraDataUrl(filename) {
-  return `${EXTRA_DATA_REPO_RAW_BASE}${filename}?_=${Date.now()}`;
+  return `${EXTRA_DATA_REPO_RAW_BASE}${filename}?_=${Math.floor(Date.now() / DATA_CACHE_BUCKET_MS)}`;
 }
 
 // Base URL of the standalone Cloudflare Worker that implements the

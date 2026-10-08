@@ -100,9 +100,13 @@ CHARACTER = {
     ],
 }
 
+# uniEquipDesc (module lore, ~80% of the table) goes to its own
+# uniequip_lore file instead -- only the operator page shows it, and only
+# when a module's lore is expanded, so the planner and calendar (which load
+# this table too) don't download it.
 UNIEQUIP = {
     k: True
-    for k in ("uniEquipId", "uniEquipName", "uniEquipDesc", "typeName2", "charEquipOrder", "charId")
+    for k in ("uniEquipId", "uniEquipName", "typeName2", "charEquipOrder", "charId")
 }
 UNIEQUIP["itemCost"] = True  # dict keyed "1"/"2"/"3" -> cost lists; kept whole
 
@@ -224,6 +228,7 @@ def build_cn(cn, en):
     out["uniequip_table"] = {
         "equipDict": {k: v for k, v in cn["uniequip_table"]["equipDict"].items() if k not in en_equips}
     }
+    out["uniequip_lore"] = {k: v for k, v in cn["uniequip_lore"].items() if k not in en_equips}
     for name in ("battle_equip_table", "skill_table"):
         out[name] = {k: v for k, v in cn[name].items() if k not in en[name]}
     en_skins = en["skin_table"]["charSkins"]
@@ -262,6 +267,7 @@ def build(tables):
         if isinstance(v, dict) and v.get("charId") and v.get("itemCost") and v.get("typeName2")
     }
     out["uniequip_table"] = {"equipDict": equips}
+    out["uniequip_lore"] = {k: equip_dict[k]["uniEquipDesc"] for k in equips if equip_dict[k].get("uniEquipDesc")}
 
     # Battle-equip stats: only for modules kept above.
     out["battle_equip_table"] = {

@@ -25,5 +25,12 @@
   },
   // The mirror's storage. The bucket is created once in the dashboard
   // (R2 -> Create bucket); see the README's Cloudflare setup section.
-  "r2_buckets": [{ "binding": "MIRROR", "bucket_name": "akshop-mirror" }]
+  "r2_buckets": [{ "binding": "MIRROR", "bucket_name": "akshop-mirror" }],
+  // Caps how many files one visitor IP can make the mirror fetch from
+  // myrtle.moe per minute (files already in R2 don't count). Opening a skin
+  // preview needs at most ~10 new files, so 60 a minute only bites on
+  // abuse. namespace_id must be unique within the Cloudflare account.
+  "ratelimits": [
+    { "name": "UPSTREAM_LIMITER", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } }
+  ]
 }

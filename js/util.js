@@ -290,6 +290,7 @@ const GAME_DATA_SLIM_TABLES = new Set([
   "character_table",
   "char_patch_table",
   "uniequip_table",
+  "uniequip_lore",
   "battle_equip_table",
   "skill_table",
   "skin_table",
@@ -612,8 +613,22 @@ function normalizeShopHistory(servdata, charTableForServer) {
     }
     data.banner.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
     data.isKernel = charTableForServer[data.charId]?.classicPotentialItemId != null;
+    // The default avatar mirror is missing some icons, so a failed load
+    // retries once from Aceship (same as setIconWithFallback()). imgReady
+    // settles either way -- resolved once the image has loaded or has
+    // definitely failed -- so a page waiting on it never hangs on one
+    // missing icon; check img.naturalWidth before drawing it.
     const img = new Image();
-    img.src = uri_avatar(data.charId);
+    const charId = data.charId;
+    data.imgReady = new Promise((resolve) => {
+      img.addEventListener("load", resolve);
+      img.addEventListener("error", () => {
+        if (img.dataset.fallback) return resolve();
+        img.dataset.fallback = "1";
+        img.src = uri_avatar(charId, ASSET_SOURCE.ACESHIP);
+      });
+    });
+    img.src = uri_avatar(charId);
     data.img = img;
     // Use the true minimum banner date rather than trusting banner[0]
     // after the sort above: a single malformed/unparseable date string

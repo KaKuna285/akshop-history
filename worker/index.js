@@ -11,10 +11,12 @@
 //
 //   1. Cloudflare's edge cache, if this data centre has it.
 //   2. R2. Kept indefinitely: these files don't change after release.
-//   3. myrtle.moe. A 200 is copied into R2 and served. A 404 is
-//      remembered in R2 for MISSING_RECHECK_MS (the file may appear later,
-//      e.g. a CN-only operator once it's extracted), so a missing file
-//      doesn't send every visitor's request on to myrtle.moe either.
+//   3. myrtle.moe. A 200 that really is the file type asked for (see
+//      looksValid()) is copied into R2 and served. A 404 is only
+//      remembered in the edge cache, for a day -- not in R2, so requests
+//      for made-up file names can't fill the bucket. Asking myrtle.moe is
+//      also rate limited per visitor IP (UPSTREAM_LIMITER), so made-up
+//      names can't be used to hammer it through this Worker either.
 //
 // Only the folders and file types the operator page uses are allowed, so
 // this can't be used as a general-purpose proxy.
@@ -32,7 +34,6 @@ const CONTENT_TYPES = {
   atlas: "text/plain; charset=utf-8",
   skel: "application/octet-stream",
 };
-const MISSING_RECHECK_MS = 7 * 24 * 3600 * 1000;
 const FOUND_CACHE = "public, max-age=31536000, immutable";
 const MISSING_CACHE = "public, max-age=86400";
 // Asset names are ids like "char_250_phatom_sale#4" -- letters, digits,
@@ -51,6 +52,23 @@ export function mirrorKey(pathname) {
   const ext = path.slice(path.lastIndexOf(".") + 1);
   if (!ALLOWED.some((a) => path.startsWith(a.prefix) && a.ext.includes(ext))) return null;
   return path;
+}
+
+// Whether an upstream 200 is plausibly the real file, so an error page or a
+// truncated response served with a 200 never gets stored forever.
+export function looksValid(ext, bytes) {
+  if (!bytes || bytes.byteLength < 16) return false;
+  const b = new Uint8Array(bytes);
+  if (ext === "png") {
+    // PNG signature, and the IEND chunk at the end (a cut-off file lacks it).
+    const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    const iend = [0x49, 0x45, 0x4e, 0x44];
+    return sig.every((v, i) => b[i] === v) && iend.every((v, i) => b[b.length - 8 + i] === v);
+  }
+  const head = new TextDecoder("utf-8", { fatal: false }).decode(b.subarray(0, 512));
+  if (/^\s*[<{]/.test(head)) return false; // an HTML or JSON error body
+  if (ext === "atlas") return /\.png\s*\r?\n/.test(head) && /size:\s*\d+\s*,\s*\d+/.test(head);
+  return true; // skel: binary, nothing simple to check beyond the above
 }
 
 function upstreamUrl(path) {
@@ -92,12 +110,22 @@ async function handleMirror(request, env, ctx) {
 
   const key = "myrtle/" + path;
   const stored = await env.MIRROR.get(key);
-  if (stored) {
-    const missingSince = stored.customMetadata && stored.customMetadata.missingSince;
-    if (!missingSince) return finish(respond(200, stored.body, path, FOUND_CACHE, { "x-mirror": "r2" }));
-    if (Date.now() - Number(missingSince) < MISSING_RECHECK_MS) {
-      return finish(respond(404, "Not found upstream", path, MISSING_CACHE, { "x-mirror": "r2-missing" }));
+  // (Objects with missingSince metadata are 404 markers an earlier version
+  // of this Worker stored; they're ignored and get overwritten if the file
+  // turns up.)
+  if (stored && !(stored.customMetadata && stored.customMetadata.missingSince)) {
+    return finish(respond(200, stored.body, path, FOUND_CACHE, { "x-mirror": "r2" }));
+  }
+
+  if (env.UPSTREAM_LIMITER) {
+    const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+    let ok = true;
+    try {
+      ok = (await env.UPSTREAM_LIMITER.limit({ key: ip })).success;
+    } catch {
+      // limiter unavailable: don't block real visitors
     }
+    if (!ok) return respond(429, "Too many uncached files requested; try again in a minute", null, "no-store");
   }
 
   let upstream;
@@ -107,7 +135,6 @@ async function handleMirror(request, env, ctx) {
     return respond(502, "Upstream fetch failed", null, "no-store");
   }
   if (upstream.status === 404) {
-    ctx.waitUntil(env.MIRROR.put(key, "", { customMetadata: { missingSince: String(Date.now()) } }));
     return finish(respond(404, "Not found upstream", path, MISSING_CACHE, { "x-mirror": "upstream-missing" }));
   }
   if (!upstream.ok) {
@@ -115,6 +142,11 @@ async function handleMirror(request, env, ctx) {
     return respond(502, `Upstream returned ${upstream.status}`, null, "no-store");
   }
   const body = await upstream.arrayBuffer();
+  const ext = path.slice(path.lastIndexOf(".") + 1);
+  if (!looksValid(ext, body)) {
+    console.log(`not storing ${path}: upstream 200 doesn't look like a .${ext} (${body.byteLength} bytes)`);
+    return respond(502, "Upstream returned an invalid file", null, "no-store");
+  }
   ctx.waitUntil(env.MIRROR.put(key, body, { httpMetadata: { contentType: CONTENT_TYPES[path.slice(path.lastIndexOf(".") + 1)] } }));
   return finish(respond(200, body, path, FOUND_CACHE, { "x-mirror": "upstream" }));
 }

@@ -131,6 +131,11 @@ everyone (CN shop history is keyed by Chinese name). Result: ~11 MB for
 EN and ~0.7 MB for CN in total (~1.3 MB gzipped over the wire), instead of
 ~107 MB; the operator page now loads ~11 MB, the calendar ~4 MB.
 
+Module lore (each module's flavour text, about 80% of the module table)
+is split out into its own `uniequip_lore.json`: only the operator page
+shows it, and only when you open a module's lore, so it's downloaded then
+rather than with every page that lists modules.
+
 `gameDataFetch()` in `js/util.js` is the only way pages load these: it
 tries the slim copy and, if it's missing or the request fails, falls back
 to the full table on the mirror (a superset, so the page still works).

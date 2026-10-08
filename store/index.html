@@ -62,6 +62,8 @@
       <span class="legendHint">Hover a portrait for the exact date (Standard-pool ops not yet in the shop get a predicted debut), or click one to keep it showing &middot; click a bar to see the days between appearances</span>
     </div>
     <div id="chartDiv" style="padding-top: 8px">
+      <!-- Shown by js/shoplist.js if the data can't be loaded. -->
+      <p id="storeLoadError" class="storeLoadError" role="alert" hidden></p>
       <div class="chartContainer chartOption" id="barChartContainer">
         <canvas id="opChart"></canvas>
       </div>

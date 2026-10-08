@@ -11,10 +11,10 @@
   // Routing is a plain `?id=charId` query string (no build-time page
   // generation on this static site) -- same deep-link convention as the
   // planner's own `?add=charId`. Picking a different operator from the
-  // jump-search box, the browse grid, or a "released alongside" link
-  // re-renders in place (history.replaceState, not a real navigation)
-  // rather than reloading the page, since every data source below is
-  // already loaded for every operator at once.
+  // jump-search box or the browse grid re-renders in place (a new history
+  // entry via navigateTo(), not a real page load) rather than reloading the
+  // page, since every data source below is already loaded for every
+  // operator at once -- and Back/Forward step through those entries.
   //
   // Data sources:
   //   - OperatorEditModal.loadCharTable() (operator-edit-modal.js): EN+CN
@@ -1462,6 +1462,30 @@
     return stage;
   }
 
+  // Module lore (uniEquipDesc), kept out of uniequip_table in the slim game
+  // data (see game_data.py) and fetched once, on first use: EN, with CN
+  // filling in modules EN doesn't have yet. A failed load isn't cached, so
+  // opening another module's lore retries.
+  let moduleLorePromise = null;
+  function loadModuleLore() {
+    if (!moduleLorePromise) {
+      moduleLorePromise = (async () => {
+        const lore = {};
+        for (const server of [SERVERS.CN, SERVERS.EN]) {
+          try {
+            const res = await gameDataFetch(server, "uniequip_lore");
+            if (res.ok) Object.assign(lore, await res.json());
+          } catch (err) {
+            console.warn(`Couldn't load ${server} module lore:`, err);
+          }
+        }
+        if (!Object.keys(lore).length) moduleLorePromise = null;
+        return lore;
+      })();
+    }
+    return moduleLorePromise;
+  }
+
   function renderModules(op, view, progress) {
     modulesInfoEl.innerHTML = "";
     const modules = (op.modules || []).filter(Boolean);
@@ -1511,32 +1535,36 @@
         // module with several stages doesn't push them below the fold
         // just to show a sentence of flavor text; a small toggle arrow
         // (pushed to the far right of the heading row via CSS's
-        // margin-left: auto) reveals it on demand.
-        if (mod.uniEquipDesc) {
-          const desc = document.createElement("div");
-          desc.className = "opModuleDescription hidden";
-          desc.textContent = formatDescription(mod.uniEquipDesc, null);
-
-          const loreToggle = document.createElement("button");
-          loreToggle.type = "button";
-          loreToggle.className = "opModuleLoreToggle";
-          loreToggle.textContent = "▾"; // ▾
-          loreToggle.setAttribute("aria-expanded", "false");
-          loreToggle.setAttribute("aria-label", "Show module lore");
-          loreToggle.addEventListener("click", () => {
-            const isHidden = desc.classList.toggle("hidden");
-            const expanded = !isHidden;
-            loreToggle.textContent = expanded ? "▴" : "▾"; // ▴ : ▾
-            loreToggle.setAttribute("aria-expanded", String(expanded));
-            loreToggle.setAttribute("aria-label", expanded ? "Hide module lore" : "Show module lore");
-          });
-          heading.appendChild(loreToggle);
-
-          row.appendChild(heading);
-          row.appendChild(desc);
-        } else {
-          row.appendChild(heading);
-        }
+        // margin-left: auto) reveals it on demand. The text itself is only
+        // downloaded the first time any module's lore is opened (see
+        // loadModuleLore()), unless the module record already carries it.
+        const desc = document.createElement("div");
+        desc.className = "opModuleDescription hidden";
+        const loreToggle = document.createElement("button");
+        loreToggle.type = "button";
+        loreToggle.className = "opModuleLoreToggle";
+        loreToggle.textContent = "▾"; // ▾
+        loreToggle.setAttribute("aria-expanded", "false");
+        loreToggle.setAttribute("aria-label", "Show module lore");
+        let loreFilled = false;
+        loreToggle.addEventListener("click", async () => {
+          const isHidden = desc.classList.toggle("hidden");
+          const expanded = !isHidden;
+          loreToggle.textContent = expanded ? "▴" : "▾"; // ▴ : ▾
+          loreToggle.setAttribute("aria-expanded", String(expanded));
+          loreToggle.setAttribute("aria-label", expanded ? "Hide module lore" : "Show module lore");
+          if (!expanded || loreFilled) return;
+          let text = mod.uniEquipDesc;
+          if (!text) {
+            desc.textContent = "Loading…";
+            text = (await loadModuleLore())[mod.uniEquipId];
+          }
+          desc.textContent = text ? formatDescription(text, null) : "No lore text for this module.";
+          loreFilled = !!text;
+        });
+        heading.appendChild(loreToggle);
+        row.appendChild(heading);
+        row.appendChild(desc);
 
         const equipData = battleEquipTable[mod.uniEquipId];
         const phases = (equipData && Array.isArray(equipData.phases) && equipData.phases) || [];
@@ -1674,7 +1702,9 @@
     // otherwise keep showing that operator's art over this one's page.
     hideSkinPreview();
     currentCharId = charId;
-    const op = charId ? charTable[charId] : null;
+    // hasOwnProperty, so "?id=constructor" / "?id=__proto__" don't pick up
+    // the plain object's built-ins as if they were operators.
+    const op = charId && Object.prototype.hasOwnProperty.call(charTable, charId) ? charTable[charId] : null;
     if (!op) {
       contentEl.classList.add("hidden");
       if (charId) {
@@ -1745,15 +1775,32 @@
     renderStatDependentSections(op); // also renders Skins -- see its own comment
     refreshAddToPlannerButton(op);
 
-    const params = new URLSearchParams(location.search);
-    if (params.get("id") !== charId) {
-      params.set("id", charId);
-      history.replaceState(null, "", "?" + params.toString());
-    }
     jumpInput.value = "";
     renderJumpResults([]);
+  }
+
+  // Shows another operator (or the grid, for null) as a new history entry,
+  // so Back returns to where you were instead of leaving the site. The
+  // scroll position of the view being left is saved on its own entry and
+  // put back when you return to it (see the popstate handler below).
+  function navigateTo(charId) {
+    const current = charIdFromUrl() || null;
+    if (current !== (charId || null)) {
+      history.replaceState({ ...(history.state || {}), scrollY: window.scrollY }, "");
+      const params = new URLSearchParams(location.search);
+      if (charId) params.set("id", charId);
+      else params.delete("id");
+      const qs = params.toString();
+      // fromGrid: the entry before this one is the browse grid -- lets
+      // "<- All operators" go Back to it (see below).
+      history.pushState({ fromGrid: current === null }, "", qs ? "?" + qs : location.pathname);
+    }
+    renderOperator(charId);
     window.scrollTo({ top: 0 });
   }
+  // Restoring scroll ourselves (from the saved scrollY) -- the browser's
+  // automatic restoration would run before the view is re-rendered.
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
   // --- browsable grid (landing state) -------------------------------------
   // The whole roster as individual boxes -- portrait, name, and a border/
@@ -1874,8 +1921,11 @@
       item.className = `opGridItem opRarity${op.rarity + 1}`;
       item.href = `?id=${encodeURIComponent(op.charId)}`;
       item.onclick = (e) => {
+        // Ctrl/Cmd/Shift/middle-click: let the browser open the link in a
+        // new tab or window as usual.
+        if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
         e.preventDefault();
-        renderOperator(op.charId);
+        navigateTo(op.charId);
       };
 
       // Greyed out, not removed, when it's on the "wrong" side of the
@@ -1948,7 +1998,7 @@
       row.appendChild(name);
       if (op.cnOnly) row.appendChild(buildCnBadge(op));
       row.appendChild(rarity);
-      row.onclick = () => renderOperator(op.charId);
+      row.onclick = () => navigateTo(op.charId);
       jumpResultsEl.appendChild(row);
     });
     jumpResultsEl.classList.remove("hidden");
@@ -1980,7 +2030,7 @@
       updateJumpHighlight();
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (jumpResults[jumpHighlighted]) renderOperator(jumpResults[jumpHighlighted].charId);
+      if (jumpResults[jumpHighlighted]) navigateTo(jumpResults[jumpHighlighted].charId);
     } else if (e.key === "Escape") {
       renderJumpResults([]);
     }
@@ -1990,28 +2040,23 @@
     if (!jumpResultsEl.contains(e.target) && e.target !== jumpInput) renderJumpResults([]);
   });
 
-  // "<- All operators": re-renders the landing/browse state in place,
-  // the same way picking a different operator via the jump box does,
-  // instead of a full page reload -- and drops "?id=" from the URL so a
-  // refresh afterward lands back on the browse grid too, not the
-  // operator just left.
+  // "<- All operators": back to the browse grid, in place. If the grid is
+  // the previous history entry (you came from it), that's just Back --
+  // which also restores where you'd scrolled to; otherwise it's a new
+  // entry like any other navigation.
   backLinkEl.addEventListener("click", (e) => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
-    const params = new URLSearchParams(location.search);
-    if (params.has("id")) {
-      params.delete("id");
-      const qs = params.toString();
-      history.replaceState(null, "", qs ? "?" + qs : location.pathname);
-    }
-    renderOperator(null);
+    if (history.state && history.state.fromGrid) history.back();
+    else navigateTo(null);
   });
 
-  // Back/forward between two operators (both via the jump box, or a
-  // "?id=" link from elsewhere on the site) re-renders in place rather
-  // than reloading, since the browser already updates location.search
-  // for us before this fires.
-  window.addEventListener("popstate", () => {
-    if (dataReady) renderOperator(charIdFromUrl());
+  // Back/Forward: the URL has already changed; re-render to match and put
+  // the scroll position back where it was on that entry.
+  window.addEventListener("popstate", (e) => {
+    if (!dataReady) return;
+    renderOperator(charIdFromUrl());
+    window.scrollTo({ top: (e.state && e.state.scrollY) || 0 });
   });
 
   loadData()
