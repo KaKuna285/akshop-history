@@ -371,13 +371,6 @@
     return new URLSearchParams(location.search).get("id");
   }
 
-  function fmtDate(d) {
-    if (d == null) return null;
-    const date = d instanceof Date ? d : new Date(d);
-    if (isNaN(date.getTime())) return null;
-    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-  }
-
   function textNote(text) {
     const el = document.createElement("div");
     el.className = "opNote";
@@ -480,19 +473,7 @@
   // one just needs "does any event fall within a day of THIS operator's
   // release" for a single operator -- not worth routing through the
   // calendar's own bulk version or extracting a shared one for.
-  //
-  // Both events.json's globalStart ("...T17:00:00") and operator_release_
-  // dates.json's onlineTime ("...17:00:00") use the same plain,
-  // no-UTC-offset timestamp convention -- comparing just the Y-M-D
-  // portion (via Date.UTC, so this doesn't drift with the browser's own
-  // timezone) avoids the ambiguity of parsing either one as a full
-  // timestamp. See calendar.js's own dayKeyFromTimestamp() for the
-  // original version of this reasoning.
-  function dayKeyFromTimestamp(s) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || "");
-    if (!m) return null;
-    return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY_MS);
-  }
+  // (Days compared via dayKeyFromTimestamp() in js/util.js.)
   const EVENT_MATCH_WINDOW_DAYS = 1;
 
   function findReleaseEvent(op) {
@@ -509,20 +490,6 @@
       if (evDay != null && Math.abs(evDay - day) <= EVENT_MATCH_WINDOW_DAYS) return ev;
     }
     return null;
-  }
-
-  // Same wiki-link convention as calendar.js's own wikiUrl() -- segments
-  // encoded individually so a literal "/" in a subpage name (e.g.
-  // "Event/Rerun") stays a subpage path instead of being escaped away.
-  function wikiUrl(pageName) {
-    if (!pageName) return null;
-    return (
-      "https://arknights.wiki.gg/wiki/" +
-      pageName
-        .split("/")
-        .map((seg) => encodeURIComponent(seg.replace(/ /g, "_")))
-        .join("/")
-    );
   }
 
   // --- data loading -----------------------------------------------------

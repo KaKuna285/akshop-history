@@ -36,6 +36,20 @@
   // level, mastery, modules) rather than editing inline, which leaves the
   // "what you still need" list room to read as an actual list on the
   // right instead of a cramped, wrapped cloud of chips.
+  // --- state helpers --------------------------------------------------
+  // Owned by js/operator-edit-modal.js (loaded before this file), which
+  // the planner's edit card already is -- one copy, so the roster logic
+  // here and the card can't disagree on what a valid state is.
+  const {
+    maxPhase,
+    maxLevelFor,
+    hasSkills,
+    maxMastery,
+    clampState,
+    defaultState,
+    defaultTargetState,
+  } = OperatorEditModal;
+
 
   // EN is the primary/default server; CN is merged in on top of it in
   // loadData() below to cover operators/materials not yet released on EN
@@ -292,74 +306,6 @@
       }
     }
     return totals;
-  }
-
-  // --- state helpers --------------------------------------------------
-
-  function maxPhase(op) {
-    return op.phases.length - 1;
-  }
-  function maxLevelFor(op, phase) {
-    const p = op.phases[phase];
-    return p ? p.maxLevel : 1;
-  }
-  function hasSkills(op) {
-    return !!(op.allSkillLvlup && op.allSkillLvlup.length);
-  }
-  function maxMastery(op, skillIdx) {
-    const skill = op.skills && op.skills[skillIdx];
-    return skill && skill.levelUpCostCond ? skill.levelUpCostCond.length : 0;
-  }
-
-  // Keeps a state object's phase/level/skillLevel/mastery/modules within
-  // whatever's actually valid for this operator -- needed both right
-  // after restoring a possibly-stale saved roster (an operator's own
-  // skill/module list can't shrink in practice, but this also guards
-  // against a saved roster entry that's just malformed) and whenever the
-  // phase field changes and the level field's own valid range shifts
-  // under it.
-  function clampState(op, state) {
-    state.phase = Math.max(0, Math.min(state.phase, maxPhase(op)));
-    state.level = Math.max(1, Math.min(state.level, maxLevelFor(op, state.phase)));
-    if (hasSkills(op)) {
-      state.skillLevel = Math.max(1, Math.min(state.skillLevel, 7));
-    } else {
-      state.skillLevel = 1;
-    }
-
-    const mastery = {};
-    (op.skills || []).forEach((skill, idx) => {
-      const cap = maxMastery(op, idx);
-      const v = (state.mastery && state.mastery[idx]) || 0;
-      mastery[idx] = Math.max(0, Math.min(v, cap));
-    });
-    state.mastery = mastery;
-
-    const modules = {};
-    (op.modules || []).forEach((mod) => {
-      const v = (state.modules && state.modules[mod.uniEquipId]) || 0;
-      modules[mod.uniEquipId] = Math.max(0, Math.min(v, 3));
-    });
-    state.modules = modules;
-  }
-
-  function defaultState(op) {
-    return { phase: 0, level: 1, skillLevel: 1, mastery: {}, modules: {} };
-  }
-
-  // A newly-added operator's target starts at a common "just promoted"
-  // goal -- E2 level 1, skill level 7 -- rather than mirroring their
-  // (equally blank) current state, so there's usually something to see
-  // in the summary right away. Mastery/module ranks still default to
-  // None, since there's no similarly common default for those.
-  function defaultTargetState(op) {
-    return {
-      phase: Math.min(2, maxPhase(op)),
-      level: 1,
-      skillLevel: hasSkills(op) ? 7 : 1,
-      mastery: {},
-      modules: {},
-    };
   }
 
   function sanitizeRoster() {

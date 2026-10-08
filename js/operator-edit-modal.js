@@ -10,10 +10,11 @@
 // Deliberately self-contained:
 // - Its own DOM, injected into <body> the first time open() is called
 //   (so no page has to carry the modal's markup in its own HTML).
-// - Its own tiny state-math helpers (maxPhase, clampState, etc.) --
-//   small, stable game-mechanics math, intentionally kept as a separate
-//   copy here rather than reaching into planner.js's own private scope,
-//   which stays free to evolve its cost-calculation code independently.
+// - The state-math helpers (maxPhase, clampState, defaultState, etc.) --
+//   small, stable game-mechanics math. This module owns them and exports
+//   them; planner.js uses these same functions rather than keeping its own
+//   copy, so the planner and this card can't disagree on what a valid
+//   state is.
 // - Its own (separately cached) character-data fetch, for a caller --
 //   like calendar.js -- that doesn't already have a full charTable
 //   loaded. A caller that already has one (the planner page) just
@@ -72,8 +73,7 @@ const OperatorEditModal = (function () {
     });
   }
 
-  // --- tiny state-math helpers (see file header re: why this is a
-  // separate copy rather than reusing planner.js's own) -------------------
+  // --- state-math helpers (also used by planner.js -- see file header) ---
   function maxPhase(op) {
     return op.phases.length - 1;
   }
@@ -88,6 +88,13 @@ const OperatorEditModal = (function () {
     const skill = op.skills && op.skills[skillIdx];
     return skill && skill.levelUpCostCond ? skill.levelUpCostCond.length : 0;
   }
+  // Keeps a state object's phase/level/skillLevel/mastery/modules within
+  // whatever's actually valid for this operator -- needed both right
+  // after restoring a possibly-stale saved roster (an operator's own
+  // skill/module list can't shrink in practice, but this also guards
+  // against a saved roster entry that's just malformed) and whenever the
+  // phase field changes and the level field's own valid range shifts
+  // under it.
   function clampState(op, state) {
     state.phase = Math.max(0, Math.min(state.phase, maxPhase(op)));
     state.level = Math.max(1, Math.min(state.level, maxLevelFor(op, state.phase)));
@@ -115,6 +122,11 @@ const OperatorEditModal = (function () {
   function defaultState() {
     return { phase: 0, level: 1, skillLevel: 1, mastery: {}, modules: {} };
   }
+  // A newly-added operator's target starts at a common "just promoted"
+  // goal -- E2 level 1, skill level 7 -- rather than mirroring their
+  // (equally blank) current state, so there's usually something to see
+  // in the summary right away. Mastery/module ranks still default to
+  // None, since there's no similarly common default for those.
   function defaultTargetState(op) {
     return {
       phase: Math.min(2, maxPhase(op)),
@@ -412,6 +424,9 @@ const OperatorEditModal = (function () {
     defaultTargetState,
     maxState,
     maxPhase,
+    maxLevelFor,
+    maxMastery,
     hasSkills,
+    clampState,
   };
 })();

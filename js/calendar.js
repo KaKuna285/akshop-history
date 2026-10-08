@@ -126,14 +126,6 @@
     return Math.floor(c.getTime() / DAY_MS);
   }
 
-  function fmtDate(iso) {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
   // A few source rows have an end date earlier than their start date (a
   // mistyped year on the wiki, most likely -- events.py now guards against
   // this for newly-estimated dates, but already-cached JSON, or a
@@ -166,17 +158,7 @@
   // same day as the event it debuts alongside, so matching by release-date
   // proximity is a reasonable stand-in.
   //
-  // Both events.json's globalStart ("...T17:00:00") and operator_release_
-  // dates.json's onlineTime ("...17:00:00", space-separated instead of "T")
-  // use the same plain, no-UTC-offset timestamp convention -- comparing just
-  // the Y-M-D portion (via Date.UTC, so this doesn't drift with whatever
-  // timezone the browser is in) avoids the ambiguity of parsing either one
-  // as a full timestamp.
-  function dayKeyFromTimestamp(s) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || "");
-    if (!m) return null;
-    return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY_MS);
-  }
+  // Dates are compared by day via dayKeyFromTimestamp() (js/util.js).
 
   const OPERATOR_MATCH_WINDOW_DAYS = 1;
   // A real debut is 1-4 operators, occasionally more for a collab/
@@ -290,21 +272,6 @@
     const display = hasAnnounced ? "" : "none";
     if (legendAnnouncedItem) legendAnnouncedItem.style.display = display;
     if (filterAnnouncedItem) filterAnnouncedItem.style.display = display;
-  }
-
-  // Builds a /wiki/<page> URL from a MediaWiki page name. Segments are
-  // encoded individually (not the whole string) so a literal "/" in a
-  // subpage name like "Event/Rerun" stays a subpage path instead of being
-  // percent-encoded into one long, broken slug.
-  function wikiUrl(pageName) {
-    if (!pageName) return null;
-    return (
-      "https://arknights.wiki.gg/wiki/" +
-      pageName
-        .split("/")
-        .map((seg) => encodeURIComponent(seg.replace(/ /g, "_")))
-        .join("/")
-    );
   }
 
   // Shared hover tooltip for calendar-grid chips, showing an event's name

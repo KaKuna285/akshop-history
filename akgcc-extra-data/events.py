@@ -122,7 +122,6 @@ extra events -- see fetch_game_mode_theme_rows(). They're tagged with
 `mode`, given a fixed-length window when the wiki has no end date, and
 kept out of the lag model; see GAME_MODE_THEME_DAYS and build_events().
 """
-import requests
 import re
 from difflib import SequenceMatcher
 import os
@@ -131,9 +130,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
-REQUEST_TIMEOUT = 30  # seconds, per attempt
-REQUEST_RETRIES = 3
-REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number
+from common import http_get, parse_date
 
 # Pause between individual image-resolve batches and image downloads (see
 # resolve_image_urls()/download_image()). Mirroring event banners alone
@@ -174,20 +171,6 @@ def percentile(sorted_values, p):
     return sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * frac
 
 
-def http_get(url, **kwargs):
-    kwargs.setdefault('timeout', REQUEST_TIMEOUT)
-    last_exc = None
-    for attempt in range(1, REQUEST_RETRIES + 1):
-        try:
-            return requests.get(url, **kwargs)
-        except requests.exceptions.RequestException as exc:
-            last_exc = exc
-            print(f'Request to {url} failed (attempt {attempt}/{REQUEST_RETRIES}): {exc}')
-            if attempt < REQUEST_RETRIES:
-                time.sleep(REQUEST_BACKOFF * attempt)
-    raise last_exc
-
-
 # Parts of a run that failed without taking the whole run down (the
 # game-mode themes, the skin scrape, a batch of image downloads, ...). Each
 # of those is wrapped in its own try/except on purpose -- one wiki hiccup
@@ -212,22 +195,6 @@ WIKI_API = "https://arknights.wiki.gg/api.php"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
-
-
-def parse_date(s):
-    """Cargo date fields can come back as 'YYYY-MM-DD', with a time
-    component, or occasionally empty/None. Try a few formats and give up
-    (returning None) rather than crashing the whole run over one bad row."""
-    if not s:
-        return None
-    s = str(s).strip()
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d %H:%M:%S", "%Y/%m/%d"):
-        try:
-            return datetime.strptime(s, fmt)
-        except ValueError:
-            continue
-    print(f"Could not parse date: {s!r}")
-    return None
 
 
 OVERRIDES_PATH = "./overrides.json"

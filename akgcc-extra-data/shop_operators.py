@@ -2,38 +2,14 @@
 shop appearances, per server -- EN from arknights.wiki.gg's yearly
 Headhunting/Banners pages, CN from PRTS's banner-list pages (which is also
 where CN's Kernel vs Limited pool distinction comes from).'''
-import requests
 import re
 import json
 import os
 import sys
-import time
 from datetime import datetime, timezone
 from html import unescape
 
-# Plain requests.get() has no timeout by default, so a slow or rate-limited
-# wiki can hang a run indefinitely instead of failing loudly (this is what
-# happened on a run that sat on shop_operators.py for 2+ minutes with no
-# error). http_get() always sets a timeout and retries a couple of times
-# with backoff before actually raising, so a genuinely-down wiki still fails
-# fast and with a clear error in the Action log.
-REQUEST_TIMEOUT = 30  # seconds, per attempt
-REQUEST_RETRIES = 3
-REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number
-
-
-def http_get(url, **kwargs):
-    kwargs.setdefault('timeout', REQUEST_TIMEOUT)
-    last_exc = None
-    for attempt in range(1, REQUEST_RETRIES + 1):
-        try:
-            return requests.get(url, **kwargs)
-        except requests.exceptions.RequestException as exc:
-            last_exc = exc
-            print(f'Request to {url} failed (attempt {attempt}/{REQUEST_RETRIES}): {exc}')
-            if attempt < REQUEST_RETRIES:
-                time.sleep(REQUEST_BACKOFF * attempt)
-    raise last_exc
+from common import http_get
 
 
 NA_OPS = {}

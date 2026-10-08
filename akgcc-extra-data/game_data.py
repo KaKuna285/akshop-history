@@ -380,7 +380,7 @@ def main(argv):
         local_root = argv[1]
     http_get = None
     if local_root is None:
-        from http_util import http_get
+        from common import http_get
     manifest = {"source": MIRROR_BASE, "servers": {}}
     changed = []
     built = {}

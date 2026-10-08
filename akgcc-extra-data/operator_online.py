@@ -1,32 +1,8 @@
-import requests
 import json
 import os
 import sys
-import time
-from datetime import datetime
 
-# Plain requests.get() has no timeout by default, so a slow or rate-limited
-# wiki can hang a run indefinitely instead of failing loudly. http_get()
-# always sets a timeout and retries a couple of times with backoff before
-# actually raising, so a genuinely-down wiki still fails fast and with a
-# clear error in the Action log.
-REQUEST_TIMEOUT = 30  # seconds, per attempt
-REQUEST_RETRIES = 3
-REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number
-
-
-def http_get(url, **kwargs):
-    kwargs.setdefault('timeout', REQUEST_TIMEOUT)
-    last_exc = None
-    for attempt in range(1, REQUEST_RETRIES + 1):
-        try:
-            return requests.get(url, **kwargs)
-        except requests.exceptions.RequestException as exc:
-            last_exc = exc
-            print(f'Request to {url} failed (attempt {attempt}/{REQUEST_RETRIES}): {exc}')
-            if attempt < REQUEST_RETRIES:
-                time.sleep(REQUEST_BACKOFF * attempt)
-    raise last_exc
+from common import http_get, parse_date
 
 
 DATA = {}
@@ -268,25 +244,6 @@ def scrape_wiki():
 
 
 OPERATOR_OVERRIDES_PATH = "./operator_overrides.json"
-
-
-def parse_date(s):
-    """Lenient date parsing for hand-entered override dates -- accepts a
-    plain 'YYYY-MM-DD' (most people filling this in by hand won't know or
-    care about the exact server-reset hour) as well as the full
-    'YYYY-MM-DD HH:MM:SS' format the wiki's own Cargo startTime values
-    arrive in, so operator_release_dates.json stays consistent either
-    way. Mirrors events.py's own parse_date()."""
-    if not s:
-        return None
-    s = str(s).strip()
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d %H:%M:%S", "%Y/%m/%d"):
-        try:
-            return datetime.strptime(s, fmt)
-        except ValueError:
-            continue
-    print(f"Could not parse date: {s!r}")
-    return None
 
 
 def load_operator_overrides(path=OPERATOR_OVERRIDES_PATH):

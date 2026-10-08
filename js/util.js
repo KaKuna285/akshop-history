@@ -231,6 +231,43 @@ const DATA_BASE = {
   [SERVERS.KR]: `${GAME_DATA_MIRROR}/kr`,
   [SERVERS.CN]: `${GAME_DATA_MIRROR}/cn`,
 };
+// --- small helpers shared by the calendar and operator pages ----------
+
+// "Oct 8, 2026" (in the browser's locale) for a Date or anything Date can
+// parse; null for a missing or unparseable value.
+function fmtDate(d) {
+  if (d == null) return null;
+  const date = d instanceof Date ? d : new Date(d);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+// A whole-day number for comparing dates by day. events.json's
+// globalStart ("...T17:00:00") and operator_release_dates.json's
+// onlineTime ("... 17:00:00") use the same plain, no-UTC-offset timestamp
+// convention, so only the Y-M-D part is read (via Date.UTC, so it doesn't
+// drift with the browser's timezone) instead of parsing a full timestamp.
+function dayKeyFromTimestamp(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || "");
+  if (!m) return null;
+  return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000);
+}
+
+// A /wiki/<page> URL on arknights.wiki.gg for a MediaWiki page name.
+// Segments are encoded individually (not the whole string) so a literal
+// "/" in a subpage name like "Event/Rerun" stays a subpage path instead of
+// being percent-encoded into one long, broken slug.
+function wikiUrl(pageName) {
+  if (!pageName) return null;
+  return (
+    "https://arknights.wiki.gg/wiki/" +
+    pageName
+      .split("/")
+      .map((seg) => encodeURIComponent(seg.replace(/ /g, "_")))
+      .join("/")
+  );
+}
+
 // Slim copies of the game-data tables, built daily by
 // akgcc-extra-data/game_data.py and published next to the rest of this
 // site's data. Same top-level shape and field names as the upstream
