@@ -422,13 +422,87 @@ IMAGES_DIR = "./images"
 PUBLIC_IMAGE_BASE = "https://raw.githubusercontent.com/KaKuna285/akshop-history/main/akgcc-extra-data/images/"
 
 
-def local_image_name(wiki_filename):
-    """A filesystem/git/URL-safe local name for a wiki filename -- kept
-    recognizable (so the repo's images/ folder stays human-browsable)
-    but with spaces and anything that could be awkward across
-    filesystems or in a URL path replaced with an underscore."""
+# Mirrored images are stored as WebP, scaled down to at most this width.
+# The wiki's banners are 1560x500 PNGs of ~1.2 MB each -- 230+ MB in all,
+# downloaded in full by every daily Action checkout and by every visitor
+# who opens a preview. The calendar shows a banner at most ~640 CSS px
+# wide (.eventPreview's max-width), so 1280 px stays sharp on 2x screens;
+# as WebP that's ~5-10% of the original size. Smaller images (operator
+# icons, 180x180) are only re-encoded, never upscaled.
+MIRROR_MAX_WIDTH = 1280
+MIRROR_WEBP_QUALITY = 82
+# Conversions that failed this run (kept as the original instead) --
+# reported by localize_images() as a degraded run, since a missing Pillow
+# would otherwise quietly bring back full-size PNGs.
+IMAGE_CONVERT_FAILURES = []
+
+
+def legacy_image_name(wiki_filename):
+    """The local name used before mirrored images were converted to WebP:
+    a filesystem/git/URL-safe version of the wiki filename (spaces and
+    anything awkward replaced with an underscore), original extension
+    kept. Still used for the converted file's stem, and to find an
+    unconverted original to migrate (see download_image())."""
     name = wiki_filename.strip().replace(" ", "_")
     return re.sub(r"[^A-Za-z0-9_.\-]", "_", name)
+
+
+def local_image_name(wiki_filename):
+    """The mirrored file's local name: the legacy name with its extension
+    swapped for .webp ("CN_Yet_Another_Wave_banner.png" ->
+    "CN_Yet_Another_Wave_banner.webp")."""
+    return os.path.splitext(legacy_image_name(wiki_filename))[0] + ".webp"
+
+
+def to_webp(data):
+    """Re-encode image bytes as WebP, scaled down to MIRROR_MAX_WIDTH if
+    wider (aspect ratio kept). Transparency is kept. Raises on anything
+    Pillow can't read."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    with Image.open(BytesIO(data)) as im:
+        im.load()
+        if im.mode not in ("RGB", "RGBA"):
+            im = im.convert("RGBA" if ("transparency" in im.info or im.mode in ("LA", "PA", "P")) else "RGB")
+        if im.width > MIRROR_MAX_WIDTH:
+            height = max(1, round(im.height * MIRROR_MAX_WIDTH / im.width))
+            im = im.resize((MIRROR_MAX_WIDTH, height), Image.LANCZOS)
+        out = BytesIO()
+        im.save(out, "WEBP", quality=MIRROR_WEBP_QUALITY, method=6)
+        return out.getvalue()
+
+
+def write_mirrored_image(wiki_filename, data):
+    """Save image bytes as the WebP mirror. If conversion fails (Pillow
+    missing, an unreadable format), the original bytes are kept under the
+    legacy name instead, so the image still works -- returns whichever
+    local name was written."""
+    os.makedirs(IMAGES_DIR, exist_ok=True)
+    try:
+        webp = to_webp(data)
+    except Exception as exc:
+        print(f"Couldn't convert {wiki_filename!r} to WebP, keeping the original: {exc}")
+        IMAGE_CONVERT_FAILURES.append(wiki_filename)
+        name = legacy_image_name(wiki_filename)
+        with open(os.path.join(IMAGES_DIR, name), "wb") as f:
+            f.write(data)
+        return name
+    name = local_image_name(wiki_filename)
+    tmp = os.path.join(IMAGES_DIR, name + ".tmp")
+    with open(tmp, "wb") as f:
+        f.write(webp)
+    os.replace(tmp, os.path.join(IMAGES_DIR, name))
+    return name
+
+
+def mirrored_image_exists(wiki_filename):
+    """Already mirrored, as WebP or as a not-yet-converted original."""
+    return any(
+        os.path.exists(os.path.join(IMAGES_DIR, n))
+        for n in (local_image_name(wiki_filename), legacy_image_name(wiki_filename))
+    )
 
 
 def resolve_image_urls(filenames):
@@ -513,9 +587,20 @@ def download_image(wiki_filename, resolved_url):
     mirrored, or no resolved URL to try) don't touch the network at
     all, so there's nothing to pace there."""
     local_name = local_image_name(wiki_filename)
-    local_path = os.path.join(IMAGES_DIR, local_name)
-    if os.path.exists(local_path):
+    if os.path.exists(os.path.join(IMAGES_DIR, local_name)):
         return local_name
+    # Mirrored before images were stored as WebP: convert the local copy
+    # (no download needed) and remove the original. This is how the
+    # existing images migrate -- each on the first run that sees it.
+    legacy_name = legacy_image_name(wiki_filename)
+    legacy_path = os.path.join(IMAGES_DIR, legacy_name)
+    if legacy_name != local_name and os.path.exists(legacy_path):
+        with open(legacy_path, "rb") as f:
+            data = f.read()
+        written = write_mirrored_image(wiki_filename, data)
+        if written == local_name:
+            os.remove(legacy_path)
+        return written
     if not resolved_url:
         print(f"Skipping image {wiki_filename!r}: could not resolve a real URL for it")
         return None
@@ -528,10 +613,7 @@ def download_image(wiki_filename, resolved_url):
                 f"status={r.status_code} content-type={content_type!r}"
             )
             return None
-        os.makedirs(IMAGES_DIR, exist_ok=True)
-        with open(local_path, "wb") as f:
-            f.write(r.content)
-        return local_name
+        return write_mirrored_image(wiki_filename, r.content)
     except Exception as exc:
         print(f"Could not download image {wiki_filename!r}: {exc}")
         return None
@@ -558,12 +640,12 @@ def localize_images(events, operators_by_event=None):
     needed = set()
     for entry in events:
         filename = entry.get("image")
-        if filename and not os.path.exists(os.path.join(IMAGES_DIR, local_image_name(filename))):
+        if filename and not mirrored_image_exists(filename):
             needed.add(filename)
     for op_list in operators_by_event.values():
         for op in op_list:
             filename = op.get("icon")
-            if filename and not os.path.exists(os.path.join(IMAGES_DIR, local_image_name(filename))):
+            if filename and not mirrored_image_exists(filename):
                 needed.add(filename)
     resolved_urls = resolve_image_urls(needed) if needed else {}
 
@@ -602,6 +684,12 @@ def localize_images(events, operators_by_event=None):
     failed = sum(1 for v in cache.values() if v is None)
     if failed >= 2 and failed * 2 >= len(cache):
         note_degraded("images", f"{failed} of {len(cache)} image downloads failed this run")
+    if IMAGE_CONVERT_FAILURES:
+        note_degraded(
+            "images",
+            f"{len(IMAGE_CONVERT_FAILURES)} image(s) couldn't be converted to WebP and were kept as-is "
+            f"(first: {IMAGE_CONVERT_FAILURES[0]})",
+        )
 
     return events
 

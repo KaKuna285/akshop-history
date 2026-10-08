@@ -284,6 +284,21 @@ changed banner gets a new filename upstream, e.g. " Rerun" appended), so
 `images/` only grows by what's new or changed on any given run, and the
 workflow's commit step picks it up alongside `json/*.json`.
 
+Mirrored images are stored as **WebP, scaled down to at most 1280 px
+wide** (`to_webp()` / `write_mirrored_image()`, using Pillow). The wiki's
+banners are 1560x500 PNGs of ~1.2 MB each, which added up to ~233 MB -
+downloaded in full by every daily Action checkout, and ~1.2 MB per banner
+for anyone opening a preview. The preview shows a banner at most ~640 CSS
+px wide, so 1280 px stays sharp on 2x screens, and the WebP is ~5% of the
+original size (the whole folder: 233 MB -> ~22 MB). Operator icons are
+only re-encoded, never upscaled. Images mirrored before this change were
+converted in place by the first run after it - `download_image()` finds
+the old PNG under its old name (`legacy_image_name()`), converts it, and
+deletes it, with no new download - and any image that can't be converted
+is kept as the original and reported as a degraded run. Old PNGs remain
+in git history, so the `.git` folder itself doesn't shrink; the checkout
+and every page load do.
+
 The same preview panel also lists any new operators introduced by that
 event, each with a small portrait icon, rarity, and class. This comes
 from the wiki's `Operators` Cargo table (`fetch_event_operators()`),

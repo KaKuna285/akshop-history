@@ -31,7 +31,8 @@ jobs:
         with:
           python-version: "3.x"
       - name: Install dependencies
-        run: pip install requests
+        # pillow: events.py stores mirrored event art as resized WebP
+        run: pip install requests pillow
       # The three updates are independent: each one failing must not stop
       # the other two (or the commit below) from running, so each has
       # `continue-on-error` and an id whose `outcome` the health step reads.
