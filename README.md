@@ -32,10 +32,12 @@ Everything is a static site (no build step) plus a daily data pipeline:
   (`dispatch-cron/`). See "Deploying the Cloudflare Workers".
 - **`js/`, `css/`, `*/index.html`** - the site itself, served by a third
   Worker (`wrangler.jsonc` at the root). That Worker's own code,
-  `worker/index.js`, only handles `/mirror/myrtle/*`: a permanent copy, in
-  Cloudflare R2, of the myrtle.moe skin art and animated chibis the
-  operator page shows, so myrtle.moe gets one request per file ever
-  rather than one per visitor.
+  `worker/index.js`, only handles `/mirror/*`: a permanent copy, in
+  Cloudflare R2, of the skin art and animated chibis the operator page
+  shows - from myrtle.moe (`/mirror/myrtle/`), and for CN-only operators
+  and skins, which myrtle.moe doesn't have, the CN client's assets in the
+  ArknightsAssets2 dump on GitHub (`/mirror/aa2/`) - so each source gets
+  one request per file ever rather than one per visitor.
 
 `js/`, `css/`, `webfonts/`, `images/`, `LICENSE` and `UPSTREAM_README.md`
 originally came from
@@ -674,7 +676,7 @@ into the dashboard:
 
 | Worker | Root directory | What it is |
 |---|---|---|
-| `akshop-history` | (repo root) | The site itself (`wrangler.jsonc` at the root serves the static files; `worker/index.js` runs the R2 mirror at `/mirror/myrtle/*`) |
+| `akshop-history` | (repo root) | The site itself (`wrangler.jsonc` at the root serves the static files; `worker/index.js` runs the R2 mirror at `/mirror/*`) |
 | `akshop-depot-import` | `cloudflare/depot-import` | The account-sync endpoint (`index.js`) |
 | `akshop-history-cron` | `cloudflare/dispatch-cron` | The daily trigger for the data workflow (`index.js`) |
 

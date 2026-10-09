@@ -100,6 +100,19 @@ function uri_skin_illust_myrtle(charId, portraitId, isBuySkin, size = "display")
   return myrtleAssetUrl(`textures/${dir}/${charId}/${portraitId}${suffix}.png`);
 }
 
+// Full-illustration URL from the CN client's assets (ArknightsAssets2 on
+// GitHub, through this site's R2 mirror -- CN_ART_MIRROR_BASE in config.js):
+// "characters/<charId>/<portraitId>.png", default and skin art alike, with
+// the same smaller "b" copy as myrtle.moe has (size "display"). This is what
+// covers CN-only operators and skins.
+function uri_skin_illust_cn(charId, portraitId, size = "display") {
+  const base =
+    (typeof CN_ART_MIRROR_BASE !== "undefined" && CN_ART_MIRROR_BASE) ||
+    "https://raw.githubusercontent.com/ArknightsAssets/ArknightsAssets2/cn/assets/dyn/arts/";
+  const suffix = size === "full" ? "" : "b";
+  return base + ["characters", charId, `${portraitId}${suffix}.png`].map(encodeURIComponent).join("/");
+}
+
 // A myrtle.moe asset path ("textures/...", "spine/...", unencoded) as a URL:
 // through this site's R2 mirror (MYRTLE_MIRROR_BASE in config.js) when
 // that's set, so myrtle.moe only ever sees one request per file, else

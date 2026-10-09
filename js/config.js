@@ -38,6 +38,11 @@ const DEPOT_IMPORT_ENDPOINT = "https://akshop-depot-import.freddyhansson.workers
 // Worker and bucket).
 const MYRTLE_MIRROR_BASE = "https://ak.athansson.com/mirror/myrtle/";
 
+// The same R2 mirror's copy of the ArknightsAssets2 dump (CN game client
+// assets on GitHub, updated daily) -- full art for CN-only operators and
+// skins, which myrtle.moe doesn't have. Blank to fetch from GitHub directly.
+const CN_ART_MIRROR_BASE = "https://ak.athansson.com/mirror/aa2/";
+
 // Cloudflare Image Transformations on this site's own zone (dashboard:
 // Images -> Transformations, enabled for the zone, with this site's own
 // domain as an allowed source origin). The skin preview fetches its full

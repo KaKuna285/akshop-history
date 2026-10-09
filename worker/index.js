@@ -3,32 +3,45 @@
 // wrangler.jsonc's assets.run_worker_first), so this only handles the
 // mirror below.
 //
-// /mirror/myrtle/<path> -- a permanent copy of myrtle.moe's game assets
-// (https://api.myrtle.moe/api/assets/<path>) kept in the R2 bucket
-// "akshop-mirror" (binding MIRROR). The operator page's skin previews load
-// their full illustrations and animated chibis through here, so each file
-// is downloaded from myrtle.moe once, ever, instead of once per visitor:
+// /mirror/<source>/<path> -- a permanent copy of game assets kept in the R2
+// bucket "akshop-mirror" (binding MIRROR), from one of SOURCES below:
+//   myrtle -- myrtle.moe's asset API: EN skin art and animated chibis
+//   aa2    -- the ArknightsAssets2 dump on GitHub (CN client, updated
+//             daily): art for CN-only operators and skins myrtle.moe
+//             doesn't have
+// The operator page's skin previews load their full illustrations and
+// chibis through here, so each file is downloaded from its source once,
+// ever, instead of once per visitor:
 //
 //   1. Cloudflare's edge cache, if this data centre has it.
 //   2. R2. Kept indefinitely: these files don't change after release.
-//   3. myrtle.moe. A 200 that really is the file type asked for (see
+//   3. The source. A 200 that really is the file type asked for (see
 //      looksValid()) is copied into R2 and served. A 404 is only
 //      remembered in the edge cache, for a day -- not in R2, so requests
-//      for made-up file names can't fill the bucket. Asking myrtle.moe is
+//      for made-up file names can't fill the bucket. Asking a source is
 //      also rate limited per visitor IP (UPSTREAM_LIMITER), so made-up
 //      names can't be used to hammer it through this Worker either.
 //
 // Only the folders and file types the operator page uses are allowed, so
 // this can't be used as a general-purpose proxy.
 
-const UPSTREAM = "https://api.myrtle.moe/api/assets/";
-const ALLOWED = [
-  { prefix: "textures/chararts/", ext: ["png"] },
-  { prefix: "textures/skinpack/", ext: ["png"] },
-  { prefix: "spine/BattleFront/", ext: ["skel", "atlas", "png"] },
-  { prefix: "spine/BattleBack/", ext: ["skel", "atlas", "png"] },
-  { prefix: "spine/Building/", ext: ["skel", "atlas", "png"] },
-];
+const SOURCES = {
+  myrtle: {
+    upstream: "https://api.myrtle.moe/api/assets/",
+    allowed: [
+      { prefix: "textures/chararts/", ext: ["png"] },
+      { prefix: "textures/skinpack/", ext: ["png"] },
+      { prefix: "spine/BattleFront/", ext: ["skel", "atlas", "png"] },
+      { prefix: "spine/BattleBack/", ext: ["skel", "atlas", "png"] },
+      { prefix: "spine/Building/", ext: ["skel", "atlas", "png"] },
+    ],
+  },
+  aa2: {
+    // characters/<charId>/<portraitId>[b].png -- default and skin art alike
+    upstream: "https://raw.githubusercontent.com/ArknightsAssets/ArknightsAssets2/cn/assets/dyn/arts/",
+    allowed: [{ prefix: "characters/", ext: ["png"] }],
+  },
+};
 const CONTENT_TYPES = {
   png: "image/png",
   atlas: "text/plain; charset=utf-8",
@@ -40,18 +53,22 @@ const MISSING_CACHE = "public, max-age=86400";
 // "_", "#", "-", "." and "/" between folders, nothing else.
 const SAFE_PATH = /^[A-Za-z0-9_#.\-/]+$/;
 
+// "/mirror/<source>/<path>" -> { source, path } (path decoded), or null for
+// an unknown source or a path outside that source's allowed folders/types.
 export function mirrorKey(pathname) {
-  if (!pathname.startsWith("/mirror/myrtle/")) return null;
+  const m = /^\/mirror\/([a-z0-9]+)\/(.+)$/.exec(pathname);
+  const source = m && Object.prototype.hasOwnProperty.call(SOURCES, m[1]) ? m[1] : null;
+  if (!source) return null;
   let path;
   try {
-    path = decodeURIComponent(pathname.slice("/mirror/myrtle/".length));
+    path = decodeURIComponent(m[2]);
   } catch {
     return null;
   }
   if (!SAFE_PATH.test(path) || path.includes("..") || path.includes("//")) return null;
   const ext = path.slice(path.lastIndexOf(".") + 1);
-  if (!ALLOWED.some((a) => path.startsWith(a.prefix) && a.ext.includes(ext))) return null;
-  return path;
+  if (!SOURCES[source].allowed.some((a) => path.startsWith(a.prefix) && a.ext.includes(ext))) return null;
+  return { source, path };
 }
 
 // Whether an upstream 200 is plausibly the real file, so an error page or a
@@ -71,8 +88,8 @@ export function looksValid(ext, bytes) {
   return true; // skel: binary, nothing simple to check beyond the above
 }
 
-function upstreamUrl(path) {
-  return UPSTREAM + path.split("/").map(encodeURIComponent).join("/");
+function encodePath(path) {
+  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 function respond(status, body, path, cacheControl, extra = {}) {
@@ -94,11 +111,12 @@ async function handleMirror(request, env, ctx) {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return respond(405, "Method not allowed", null, "no-store", { allow: "GET, HEAD" });
   }
-  const path = mirrorKey(new URL(request.url).pathname);
-  if (!path) return respond(404, "Not found", null, MISSING_CACHE);
+  const target = mirrorKey(new URL(request.url).pathname);
+  if (!target) return respond(404, "Not found", null, MISSING_CACHE);
+  const { source, path } = target;
 
   // Same cache key for GET and HEAD, ignoring any query string.
-  const cacheKey = new Request(new URL("/mirror/myrtle/" + path.split("/").map(encodeURIComponent).join("/"), request.url).toString());
+  const cacheKey = new Request(new URL(`/mirror/${source}/${encodePath(path)}`, request.url).toString());
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
   if (hit) return request.method === "HEAD" ? new Response(null, hit) : hit;
@@ -108,7 +126,7 @@ async function handleMirror(request, env, ctx) {
     return request.method === "HEAD" ? new Response(null, res) : res;
   };
 
-  const key = "myrtle/" + path;
+  const key = `${source}/${path}`;
   const stored = await env.MIRROR.get(key);
   // (Objects with missingSince metadata are 404 markers an earlier version
   // of this Worker stored; they're ignored and get overwritten if the file
@@ -130,7 +148,7 @@ async function handleMirror(request, env, ctx) {
 
   let upstream;
   try {
-    upstream = await fetch(upstreamUrl(path), { headers: { "user-agent": "ak.athansson.com mirror (one fetch per file)" } });
+    upstream = await fetch(SOURCES[source].upstream + encodePath(path), { headers: { "user-agent": "ak.athansson.com mirror (one fetch per file)" } });
   } catch (err) {
     return respond(502, "Upstream fetch failed", null, "no-store");
   }
@@ -138,7 +156,8 @@ async function handleMirror(request, env, ctx) {
     return finish(respond(404, "Not found upstream", path, MISSING_CACHE, { "x-mirror": "upstream-missing" }));
   }
   if (!upstream.ok) {
-    // A myrtle.moe outage: don't remember anything, just pass the failure on.
+    // An outage or rate limit upstream: don't remember anything, just pass
+    // the failure on.
     return respond(502, `Upstream returned ${upstream.status}`, null, "no-store");
   }
   const body = await upstream.arrayBuffer();

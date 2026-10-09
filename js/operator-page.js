@@ -579,7 +579,10 @@
     try {
       const cnSkins = await loadSkinTable(SERVERS.CN);
       for (const [skinId, data] of Object.entries(cnSkins)) {
-        if (!skins[skinId]) skins[skinId] = data;
+        if (!skins[skinId]) {
+          data.cnOnly = true; // see loadFullArt(): its art comes from the CN client
+          skins[skinId] = data;
+        }
       }
     } catch (err) {
       console.warn("Couldn't load CN-exclusive skin data:", err);
@@ -669,15 +672,19 @@
 
   // Full illustration for a skin, resolved once per skin and cached:
   // skinId -> Promise of the first URL that loaded (null if none did).
-  // Sources, in order:
+  // Two sources of the art, both through the site's R2 mirror:
+  //  - myrtle.moe (uri_skin_illust_myrtle()) -- everything on EN
+  //  - the CN client's assets (uri_skin_illust_cn()) -- also has CN-only
+  //    operators and skins, which myrtle.moe doesn't
+  // A CN-only skin (flagged when the CN skin table is merged in) tries the
+  // CN source first, everything else myrtle.moe first; each falls back to
+  // the other. Each is tried, in order:
   //  1. through Cloudflare Image Transformations (uri_transformed(),
-  //     IMAGE_TRANSFORM_BASE in config.js): WebP/AVIF at preview size,
-  //     read from the site's R2 mirror of myrtle.moe and cached
+  //     IMAGE_TRANSFORM_BASE in config.js): WebP/AVIF at preview size, cached
   //  2. the mirror's original PNG, if transformations aren't set up or the
-  //     monthly quota is used up (myrtleAssetUrl() in util.js -- straight
-  //     from myrtle.moe if the mirror isn't configured)
+  //     monthly quota is used up
   //  3. Aceship -- frozen since May 2024 and ~3s for 1MB; last resort
-  // For each, myrtle.moe's 1024px "b" copy comes first (~0.3-1MB); some
+  // For each source the 1024px "b" copy comes first (~0.3-1MB); some
   // default/Elite art only has the 2048-2560px original (1-6MB).
   const fullArtBySkinId = new Map();
   // The size of myrtle.moe's "b" copies, so they're converted without
@@ -703,10 +710,12 @@
     // the base "Default outfit" (ILLUST_0), e.g. Amiya's avatarId is the
     // bare "char_002_amiya" while her art is "char_002_amiya_1".
     const portraitId = skin.portraitId || skin.avatarId || skin.skinId;
-    const mirrored = [
+    const myrtle = [
       uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, "display"),
       uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, "full"),
     ];
+    const cn = [uri_skin_illust_cn(skin.charId, portraitId, "display"), uri_skin_illust_cn(skin.charId, portraitId, "full")];
+    const mirrored = skin.cnOnly ? [...cn, ...myrtle] : [...myrtle, ...cn];
     const candidates = [
       ...mirrored.map((url) => uri_transformed(url, SKIN_ART_WIDTH)).filter(Boolean),
       ...mirrored,
