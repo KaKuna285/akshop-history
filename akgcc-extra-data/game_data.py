@@ -178,6 +178,12 @@ MEDAL = {
     )
 }
 
+# Base (RIIC) skills, for the operator page: chars[charId].buffChar is a
+# list of skill slots, each a list of tiers (buffData) unlocked by Elite
+# phase/level; buffs[buffId] holds a tier's name, room and description.
+BUILDING_CHAR = {"buffChar": [{"buffData": [{"buffId": True, "cond": {"phase": True, "level": True}}]}]}
+BUILDING_BUFF = {k: True for k in ("buffName", "description", "roomType", "skillIcon", "buffColor", "textColor")}
+
 GAMEDATA_CONST_KEYS = ["characterExpMap", "characterUpgradeCostMap", "evolveGoldCost"]
 
 # What the CN character table still has to carry for an operator EN
@@ -237,6 +243,11 @@ def build_cn(cn, en):
     out["skin_table"] = {"charSkins": {k: v for k, v in cn["skin_table"]["charSkins"].items() if k not in en_skins}}
     en_items = en["item_table"]["items"]
     out["item_table"] = {"items": {k: v for k, v in cn["item_table"]["items"].items() if k not in en_items}}
+    en_building = en["building_data"]
+    out["building_data"] = {
+        "chars": {k: v for k, v in cn["building_data"]["chars"].items() if k not in en_building["chars"]},
+        "buffs": {k: v for k, v in cn["building_data"]["buffs"].items() if k not in en_building["buffs"]},
+    }
     return out
 
 
@@ -306,6 +317,25 @@ def build(tables):
 
     medals = tables["medal_table"].get("medalList") or []
     out["medal_table"] = {"medalList": [slim(m, MEDAL) for m in medals]}
+
+    # Base skills: only for kept characters, and only the buffs they use.
+    building = tables["building_data"]
+    b_chars = {
+        k: slim(v, BUILDING_CHAR)
+        for k, v in (building.get("chars") or {}).items()
+        if k in all_chars and isinstance(v, dict)
+    }
+    buff_ids = {
+        d.get("buffId")
+        for c in b_chars.values()
+        for slot in (c.get("buffChar") or [])
+        for d in (slot.get("buffData") or [])
+        if isinstance(d, dict)
+    }
+    out["building_data"] = {
+        "chars": b_chars,
+        "buffs": {k: slim(v, BUILDING_BUFF) for k, v in (building.get("buffs") or {}).items() if k in buff_ids},
+    }
     return out
 
 
@@ -319,6 +349,7 @@ TABLES = [
     "item_table",
     "gamedata_const",
     "medal_table",
+    "building_data",
 ]
 
 
@@ -379,8 +410,17 @@ def sanity_check(server, slim_tables):
         "skin_table": len(slim_tables["skin_table"]["charSkins"]),
         "item_table": len(slim_tables["item_table"]["items"]),
         "medal_table": len(slim_tables["medal_table"]["medalList"]),
+        "building_data": len(slim_tables["building_data"]["chars"]),
     }
-    minimums = {"character_table": 300, "skill_table": 500, "uniequip_table": 100, "skin_table": 500, "item_table": 500, "medal_table": 100}
+    minimums = {
+        "character_table": 300,
+        "skill_table": 500,
+        "uniequip_table": 100,
+        "skin_table": 500,
+        "item_table": 500,
+        "medal_table": 100,
+        "building_data": 300,
+    }
     low = {k: v for k, v in counts.items() if v < minimums[k]}
     if low:
         raise RuntimeError(f"{server}: suspiciously few rows {low} -- not writing")

@@ -850,6 +850,81 @@ body.skinZoomOpen {
   line-height: 1.4;
 }
 
+/* --- Base skills ---------------------------------------------------------- */
+/* Each slot is an .opTalentBlock; its tiers (a later one replaces an earlier
+   one once unlocked) are rows with the game's colored icon tile. */
+
+.opBaseSkillRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 4px 0;
+  font-size: 0.85rem;
+}
+
+.opBaseSkillRow + .opBaseSkillRow {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+}
+
+.opBaseSkillIcon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.opBaseSkillIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.opBaseSkillBody {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.opBaseSkillHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.opBaseSkillName {
+  margin-bottom: 0;
+}
+
+.opBaseSkillRoom {
+  font-size: 0.72rem;
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.opBaseUp {
+  color: #6fcf6f;
+}
+
+.opBaseDown {
+  color: #ff7b72;
+}
+
+.opBaseKeyword {
+  color: #6fb3ff;
+}
+
+.opBaseNote {
+  color: #999;
+}
+
 /* --- Potential upgrades --------------------------------------------------- */
 
 .opPotentialRow {

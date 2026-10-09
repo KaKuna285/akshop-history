@@ -2,7 +2,7 @@
   // Per-operator page: release dates (EN/CN, plus the event it likely
   // debuted alongside, best-effort), stats with Elite/level/module
   // controls, talents, potential upgrades, skills with a Lv1-M3 slider per
-  // skill, modules and skins -- plus an "Add to planner" button that opens
+  // skill, modules, base skills and skins -- plus an "Add to planner" button that opens
   // the shared edit modal also used by the planner and calendar pages.
   // With no operator picked, the page shows the whole roster as a
   // filterable, sortable grid (see "browsable grid" below).
@@ -31,6 +31,8 @@
   //     .overrideTraitDataBundle).
   //   - skin_table.json (EN+CN merged here): skins and default outfits.
   //   - uniequip_lore (fetched on first use): module flavor text.
+  //   - building_data (EN+CN, loaded alongside the rest but not waited
+  //     for): base skills.
   //   - events.json (best-effort): the "Released alongside" row.
   //
   // SUBCLASS_NAMES and FACTION_NAMES turn raw subProfessionId/nationId/
@@ -75,6 +77,7 @@
   const potentialsInfoEl = document.getElementById("opPotentialsInfo");
   const skillsInfoEl = document.getElementById("opSkillsInfo");
   const modulesInfoEl = document.getElementById("opModulesInfo");
+  const baseSkillsInfoEl = document.getElementById("opBaseSkillsInfo");
   const skinsInfoEl = document.getElementById("opSkinsInfo");
   const skinPreviewOverlayEl = document.getElementById("skinPreviewOverlay");
   const skinPreviewEl = document.getElementById("skinPreview");
@@ -454,6 +457,7 @@
   }
 
   async function loadData() {
+    loadBaseSkills(); // starts the download; renderBaseSkills() waits for it
     const [chars, skills, battleEquip, skins] = await Promise.all([
       OperatorEditModal.loadCharTable(),
       loadSkillTable(SERVER),
@@ -1282,6 +1286,152 @@
     });
   }
 
+  // --- base skills --------------------------------------------------------
+
+  // building_data: chars[charId].buffChar is a list of base-skill slots,
+  // each a list of tiers (buffData: { buffId, cond: { phase, level } }) where
+  // a later tier replaces the earlier one once unlocked; buffs[buffId] has
+  // the tier's name, room, icon and description. EN, with CN filling in
+  // CN-only operators. Loaded once, without holding up the rest of the page;
+  // a failed load isn't cached, so the next operator shown retries.
+  let baseSkillsPromise = null;
+  function loadBaseSkills() {
+    if (!baseSkillsPromise) {
+      baseSkillsPromise = (async () => {
+        const data = { chars: {}, buffs: {} };
+        for (const server of [SERVERS.CN, SERVERS.EN]) {
+          try {
+            const json = await fixedJson(await gameDataFetch(server, "building_data"));
+            Object.assign(data.chars, json.chars || {});
+            Object.assign(data.buffs, json.buffs || {});
+          } catch (err) {
+            console.warn(`Couldn't load ${server} base skills:`, err);
+          }
+        }
+        if (!Object.keys(data.chars).length) baseSkillsPromise = null;
+        return data;
+      })();
+    }
+    return baseSkillsPromise;
+  }
+
+  const BASE_ROOM_NAMES = {
+    CONTROL: "Control Center",
+    MANUFACTURE: "Factory",
+    TRADING: "Trading Post",
+    POWER: "Power Plant",
+    DORMITORY: "Dormitory",
+    MEETING: "Reception Room",
+    HIRE: "Office",
+    WORKSHOP: "Workshop",
+    TRAINING: "Training Room",
+  };
+
+  // Base-skill text marks values and keywords with tags: <@cc.vup>+15%</>
+  // (an increase), <@cc.vdown> (a decrease), <@cc.kw> (a keyword),
+  // <@cc.rem> (a side note) and <$cc...> (a glossary term). Each becomes a
+  // styled span; anything else is plain text.
+  const BASE_TEXT_CLASSES = { "cc.vup": "opBaseUp", "cc.vdown": "opBaseDown", "cc.kw": "opBaseKeyword", "cc.rem": "opBaseNote" };
+  function appendBaseSkillText(parent, text) {
+    const stack = [parent];
+    const re = /<([@$])([^>]*)>|<\/>/g;
+    let last = 0;
+    let m;
+    const addText = (s) => {
+      if (s) stack[stack.length - 1].appendChild(document.createTextNode(s.replace(/</g, "")));
+    };
+    while ((m = re.exec(text || ""))) {
+      addText(text.slice(last, m.index));
+      last = re.lastIndex;
+      if (m[0] === "</>") {
+        if (stack.length > 1) stack.pop();
+        continue;
+      }
+      const span = document.createElement("span");
+      const styleKey = m[2].split(".").slice(0, 2).join(".");
+      span.className = m[1] === "$" ? "opBaseTerm" : BASE_TEXT_CLASSES[styleKey] || "";
+      stack[stack.length - 1].appendChild(span);
+      stack.push(span);
+    }
+    addText((text || "").slice(last));
+  }
+
+  function renderBaseSkills(op) {
+    baseSkillsInfoEl.innerHTML = "";
+    baseSkillsInfoEl.appendChild(textNote("Loading base skills…"));
+    const charId = op.charId;
+    loadBaseSkills().then((data) => {
+      if (currentCharId !== charId) return; // another operator is showing now
+      baseSkillsInfoEl.innerHTML = "";
+      // Amiya's Guard/Medic forms share her base skills.
+      const entry = data.chars[charId] || (charId.includes("amiya") ? data.chars.char_002_amiya : null);
+      if (!entry && !Object.keys(data.chars).length) {
+        baseSkillsInfoEl.appendChild(textNote("Couldn't load base skills."));
+        return;
+      }
+      const slots = (Array.isArray(entry && entry.buffChar) ? entry.buffChar : [])
+        .map((slot) => (Array.isArray(slot && slot.buffData) ? slot.buffData : []).filter((t) => t && data.buffs[t.buffId]))
+        .filter((tiers) => tiers.length);
+      if (!slots.length) {
+        baseSkillsInfoEl.appendChild(textNote("No base skills."));
+        return;
+      }
+      for (const tiers of slots) {
+        const block = document.createElement("div");
+        block.className = "opTalentBlock opBaseSkillBlock";
+        for (const tier of tiers) {
+          const buff = data.buffs[tier.buffId];
+          const row = document.createElement("div");
+          row.className = "opBaseSkillRow";
+
+          const iconWrap = document.createElement("span");
+          iconWrap.className = "opBaseSkillIcon";
+          if (/^#[0-9a-f]{3,8}$/i.test(buff.buffColor || "")) iconWrap.style.backgroundColor = buff.buffColor;
+          if (buff.skillIcon) {
+            const img = document.createElement("img");
+            img.alt = "";
+            img.loading = "lazy";
+            setIconWithFallback(img, uri_building_skill(buff.skillIcon), uri_building_skill(buff.skillIcon, ASSET_SOURCE.ACESHIP), false);
+            iconWrap.appendChild(img);
+          }
+          row.appendChild(iconWrap);
+
+          const body = document.createElement("div");
+          body.className = "opBaseSkillBody";
+          const head = document.createElement("div");
+          head.className = "opBaseSkillHead";
+          const name = document.createElement("span");
+          name.className = "opTalentHeading opBaseSkillName";
+          name.textContent = buff.buffName || tier.buffId;
+          head.appendChild(name);
+          const room = document.createElement("span");
+          room.className = "opBaseSkillRoom";
+          room.textContent = BASE_ROOM_NAMES[buff.roomType] || buff.roomType || "";
+          head.appendChild(room);
+          body.appendChild(head);
+
+          const unlock = document.createElement("div");
+          unlock.className = "opTalentUnlock";
+          const parts = [];
+          const phaseNum = phaseNumber(tier.cond && tier.cond.phase);
+          if (phaseNum != null) parts.push(`Elite ${phaseNum}`);
+          if (tier.cond && tier.cond.level > 1) parts.push(`Lv${tier.cond.level}`);
+          unlock.textContent = parts.join(" · ") || "Base";
+          body.appendChild(unlock);
+
+          const desc = document.createElement("div");
+          desc.className = "opTalentDescription";
+          appendBaseSkillText(desc, buff.description);
+          body.appendChild(desc);
+
+          row.appendChild(body);
+          block.appendChild(row);
+        }
+        baseSkillsInfoEl.appendChild(block);
+      }
+    });
+  }
+
   function renderPotentials(op, view, progress) {
     potentialsInfoEl.innerHTML = "";
     const ranks = op.potentialRanks || [];
@@ -1769,6 +1919,7 @@
 
     renderReleaseInfo(op);
     renderTalents(op);
+    renderBaseSkills(op);
     renderStatDependentSections(op); // also renders Skins
     refreshAddToPlannerButton(op);
 

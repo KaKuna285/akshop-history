@@ -202,6 +202,15 @@ function uri_skill(skillId, source = ASSET_SOURCE.LOCAL) {
       return `${ASSET_SOURCE.ACESHIP}skills/skill_icon_${skillId}.png`;
   }
 }
+// Base (RIIC) skill icons, by building_data's skillIcon ("bskill_man_spd1").
+function uri_building_skill(skillIcon, source = ASSET_SOURCE.LOCAL) {
+  switch (source) {
+    case ASSET_SOURCE.LOCAL:
+      return `${ASSET_SOURCE.LOCAL}torappu/dynamicassets/arts/building/skills/${skillIcon}.png`.toLowerCase();
+    case ASSET_SOURCE.ACESHIP:
+      return `${ASSET_SOURCE.ACESHIP}ui/infrastructure/skill/${skillIcon}.png`;
+  }
+}
 // Medal (achievement) icons, for the account page's medal detail popup.
 // Neither LOCAL nor ACESHIP carries these; fexli/ArknightsResource's
 // medal/ folder (synced from the official client) does, keyed by the full
@@ -479,6 +488,7 @@ const GAME_DATA_SLIM_TABLES = new Set([
   "item_table",
   "gamedata_const",
   "medal_table",
+  "building_data",
 ]);
 async function gameDataFetch(server, table) {
   const upstream = `${DATA_BASE[server]}/gamedata/excel/${table}.json`;
