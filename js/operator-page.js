@@ -703,47 +703,193 @@
     });
   }
 
+  // Keyed by portraitId, not avatarId: they match for every skin except
+  // the base "Default outfit" (ILLUST_0), e.g. Amiya's avatarId is the bare
+  // "char_002_amiya" while her art is "char_002_amiya_1".
+  function skinPortraitId(skin) {
+    return skin.portraitId || skin.avatarId || skin.skinId;
+  }
+
+  // The art's URLs on both sources (see above), in the order to try them,
+  // for each of `sizes` ("display" = the 1024px "b" copy, "full" = the
+  // original) -- source by source, sizes in the order given.
+  function artSourceUrls(skin, sizes) {
+    const portraitId = skinPortraitId(skin);
+    const myrtle = sizes.map((size) => uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, size));
+    const cn = sizes.map((size) => uri_skin_illust_cn(skin.charId, portraitId, size));
+    return skin.cnOnly ? [...cn, ...myrtle] : [...myrtle, ...cn];
+  }
+
+  async function firstLoadable(urls) {
+    for (const url of urls) {
+      try {
+        return await loadImage(url);
+      } catch {
+        // try the next one
+      }
+    }
+    return null;
+  }
+
   function loadFullArt(skin) {
     const key = skin.skinId;
     if (fullArtBySkinId.has(key)) return fullArtBySkinId.get(key);
-    // Keyed by portraitId, not avatarId: they match for every skin except
-    // the base "Default outfit" (ILLUST_0), e.g. Amiya's avatarId is the
-    // bare "char_002_amiya" while her art is "char_002_amiya_1".
-    const portraitId = skin.portraitId || skin.avatarId || skin.skinId;
-    const myrtle = [
-      uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, "display"),
-      uri_skin_illust_myrtle(skin.charId, portraitId, skin.isBuySkin, "full"),
-    ];
-    const cn = [uri_skin_illust_cn(skin.charId, portraitId, "display"), uri_skin_illust_cn(skin.charId, portraitId, "full")];
-    const mirrored = skin.cnOnly ? [...cn, ...myrtle] : [...myrtle, ...cn];
+    const portraitId = skinPortraitId(skin);
+    const mirrored = artSourceUrls(skin, ["display", "full"]);
     const candidates = [
       ...mirrored.map((url) => uri_transformed(url, SKIN_ART_WIDTH)).filter(Boolean),
       ...mirrored,
       uri_skin_illust(portraitId),
     ];
-    const promise = (async () => {
-      for (const url of candidates) {
-        try {
-          return await loadImage(url);
-        } catch {
-          // try the next source
-        }
-      }
+    const promise = firstLoadable(candidates).then((url) => {
       // Nothing loaded -- forget the miss so a later click retries (it may
       // have been a network blip rather than missing art).
-      fullArtBySkinId.delete(key);
-      return null;
-    })();
+      if (!url) fullArtBySkinId.delete(key);
+      return url;
+    });
     fullArtBySkinId.set(key, promise);
     return promise;
   }
+
+  // --- zoomed art -----------------------------------------------------------
+  // Clicking the full art in the preview opens it full-screen. There, a
+  // click zooms in on that spot (and loads the original, up to 2560px, if
+  // only the 1024px copy was shown); drag or scroll to look around, click
+  // again to zoom back out. Esc, the X or clicking the dark area closes it.
+  const skinZoomEl = document.getElementById("skinZoom");
+  const skinZoomImgEl = document.getElementById("skinZoomImg");
+  const skinZoomCloseBtn = document.getElementById("skinZoomClose");
+  const SKIN_ZOOM_WIDTH = 2048; // through Image Transformations; scaled down only
+  const hiResArtBySkinId = new Map();
+  let zoomSkin = null;
+  let releaseZoomFocus = null;
+
+  function loadHiResArt(skin) {
+    if (!hiResArtBySkinId.has(skin.skinId)) {
+      const originals = artSourceUrls(skin, ["full"]);
+      const promise = firstLoadable([
+        ...originals.map((url) => uri_transformed(url, SKIN_ZOOM_WIDTH)).filter(Boolean),
+        ...originals,
+      ]).then((url) => {
+        if (!url) hiResArtBySkinId.delete(skin.skinId);
+        return url;
+      });
+      hiResArtBySkinId.set(skin.skinId, promise);
+    }
+    return hiResArtBySkinId.get(skin.skinId);
+  }
+
+  function isZoomOpen() {
+    return !skinZoomEl.classList.contains("hidden");
+  }
+
+  function openSkinZoom(skin) {
+    zoomSkin = skin;
+    setZoomed(false);
+    skinZoomImgEl.src = skinPreviewImgEl.src; // already loaded -- shows at once
+    skinZoomEl.classList.remove("hidden");
+    document.body.classList.add("skinZoomOpen");
+    if (!releaseZoomFocus) releaseZoomFocus = holdFocusIn(skinZoomEl);
+    loadHiResArt(skin).then((url) => {
+      if (url && zoomSkin === skin && isZoomOpen()) skinZoomImgEl.src = url;
+    });
+  }
+
+  function closeSkinZoom() {
+    if (!isZoomOpen()) return;
+    skinZoomEl.classList.add("hidden");
+    document.body.classList.remove("skinZoomOpen");
+    setZoomed(false);
+    zoomSkin = null;
+    if (releaseZoomFocus) {
+      releaseZoomFocus();
+      releaseZoomFocus = null;
+    }
+  }
+
+  // Zoomed in: the art at its own full size (at least twice the fitted size,
+  // for the 1024px copy), with the point under (x, y) kept under the cursor.
+  function setZoomed(on, x, y) {
+    const wasRect = skinZoomImgEl.getBoundingClientRect();
+    skinZoomEl.classList.toggle("zoomed", on);
+    skinZoomImgEl.setAttribute("aria-label", on ? "Zoom out" : "Zoom in");
+    if (!on) {
+      skinZoomImgEl.style.width = "";
+      skinZoomImgEl.style.marginTop = "";
+      return;
+    }
+    const natW = skinZoomImgEl.naturalWidth || wasRect.width;
+    const natH = skinZoomImgEl.naturalHeight || wasRect.height;
+    const width = Math.max(natW, wasRect.width * 2);
+    const height = (width * natH) / natW;
+    skinZoomImgEl.style.width = `${width}px`;
+    skinZoomImgEl.style.marginTop = `${Math.max(0, (skinZoomEl.clientHeight - height) / 2)}px`;
+    const fx = x == null ? 0.5 : (x - wasRect.left) / wasRect.width;
+    const fy = y == null ? 0.5 : (y - wasRect.top) / wasRect.height;
+    const cx = x == null ? skinZoomEl.clientWidth / 2 : x;
+    const cy = y == null ? skinZoomEl.clientHeight / 2 : y;
+    const imgLeft = Math.max(0, (skinZoomEl.clientWidth - width) / 2);
+    skinZoomEl.scrollLeft = imgLeft + fx * width - cx;
+    skinZoomEl.scrollTop = fy * height - cy;
+  }
+
+  // Dragging pans the zoomed art (mouse/pen; touch scrolls natively). A
+  // press that moved more than a few pixels was a drag, not a click.
+  let drag = null;
+  skinZoomImgEl.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "touch" || e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, left: skinZoomEl.scrollLeft, top: skinZoomEl.scrollTop, moved: false };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    if (drag.moved && skinZoomEl.classList.contains("zoomed")) {
+      skinZoomEl.scrollLeft = drag.left - dx;
+      skinZoomEl.scrollTop = drag.top - dy;
+    }
+  });
+  window.addEventListener("pointerup", () => {
+    if (drag) setTimeout(() => (drag = null), 0); // after the click it ends in
+  });
+  skinZoomImgEl.addEventListener("click", (e) => {
+    if (drag && drag.moved) return;
+    setZoomed(!skinZoomEl.classList.contains("zoomed"), e.clientX, e.clientY);
+  });
+  skinZoomImgEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setZoomed(!skinZoomEl.classList.contains("zoomed"));
+    }
+  });
+  skinZoomEl.addEventListener("click", (e) => {
+    if (e.target === skinZoomEl) closeSkinZoom();
+  });
+  skinZoomCloseBtn.addEventListener("click", closeSkinZoom);
+
+  // The preview's own art opens the zoom, once it's the full illustration
+  // (not the avatar placeholder).
+  skinPreviewImgEl.addEventListener("click", () => {
+    if (skinPreviewImgEl.classList.contains("skinPreviewImgFull") && currentPreviewSkin) openSkinZoom(currentPreviewSkin);
+  });
+  skinPreviewImgEl.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && skinPreviewImgEl.classList.contains("skinPreviewImgFull") && currentPreviewSkin) {
+      e.preventDefault();
+      openSkinZoom(currentPreviewSkin);
+    }
+  });
 
   // The animated chibi under the art -- see js/chibi-viewer.js.
   const skinChibi = ChibiViewer.create(document.getElementById("skinPreviewChibi"));
 
   let releaseSkinPreviewFocus = null;
 
+  let currentPreviewSkin = null;
+
   function hideSkinPreview() {
+    closeSkinZoom();
+    currentPreviewSkin = null;
     skinPreviewOverlayEl.classList.add("hidden");
     skinChibi.clear();
     if (releaseSkinPreviewFocus) {
@@ -761,8 +907,12 @@
     // few MB for some skins) loads in the background via a detached
     // Image(). Only swap the visible <img> over to it once that load has
     // actually succeeded, so the modal never shows a half-loaded image.
+    currentPreviewSkin = skin;
     skinPreviewImgEl.dataset.avatarId = avatarId;
     skinPreviewImgEl.classList.remove("skinPreviewImgFull");
+    skinPreviewImgEl.removeAttribute("tabindex");
+    skinPreviewImgEl.removeAttribute("role");
+    skinPreviewImgEl.removeAttribute("aria-label");
     skinPreviewImgEl.onload = () => {
       skinPreviewImgEl.style.display = "block";
     };
@@ -782,6 +932,10 @@
       skinPreviewImgEl.onerror = null;
       skinPreviewImgEl.src = url;
       skinPreviewImgEl.classList.add("skinPreviewImgFull");
+      // Clickable (and keyboard-reachable) to open the zoom view.
+      skinPreviewImgEl.tabIndex = 0;
+      skinPreviewImgEl.setAttribute("role", "button");
+      skinPreviewImgEl.setAttribute("aria-label", "Zoom in on the art");
       skinPreviewImgEl.style.display = "block";
     });
 
@@ -804,7 +958,9 @@
 
   skinPreviewCloseBtn.addEventListener("click", hideSkinPreview);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !skinPreviewOverlayEl.classList.contains("hidden")) hideSkinPreview();
+    if (e.key !== "Escape") return;
+    if (isZoomOpen()) closeSkinZoom(); // just the zoom; the preview stays
+    else if (!skinPreviewOverlayEl.classList.contains("hidden")) hideSkinPreview();
   });
   skinPreviewOverlayEl.addEventListener("click", (e) => {
     if (e.target === skinPreviewOverlayEl) hideSkinPreview();

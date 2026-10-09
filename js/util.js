@@ -291,6 +291,9 @@ function fmtDate(d) {
 // focus back on whatever had it before (usually the button that opened it).
 // If that element was re-rendered meanwhile (the planner redraws its cards
 // on every edit), its replacement is found by the same data-focus-key.
+// Dialogs can stack (the skin zoom opens over the skin preview): only the
+// most recently opened one handles Tab.
+const focusHoldStack = [];
 function holdFocusIn(dialogEl) {
   const previous = document.activeElement;
   const focusables = () =>
@@ -300,7 +303,7 @@ function holdFocusIn(dialogEl) {
       ),
     ).filter((el) => el.getClientRects().length);
   const onKeyDown = (e) => {
-    if (e.key !== "Tab") return;
+    if (e.key !== "Tab" || focusHoldStack[focusHoldStack.length - 1] !== onKeyDown) return;
     const items = focusables();
     if (!items.length) {
       e.preventDefault();
@@ -318,11 +321,14 @@ function holdFocusIn(dialogEl) {
     }
   };
   document.addEventListener("keydown", onKeyDown, true);
+  focusHoldStack.push(onKeyDown);
   if (!dialogEl.hasAttribute("tabindex")) dialogEl.tabIndex = -1;
   (focusables()[0] || dialogEl).focus({ preventScroll: true });
   const focusKey = previous && previous.dataset ? previous.dataset.focusKey : null;
   return function release() {
     document.removeEventListener("keydown", onKeyDown, true);
+    const at = focusHoldStack.indexOf(onKeyDown);
+    if (at >= 0) focusHoldStack.splice(at, 1);
     let target = previous;
     if (target && !document.contains(target) && focusKey) {
       target = document.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);

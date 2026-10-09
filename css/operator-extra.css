@@ -654,6 +654,87 @@
   object-fit: contain;
 }
 
+/* Clicking the full art opens the zoom view below. */
+.skinPreviewImg.skinPreviewImgFull {
+  cursor: zoom-in;
+}
+
+/* --- Full-screen zoom of a skin's art (operator-page.js, "zoomed art") --- */
+
+.skinZoom {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.92);
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overscroll-behavior: contain;
+}
+
+.skinZoom.hidden {
+  display: none;
+}
+
+.skinZoomImg {
+  max-width: 100vw;
+  max-height: 100vh;
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Zoomed in: the image keeps its set width and the overlay scrolls. */
+.skinZoom.zoomed {
+  display: block;
+}
+
+.skinZoom.zoomed .skinZoomImg {
+  display: block;
+  max-width: none;
+  max-height: none;
+  margin-left: auto;
+  margin-right: auto;
+  cursor: zoom-out;
+}
+
+.skinZoomImg:focus-visible {
+  outline: 2px solid #f8d511;
+  outline-offset: 2px;
+}
+
+.skinZoomClose {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ddd;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.skinZoomClose::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  content: "\f00d"; /* fa-times */
+}
+
+.skinZoomClose:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* No page scrolling behind the zoom view. */
+body.skinZoomOpen {
+  overflow: hidden;
+}
+
 .skinPreviewName {
   font-size: 1.05rem;
   font-weight: bold;

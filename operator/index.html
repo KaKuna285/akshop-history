@@ -197,6 +197,13 @@
       </div>
     </div>
 
+    <!-- Full-screen zoom of a skin's art -- opens on clicking the art in the
+         preview above; see "zoomed art" in js/operator-page.js. -->
+    <div id="skinZoom" class="skinZoom hidden" role="dialog" aria-modal="true" aria-label="Skin art, zoomed">
+      <button type="button" id="skinZoomClose" class="skinZoomClose" aria-label="Close"></button>
+      <img id="skinZoomImg" class="skinZoomImg" alt="" tabindex="0" role="button" aria-label="Zoom in" draggable="false" />
+    </div>
+
     <div id="pageCredit">
       Operator data from
       <a href="https://github.com/ArknightsAssets/ArknightsGamedata" target="_blank" rel="noopener"
