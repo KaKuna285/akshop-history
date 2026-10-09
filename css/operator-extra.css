@@ -2,8 +2,8 @@
    translucent-card look as css/planner-extra.css/css/calendar-extra.css
    so this feels like the same site -- kept in its own file so it only
    affects this page. (.cnBadge and .iconMissing are shared with the
-   edit-modal component and already come from css/operator-edit-modal.css,
-   already linked on this page -- not redefined here.) */
+   edit-modal component and come from css/operator-edit-modal.css, also
+   linked on this page -- not redefined here.) */
 
 #operatorJumpBar,
 #operatorStatus,
@@ -14,10 +14,7 @@
   margin-right: auto;
 }
 
-/* Matches the other pages' (#pageCredit) muted-link treatment -- this
-   page's own #pageCredit only had the shared max-width/centering rule
-   above, so its link was falling back to the browser's default bright
-   blue/purple instead. */
+/* Matches the other pages' #pageCredit muted-link treatment. */
 #pageCredit {
   margin-top: 16px;
   margin-bottom: 24px;
@@ -47,77 +44,6 @@
 #operatorJumpBar label {
   font-size: 0.75rem;
   color: #aaa;
-}
-
-#operatorJumpSearchWrap {
-  position: relative;
-}
-
-#operatorJumpSearch {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #555;
-  background: #1c1c1c;
-  color: #eee;
-  font-size: 0.95rem;
-}
-
-#operatorJumpResults {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  max-height: 280px;
-  overflow-y: auto;
-  background: #2c2c2c;
-  border: 1px solid #555;
-  border-radius: 6px;
-  z-index: 20;
-}
-
-#operatorJumpResults.hidden {
-  display: none;
-}
-
-/* .operatorSearchResult/.operatorSearchResultIcon/.operatorSearchResultName/
-   .operatorSearchResultRarity -- same class names (and markup) as the
-   planner page's own search box, but defined fresh here since the two
-   pages don't share a stylesheet (see css/calendar-extra.css's own
-   .eventPreviewOperatorChip for the same "each page styles its own copy"
-   convention). */
-.operatorSearchResult {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-}
-
-.operatorSearchResult:hover,
-.operatorSearchResult.highlighted {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.operatorSearchResultIcon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: rgba(255, 255, 255, 0.08);
-  flex: 0 0 auto;
-}
-
-.operatorSearchResultName {
-  font-size: 0.88rem;
-  color: #eee;
-}
-
-.operatorSearchResultRarity {
-  margin-left: auto;
-  font-size: 0.75rem;
-  color: #999;
 }
 
 .operatorStatus {

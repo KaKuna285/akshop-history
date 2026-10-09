@@ -1,13 +1,13 @@
 var operatorData;
 const SHOP_DATA = {};
 const OP_DATA = {};
-// hit-testable regions for every portrait bubble drawn this frame, used to
-// power the hover tooltip (populated in testp.beforeDatasetsDraw / afterDatasetDraw)
+// Hit-test circles for every portrait bubble drawn this frame, for the
+// hover tooltip (reset in testp.beforeDatasetsDraw, filled in
+// testp.afterDatasetDraw).
 let iconHitboxes = [];
-// hit-testable rectangles for every bar segment drawn this frame (the gap
-// between an operator's release/shop appearances), used to power the
-// click-to-see-days-between-appearances feature (same populate points as
-// iconHitboxes above)
+// Hit-test rectangles for every bar segment drawn this frame (the gap
+// between an operator's release/shop appearances), for the click-to-see-
+// days-between tooltip. Reset and filled alongside iconHitboxes.
 let barHitboxes = [];
 const showntypes = {
 	Limited: false,
@@ -49,9 +49,9 @@ function createDiagonalPattern(fillcolor) {
 	// create the pattern from the shape
 	return c.createPattern(shape, "repeat");
 }
-// The shop history and the CN character table download in parallel; the
-// EN table is still loaded after CN, since get_char_table() builds the
-// shared name -> charId map and its CN_ID_MAP step depends on that order.
+// The shop history and the CN character table download in parallel. The
+// EN table loads after CN because get_char_table() builds the shared
+// name -> charId map and its CN_ID_MAP step depends on that order.
 Promise.all([
 	fetch(extraDataUrl("banner_history.json")).then((res) => {
 		if (!res.ok) throw new Error(`banner_history.json: HTTP ${res.status}`);
@@ -62,9 +62,9 @@ Promise.all([
 	.then(([js, cnChars]) => {
 		SHOP_DATA.EN = js.NA;
 		SHOP_DATA.CN = js.CN;
-		// (meta.json from health.py is what says whether the update is
-		// healthy; banner_history's own timestamp is the fallback until it
-		// exists)
+		// DataHealth reads meta.json (from health.py) for whether the update
+		// is healthy; banner_history's own timestamp is the fallback when
+		// meta.json is missing.
 		DataHealth.mount(document.getElementById("dataFreshness"), { generatedAt: js.generatedAt });
 		operatorData = cnChars;
 		OP_DATA.CN = cnChars;
@@ -77,35 +77,28 @@ Promise.all([
 			CN: 1556582400000,
 		};
 		let selectedServer = "EN";
-		// "Dynamic" (the default) keeps the x-axis start pinned to the
-		// earliest date among whatever's currently visible, so filtering
-		// down to e.g. Normal-pool only doesn't leave a huge stretch of
-		// empty axis before the first visible bar. The fixed periods
-		// (2y/4y/6y/ALL) are a deliberate "always show exactly this
-		// window" choice instead, so they're left alone here.
+		// "Dynamic" (the default) starts the x-axis at the earliest date
+		// among the visible operators, so narrow filters don't leave a
+		// stretch of empty axis. The fixed periods (2y/4y/6y/ALL) always
+		// show exactly that window.
 		let selectedPeriod = "Dynamic";
 		function computeDynamicMin(subset) {
 			if (!subset.length) return SERVER_STARTS[selectedServer];
 			return Math.min(...subset.map((op) => op.first));
 		}
 		var shownrarities = new Set([5]);
-			// "Grey out owned" state for the portrait bubbles -- whether the
-			// toggle is on, and which charIds count as owned. Sourced from
-			// AccountSync (home page's sync flow) rather than anything
-			// store-specific; `hasOwnedData` is kept apart from an empty
-			// ownedCharIdSet on purpose (same reasoning as
-			// AccountSync.getOwnedOperators() itself) so the toggle can stay
-			// hidden entirely for a never-synced visitor instead of just
-			// doing nothing visible.
+			// "Grey out owned" state for the portrait bubbles, using the
+			// synced roster from AccountSync. `hasOwnedData` is kept separate
+			// from an empty ownedCharIdSet so the toggle can stay hidden for a
+			// never-synced visitor (see AccountSync.getOwnedOperators()).
 			let greyOutOwned = true;
 			const ownedOperatorsList = AccountSync.getOwnedOperators();
 			const hasOwnedData = !!ownedOperatorsList;
 			const ownedCharIdSet = new Set(ownedOperatorsList || []);
-			// Normalization (charId resolution, isKernel flag, date parsing,
-			// avatar preload) now lives in util.js's normalizeShopHistory(),
-			// shared with the operator page -- SHOP_DATA_BY_CHARID isn't used
-			// by this page yet, but keeping it around costs nothing and saves
-			// a second pass if a future change here needs charId lookups too.
+			// util.js's normalizeShopHistory() (shared with the operator page)
+			// resolves charIds, sets isKernel, parses dates and preloads
+			// avatars, updating SHOP_DATA in place. The by-charId map it
+			// returns isn't used on this page.
 			const SHOP_DATA_BY_CHARID = {};
 			for (const [serv, servdata] of Object.entries(SHOP_DATA)) {
 				SHOP_DATA_BY_CHARID[serv] = normalizeShopHistory(
@@ -183,14 +176,14 @@ Promise.all([
 		const testp = {
 			id: "testp",
 			beforeDatasetsDraw(chart) {
-				// reset hitboxes at the start of every draw pass so stale
-				// entries from a previous filter/sort/server change don't linger
+				// Reset hitboxes at the start of every draw pass so stale
+				// entries from a previous filter/sort/server change don't linger.
 				iconHitboxes = [];
 				barHitboxes = [];
 			},
 			beforeDraw(chart) {
-				// faint alternating row bands so it's easier to track a row
-				// across the full width of the chart, especially on tall lists
+				// Faint alternating row bands make it easier to follow a row
+				// across the full width of the chart.
 				const labels = chart.data.labels;
 				if (!labels || !labels.length) return;
 				const {
@@ -219,16 +212,15 @@ Promise.all([
 					i < chart.data.datasets[args.index].data.length;
 					i++
 				) {
-					//assumue all bars are the same size
+					// assume all bars are the same size
 					const imgsize = args.meta.data[0].height * 1.8;
-					// position is actually the sum of the entire stack
+					// (a bar element's position is the sum of the whole stack, so
+					// bubble positions are computed from dates below instead)
 
 					ctx.save();
-					// Dim this portrait bubble when it's an operator already in
-					// the synced roster and the "Grey out owned" toggle is on --
-					// paired with the ctx.restore() below (and every early
-					// "continue" path's own ctx.restore()), so globalAlpha never
-					// leaks into the next bubble's drawing.
+					// Dim the bubble for an owned operator when "Grey out owned"
+					// is on. Every exit path below calls ctx.restore(), so
+					// globalAlpha never leaks into the next bubble.
 					if (
 						greyOutOwned &&
 						ownedCharIdSet.has(
@@ -293,8 +285,8 @@ Promise.all([
 					ctx.closePath();
 					ctx.clip();
 					// drawImage() throws on an image that failed to load (and
-					// draws nothing for one still loading) -- show a plain
-					// disc for those instead.
+					// draws nothing for one still loading), so draw a plain disc
+					// for those instead.
 					const avatar = chart.data.datasets[args.index].data[i].img;
 					if (avatar && avatar.complete && avatar.naturalWidth) {
 						ctx.drawImage(avatar, -imgsize / 2, -imgsize / 2, imgsize, imgsize);
@@ -323,8 +315,8 @@ Promise.all([
 
 					let rowData = chart.data.datasets[args.index].data[i];
 
-					// record where this bubble landed on screen so mousemove
-					// hit-testing can find it and show a date tooltip
+					// Record where this bubble landed on screen so mousemove
+					// hit-testing can find it and show a date tooltip.
 					let pointDate = first_apperance
 						? rowData[args.meta._dataset.parsing.xAxisKey]
 						: rowData.shop[shop_idx]?.date;
@@ -343,7 +335,7 @@ Promise.all([
 						hasShopHistory: rowData.shop.length > 0,
 					});
 
-					// record the bar segment (the gap ending at this bubble)
+					// Record the bar segment (the gap ending at this bubble)
 					// so a click can report how many days it spans. Every
 					// non-"first" dataset column is one segment: #0 runs
 					// from the operator's release to their first shop
@@ -432,11 +424,10 @@ Promise.all([
 		};
 		var labelSort = sorters.Shop;
 
-		// Restore any settings saved from a previous visit (see
-		// js/prefs.js), overwriting the hardcoded defaults set above.
-		// `sortName` tracks the restored sort by its KEY, since labelSort
-		// itself is just a function reference -- that's what the sort
-		// buttons' initial "checked" state (below) compares against.
+		// Restore saved settings (see js/prefs.js) over the defaults set
+		// above. `sortName` holds the sort's key (labelSort is just a
+		// function reference) so the sort buttons can mark the right one
+		// as checked.
 		selectedServer = getPref("store", "server", selectedServer, (v) =>
 			Object.keys(SHOP_DATA).includes(v),
 		);
@@ -463,7 +454,7 @@ Promise.all([
 		greyOutOwned = getPref("store", "greyOwned", greyOutOwned, (v) => typeof v === "boolean");
 
 		//////////////////////////////////////////////////
-		// this is just the contents of redrawCharts()
+		// Initial data setup -- the same steps as redrawCharts()
 		let subset = filterOperators(SHOP_DATA[selectedServer]);
 		var labels = subset.sort(labelSort).map((x) => x.op);
 		var datasets = getDatasets(SHOP_DATA[selectedServer]);
@@ -471,10 +462,9 @@ Promise.all([
 			// remove elements not in labels
 			datasets[i].data = subset;
 		adjustChartHeight(subset.length);
-		// Mirrors the fixed-period math in the Period buttons' own onclick
-		// (below) -- needed here too now that a restored (non-"Dynamic")
-		// period can be the very first thing rendered, not just something
-		// the user clicks into later.
+		// Axis start for a fixed period (same math as the Period buttons'
+		// onclick below), used when a restored non-"Dynamic" period is
+		// rendered first and on server switches.
 		function computeFixedPeriodMin(period, server) {
 			if (period === "ALL") return SERVER_STARTS[server];
 			const minDate = new Date();
@@ -564,15 +554,15 @@ Promise.all([
 			},
 		});
 		// Redraw once every avatar has loaded or definitely failed (see
-		// imgReady in util.js) -- one missing icon no longer stops this.
+		// imgReady in util.js), so one missing icon can't block it.
 		Promise.all(Object.values(SHOP_DATA[selectedServer]).map((x) => x.imgReady)).then(() => {
 			barGraph.update();
 		});
 
 		// --- hover tooltip for the portrait bubbles ---------------------------
 		// Chart.js's own tooltip/hover system is disabled for this chart
-		// (the bars are invisible; only the plugin-drawn bubbles are visible),
-		// so we hit-test the recorded bubble positions ourselves.
+		// (only the plugin-drawn bubbles carry meaning), so the recorded
+		// bubble positions are hit-tested here instead.
 		const opCanvas = document.getElementById("opChart");
 		const iconTooltipEl = document.getElementById("chartjs-tooltip");
 		function findHoveredIcon(mx, my) {
@@ -590,8 +580,7 @@ Promise.all([
 			return best;
 		}
 		function findHoveredBarSegment(mx, my) {
-			// last match wins (rows drawn later are on top, same convention
-			// as findHoveredIcon effectively gets via closest-distance)
+			// Last match wins: segments drawn later are on top.
 			let best = null;
 			for (const seg of barHitboxes) {
 				if (mx >= seg.x0 && mx <= seg.x1 && my >= seg.yTop && my <= seg.yBottom) {
@@ -600,8 +589,6 @@ Promise.all([
 			}
 			return best;
 		}
-		// Standard-pool debut prediction now lives in util.js, shared with
-		// the operator page (getStandardPoolPipeline()/predictShopDebut()).
 		function showIconTooltip(hb, pageX, pageY) {
 			const dateStr = isNaN(hb.date)
 				? "Unknown date"
@@ -612,14 +599,11 @@ Promise.all([
 					});
 			let kind;
 			if (hb.first) {
-				// A Limited-pool op who hasn't hit the shop yet: label it
-				// "Limited" rather than the generic "not yet in shop" line,
-				// since Limited ops aren't expected to hit the shop on any
-				// predictable schedule the way Standard-pool ops are. A 4*
-				// op never gets added to the shop at all, so "not yet in
-				// shop" doesn't really apply -- just say "First released".
-				// (rarity is 0-indexed here: TIER_4 remaps to 3, not 4 --
-				// see RARITY_MAP in util.js.)
+				// Limited ops don't reach the shop on any predictable
+				// schedule, so they're just labelled "Limited". 4* ops never
+				// enter the shop, so "not yet in shop" doesn't apply to them.
+				// (rarity is 0-indexed here: TIER_4 maps to 3 -- see
+				// RARITY_MAP in util.js.)
 				if (hb.isLimited) {
 					kind = "Limited";
 				} else if (hb.rarity === 3) {
@@ -636,9 +620,9 @@ Promise.all([
 			}
 
 			// Standard-pool 5*/6* operators who have never appeared in the
-			// shop yet: predict a debut date from a fixed weekly cadence,
-			// shared with the operator page via util.js's predictShopDebut().
-			// (4* operators never get added to the shop, so no prediction.)
+			// shop: predict a debut date from a fixed weekly cadence (util.js's
+			// predictShopDebut(), shared with the operator page). 4* operators
+			// never enter the shop, so they get no prediction.
 			let predictionHtml = "";
 			if (hb.first) {
 				const prediction = predictShopDebut(
@@ -653,9 +637,9 @@ Promise.all([
 					!hb.isLimited &&
 					SHOP_DEBUT_CADENCE_WEEKS[hb.rarity] != null
 				) {
-					// No same-rarity Standard-pool operator has ever been
-					// shopped yet on this server, so there's nothing to
-					// anchor a prediction to.
+					// No same-rarity Standard-pool operator has been in the
+					// shop on this server yet, so there's nothing to anchor a
+					// prediction to.
 					predictionHtml =
 						'<span style="opacity:0.7">No same-rarity Standard-pool shop debut yet to predict from</span>';
 				} else if (prediction != null) {
@@ -681,12 +665,10 @@ Promise.all([
 
 			const kindHtml = kind ? `<span>${kind}</span>` : "";
 
-			// Only actually clickable once the tooltip is pinned (see the
-			// ".pinned" rule in css/shoplist-extra.css, which is what lifts
-			// the box's usual pointer-events:none) -- same "click to lock it
-			// in place, then interact with it" flow the pin feature itself
-			// already trained people on, rather than a link that vanishes
-			// out from under the cursor on the next mousemove.
+			// Only clickable once the tooltip is pinned (the ".pinned" rule
+			// in css/shoplist-extra.css lifts its usual pointer-events:none);
+			// an unpinned tooltip follows the cursor, so a link in it would
+			// move away before it could be clicked.
 			const operatorPageLink = hb.charId
 				? `<a href="/operator/?id=${encodeURIComponent(hb.charId)}" class="tooltipOperatorPageLink">View operator page →</a>`
 				: "";
@@ -746,11 +728,10 @@ Promise.all([
 			iconTooltipEl.style.top = pageY + "px";
 			iconTooltipEl.style.transform = "translate(-50%, calc(-100% - 14px))";
 		}
-		// A bar segment ("line") or portrait bubble the user clicked on, kept
-		// showing in place until they click it again, click elsewhere,
-		// change a filter/sort/server/period, or click the other kind of
-		// pinnable element (only one tooltip is ever shown at a time, so
-		// pinning one clears the other).
+		// A clicked bar segment or portrait bubble stays shown until it's
+		// clicked again, the user clicks elsewhere, or a filter/sort/
+		// server/period changes. Only one tooltip is shown at a time, so
+		// pinning one kind clears the other.
 		let pinnedGap = null;
 		let pinnedIcon = null;
 		opCanvas.addEventListener("mousemove", (e) => {
@@ -760,13 +741,13 @@ Promise.all([
 				showIconTooltip(hb, e.pageX, e.pageY);
 				opCanvas.style.cursor = "pointer";
 			} else if (pinnedIcon) {
-				// keep showing the pinned portrait's info while the mouse
-				// isn't over a portrait bubble, same idea as a pinned gap
+				// Keep showing the pinned portrait while the mouse isn't
+				// over another portrait bubble.
 				showIconTooltip(pinnedIcon.hb, pinnedIcon.pageX, pinnedIcon.pageY);
 				opCanvas.style.cursor = overSegment ? "pointer" : "default";
 			} else if (pinnedGap) {
-				// keep showing the pinned gap while the mouse isn't over a
-				// portrait bubble, instead of hiding it on every small move
+				// Keep showing the pinned gap while the mouse isn't over a
+				// portrait bubble.
 				showBarGapTooltip(pinnedGap.seg, pinnedGap.pageX, pinnedGap.pageY);
 				opCanvas.style.cursor = overSegment ? "pointer" : "default";
 			} else {
@@ -808,9 +789,8 @@ Promise.all([
 				hideIconTooltip();
 			}
 		});
-		// a click anywhere outside the chart entirely (the canvas's own
-		// click handler above only ever sees clicks that land on it) should
-		// also dismiss a pinned gap/portrait tooltip
+		// A click outside the canvas also dismisses a pinned tooltip
+		// (the canvas's own click handler only sees clicks on it).
 		document.addEventListener("click", (e) => {
 			if ((pinnedGap || pinnedIcon) && !opCanvas.contains(e.target)) {
 				pinnedGap = null;
@@ -857,9 +837,8 @@ Promise.all([
 		var start = SERVER_STARTS["CN"];
 		var now = new Date();
 		var diffYears = Math.floor((now - start) / (1000 * 60 * 60 * 24 * 365)); // full years
-		// "Dynamic" always trims to whatever's actually visible (see
-		// computeDynamicMin); the rest are fixed "always show exactly
-		// this window" choices. Dynamic goes first and is the default.
+		// "Dynamic" (first, and the default) trims to the visible
+		// operators (see computeDynamicMin); the rest are fixed windows.
 		var periods = ["Dynamic"];
 		for (var y = 2; y <= diffYears; y += 2) {
 			periods.push(y + "y");
@@ -882,9 +861,7 @@ Promise.all([
 				setPref("store", "period", p);
 
 				if (p === "Dynamic") {
-					// redrawCharts() below computes and applies the min
-					// itself every time it's called while Dynamic is
-					// selected, so there's nothing to set here.
+					// redrawCharts() applies the Dynamic min itself.
 					redrawCharts();
 					return;
 				}
@@ -948,9 +925,8 @@ Promise.all([
 			};
 		}
 
-		// Only shown once there's actually a synced roster to grey against --
-		// a toggle that would visibly do nothing stays hidden entirely, same
-		// convention as the medals page's own "hide unobtainable" toggle.
+		// Only shown when there's a synced roster to grey against; a
+		// toggle that would visibly do nothing stays hidden.
 		if (hasOwnedData) {
 			const ownedSpacer = document.createElement("span");
 			ownedSpacer.innerHTML = "/";
@@ -992,13 +968,9 @@ Promise.all([
 				selectedServer = s;
 				setPref("store", "server", s);
 				barGraph.data.datasets = getDatasets(SHOP_DATA[selectedServer]);
-				// Only force the fixed-period range here -- if "Dynamic" is
-				// selected, redrawCharts() below recomputes the min itself
-				// from this server's now-current data, so setting it here
-				// too would just get immediately overwritten.
+				// A fixed period's range depends on the server's start date,
+				// so recompute it. Dynamic is handled by redrawCharts().
 				if (selectedPeriod !== "Dynamic") {
-					// The selected fixed period (2y/4y/6y/ALL), measured on
-					// this server -- not always the full range.
 					const min = computeFixedPeriodMin(selectedPeriod, selectedServer);
 					barGraph.options.scales.x.min = min;
 					barGraph.options.scales.x1.min = min;
@@ -1008,8 +980,8 @@ Promise.all([
 			};
 		});
 		// The server/filter/sort/period buttons are <div>s with click
-		// handlers -- make them reachable and usable from the keyboard
-		// (Tab, then Enter/Space), and tell screen readers which are on.
+		// handlers: make them keyboard-usable (Tab, then Enter/Space) and
+		// tell screen readers which are on.
 		const syncPressed = () => {
 			for (const el of document.querySelectorAll(".btnPanel .button")) {
 				el.setAttribute("role", "button");
@@ -1029,9 +1001,9 @@ Promise.all([
 			panel.addEventListener("click", syncPressed);
 		}
 		function redrawCharts() {
-			// the rows/positions a pinned gap or portrait tooltip refers to
-			// may no longer exist (or mean something different) after a
-			// filter, sort, server or period change
+			// A pinned tooltip's row or position may no longer exist (or
+			// mean something else) after a filter, sort, server or period
+			// change.
 			pinnedGap = null;
 			pinnedIcon = null;
 			hideIconTooltip();
@@ -1042,11 +1014,8 @@ Promise.all([
 				// remove elements not in labels
 				barGraph.data.datasets[i].data = subset;
 
-			// "Dynamic" recomputes the axis start every redraw (filter
-			// change, sort, server switch, ...) so a narrower Show/rarity
-			// selection never leaves a stretch of empty axis before the
-			// first actually-visible bar. Fixed periods (2y/4y/6y/ALL) are
-			// left as whatever the period button set, on purpose.
+			// "Dynamic" recomputes the axis start on every redraw; fixed
+			// periods keep whatever the period/server buttons set.
 			if (selectedPeriod === "Dynamic") {
 				const dynMin = computeDynamicMin(subset);
 				barGraph.options.scales.x.min = dynMin;

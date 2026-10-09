@@ -1,11 +1,10 @@
 /* The operator edit modal (current/target Elite, level, skill level,
    mastery, module stages) -- built and injected into <body> by
-   js/operator-edit-modal.js, shared unchanged between the planner page
-   (opened from a roster card, or right after adding one via search) and
-   the calendar page (opened from an event's "Add to planner"/"In
-   planner" operator chips, in place, without navigating to the
-   planner). Loaded by both pages so the one shared modal always has its
-   styling available regardless of which page opened it. -------------- */
+   js/operator-edit-modal.js and shared unchanged between the planner
+   page (opened from a roster card, or right after adding one via
+   search), the calendar page (opened in place from an event's "Add to
+   planner"/"In planner" operator chips) and the operator page (its "Add
+   to planner" button). Loaded by every page that can open it. -------- */
 
 .modalOverlay {
   position: fixed;
@@ -167,11 +166,10 @@
   color: #faa;
 }
 
-/* Duplicated (not shared via a single rule) from shoplist/planner's own
+/* Duplicated (not shared via a single rule) from planner-extra.css's
    material-list styling -- small, stable, and needed wherever
-   setAvatarIcon()/buildCnBadge() (js/util.js) are used, which now
-   includes this modal on a page (the calendar) that doesn't otherwise
-   load either of these two rules. */
+   setAvatarIcon()/buildCnBadge() (js/util.js) are used, including this
+   modal on pages that don't load planner-extra.css. */
 .cnBadge {
   flex: 0 0 auto;
   background: rgba(255, 159, 67, 0.15);

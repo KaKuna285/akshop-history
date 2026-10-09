@@ -8,26 +8,24 @@
 const EXTRA_DATA_REPO_RAW_BASE =
   "https://raw.githubusercontent.com/KaKuna285/akshop-history/main/akgcc-extra-data/json/";
 
-// raw.githubusercontent.com sits behind a CDN, and a branch path like the
-// one above (as opposed to one pinned to a specific commit) can keep
-// serving an old cached response well after a push updates the file --
-// sometimes for hours, not just the usual few minutes. A query param that
-// changes every hour makes each hour's URL new to that CDN, so data is
-// never more than about an hour behind the daily update. Within the hour
-// the URL stays the same, so the browser's own cache (raw.githubusercontent
-// sends max-age=300, then revalidates cheaply) can actually work -- a
-// per-load timestamp re-downloaded every file on every page view.
+// raw.githubusercontent.com sits behind a CDN that can keep serving an old
+// copy of a branch path like the one above for hours after a push. A query
+// param that changes every hour makes each hour's URL new to that CDN, so
+// data is at most about an hour behind the daily update. Within the hour
+// the URL stays the same, so the browser's own cache (max-age=300, then a
+// cheap revalidation) still works, instead of every page view
+// re-downloading every file.
 const DATA_CACHE_BUCKET_MS = 3600 * 1000;
 function extraDataUrl(filename) {
   return `${EXTRA_DATA_REPO_RAW_BASE}${filename}?_=${Math.floor(Date.now() / DATA_CACHE_BUCKET_MS)}`;
 }
 
-// Base URL of the standalone Cloudflare Worker that implements the
-// Operator Planner's "import from Arknights account" feature (see
-// cloudflare/depot-import/index.js for the Worker itself, and its own header
-// comment for deploy steps). No trailing slash. Leave this blank to keep
-// that feature hidden entirely -- the planner only shows the import UI
-// once this is set to a real deployed Worker URL.
+// Base URL of the standalone Cloudflare Worker behind the home page's
+// "Sync your Arknights account" feature (js/account-sync.js; the Worker is
+// cloudflare/depot-import/index.js, with deploy steps in its header
+// comment). No trailing slash. Leave blank to hide the feature entirely:
+// the sync form and the other pages' "sync your account" prompts only
+// show once this points at a deployed Worker.
 const DEPOT_IMPORT_ENDPOINT = "https://akshop-depot-import.freddyhansson.workers.dev";
 
 // This site's permanent copy of the myrtle.moe assets the operator page

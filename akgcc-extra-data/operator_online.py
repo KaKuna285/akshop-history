@@ -60,18 +60,11 @@ def scrape_PRTS():
     LINKAGE = '联动寻访'
     LIMITED = '限定寻访'
     LIMITED_OBTAIN_METHODS = [LINKAGE, LIMITED]
-    # The other two gacha-pool keywords PRTS wiki's own obtainMethod field
-    # uses (confirmed via an independent open-source scraper hitting the
-    # exact same char_obtain Cargo table, plus PRTS's own recruitment-rules
-    # docs -- prts.wiki itself is robots.txt-blocked to this project's own
-    # fetch tooling, same restriction noted elsewhere in this file) --
-    # '标准寻访' (standard headhunting) and '中坚寻访' (kernel/"intermediate"
-    # pool, though this site also derives Kernel status independently from
-    # character_table.json's own classicPotentialItemId field, which is the
-    # one actually used for the Kernel badge). Listed here only so
-    # NOT_IN_GACHA_POOL below can tell "not currently offered through *any*
-    # known gacha pool" apart from "just not limited/collab" -- see that
-    # comment for why this matters.
+    # The other two gacha-pool keywords PRTS's obtainMethod field uses:
+    # '标准寻访' (standard headhunting) and '中坚寻访' (Kernel pool). Only
+    # used so notInGachaPool below can tell "not offered through any known
+    # gacha pool" from "not limited/collab". (The site's Kernel badge comes
+    # from character_table.json's classicPotentialItemId, not from this.)
     STANDARD_OBTAIN_METHODS = ['标准寻访', '中坚寻访']
     limit = 500
     offset = 0
@@ -90,34 +83,19 @@ def scrape_PRTS():
         pages = cargo_rows(r, "prts.wiki char_obtain")
         for page in pages:
             charId = page['title']['charId']
-            # A real obtainMethod value can be a SINGLE method (e.g. just
-            # "限定寻访") or a "、"-joined list of several (confirmed on a
-            # real operator page: Civilight Eterna's own obtain-method
-            # field reads "公开招募、中坚寻访" -- both standard recruitment
-            # AND kernel pool at once). `obtain in LIMITED_OBTAIN_METHODS`
-            # is an exact-equality check against the whole string, so it
-            # silently failed to match "限定寻访" as *part of* any compound
-            # value -- misclassifying every operator whose obtainMethod
-            # lists limited/collab alongside anything else as NOT limited,
-            # which then fell through to the site's default "Standard
-            # pool" badge. Checking containment of each known keyword
-            # instead of exact-list membership handles both the
-            # single-value and compound-value cases.
+            # obtainMethod is a single method (e.g. "限定寻访") or a
+            # "、"-joined list of several (e.g. Civilight Eterna's
+            # "公开招募、中坚寻访"), so look for each keyword inside it
+            # rather than comparing the whole string.
             obtain = page['title']['obtainMethod'] or ''
             online = page['title']['cnOnlineTime']
             limited = any(method in obtain for method in LIMITED_OBTAIN_METHODS)
-            # An operator whose obtainMethod contains NONE of the four
-            # known gacha-pool keywords (standard/kernel/limited/collab)
-            # isn't currently offered through any gacha pool at all --
-            # most commonly because they were only ever given out through
-            # an event's activity rewards/shop. Surfaced as its own field
-            # (rather than silently left to default to "Standard pool" on
-            # the frontend, which was the actual bug reported) so
-            # operator-page.js can show something more accurate than a
-            # guess. A blank/unrecognized obtainMethod (e.g. this field
-            # itself failed to come through) intentionally does NOT set
-            # this -- "we don't know" should keep falling back to the
-            # existing default, not get relabeled on missing data.
+            # An obtainMethod containing none of the four known gacha-pool
+            # keywords (standard/kernel/limited/collab) means the operator
+            # isn't offered through any gacha pool -- usually one given out
+            # through an event's rewards/shop. operator-page.js shows that
+            # instead of its default "Standard pool" badge. A blank
+            # obtainMethod doesn't set this: missing data keeps the default.
             known_methods = LIMITED_OBTAIN_METHODS + STANDARD_OBTAIN_METHODS
             not_in_gacha_pool = bool(obtain) and not any(method in obtain for method in known_methods)
             DATA[charId] = {'cnOnlineTime': online, 'isLimited': limited, 'notInGachaPool': not_in_gacha_pool}
@@ -125,18 +103,11 @@ def scrape_PRTS():
         if len(pages) < limit:
             break
     return DATA
-# Strips quote characters (straight and the curly/smart variants) before
-# an operator's display name is used as a cross-table join key.
-# Confirmed live: OperatorFiles.name for Justice Knight is the literal
-# string '"Justice Knight"' (embedded quote characters -- her in-game
-# display name is itself quoted) while Operators.operator for the same
-# operator is the plain 'Justice Knight'. An exact-string join between
-# those two fields silently fails to match them up, so Justice Knight's
-# event (and therefore her onlineTime) never gets found even though
-# EventServerDetails has a perfectly good Global date for her event
-# ("Near Light") -- confirmed live via a direct query. Stripping quotes
-# from both sides before joining fixes this without needing to know in
-# advance which operators' names happen to include them.
+# Strips quote characters (straight and curly) from an operator's display
+# name before it's used as a cross-table join key. OperatorFiles.name for
+# Justice Knight is '"Justice Knight"' (her in-game name is quoted) while
+# Operators.operator has the plain 'Justice Knight', so an exact-string
+# join would miss her event and its Global date.
 _QUOTE_CHARS = str.maketrans('', '', '"“”‘’\'')
 
 
@@ -145,10 +116,8 @@ def normalize_name(name):
 
 
 def wiki_cargo_query(url, headers, tables, fields, where=None):
-    """Paginated Cargo query helper -- every scrape_wiki() sub-fetch below
-    follows the exact same `limit`/`offset` loop operator_online.py and
-    events.py both already hand-roll per query, just factored out once
-    this function needed three of them instead of one."""
+    """Every row of a Cargo query on `tables`/`fields` (optionally filtered
+    by `where`), paged through 500 at a time. Used by scrape_wiki()."""
     rows = []
     limit = 500
     offset = 0
@@ -174,54 +143,25 @@ def wiki_cargo_query(url, headers, tables, fields, where=None):
 
 
 def scrape_wiki():
-    # update the prts.wiki data with global release dates from arknights.wiki.gg/
-    # while it is possible to get limited status and some CN dates from the wiki, those only come from prts for now.
+    # Adds EN/Global release dates (onlineTime) from arknights.wiki.gg to
+    # the PRTS data. Limited status and CN dates come only from PRTS.
     # https://arknights.wiki.gg/wiki/Special:CargoTables
     #
-    # REWRITTEN from a single three-table Cargo-side join (`tables:
-    # "Operators=O,OperatorFiles=F,EventServerDetails=S", join_on:
-    # "O.event=S.event,F.name=O.operator"`) to three separate fetches
-    # joined here in Python instead. The single-query version fixed one
-    # real bug earlier (that join_on used "O.name", when the Operators
-    # table's actual display-name field is "operator" -- confirmed via
-    # events.py's fetch_event_operators(), which hand-verified this exact
-    # schema since Special:CargoTables is itself robots.txt-blocked to
-    # this project's own tooling) but after a full data refresh with that
-    # fix live, onlineTime was STILL missing for the same kind of
-    # operator: every one of them confirmed (via notInGachaPool, see
-    # scrape_PRTS() above) to be event-obtained rather than gacha-pool.
-    # That points at the OTHER join condition instead: "O.event=S.event"
-    # is a second exact-string match, this time between the Operators
-    # table's own freeform event-name field and EventServerDetails' own
-    # (two more independently-maintained Cargo tables), and Cargo's
-    # server-side join has no tolerance for incidental formatting drift
-    # between them (whitespace, e.g.). events.py already had to work
-    # around exactly this: group_operators_by_event() explicitly
-    # `.strip()`s Operators.event before using it as a join key of its
-    # own, specifically because (per its own comment) "incidental
-    # leading/trailing whitespace on one side (but not the other) would
-    # otherwise be an easy way for an operator to silently fail to match
-    # up" -- the exact silent-zero-rows failure mode this function kept
-    # hitting. events.py does that matching in Python, across separately
-    # fetched tables, rather than trusting a single Cargo-side join to
-    # get it right; this function now does the same, reusing the same
-    # proven shape (fetch Operators' event links and EventServerDetails'
-    # per-event timings separately, normalize, join here) instead of
-    # inventing a different approach. Still unverified live (this
-    # project's own fetch tooling remains blocked by the wiki's
-    # robots.txt) -- if onlineTime coverage for event-obtained operators
-    # still doesn't improve after this merges, the remaining suspects are
-    # EventServerDetails simply not having a `server LIKE 'global'` row
-    # yet for that operator's specific event (nothing to join to, not a
-    # join bug), or a *case* difference in the event name rather than
-    # whitespace (str.strip() alone wouldn't catch that).
+    # The three Cargo tables are fetched separately and joined here in
+    # Python (like events.py's event<->operator matching) rather than with
+    # a Cargo-side join_on: Operators.event and EventServerDetails.event
+    # are freeform names in independently maintained tables, and Cargo's
+    # join has no tolerance for formatting drift such as stray whitespace.
+    # Both sides are stripped (names also lose quotes, see normalize_name())
+    # before joining; a difference in case would still not match.
+    # An operator whose event has no Global row in EventServerDetails gets
+    # no onlineTime here -- operator_overrides.json covers those.
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
     url = "https://arknights.wiki.gg/api.php"
 
-    # OperatorFiles: display name -> charId (same F.id/F.name fields the
-    # old single-query version used, just fetched on its own now).
+    # OperatorFiles: display name -> charId.
     file_rows = wiki_cargo_query(
         url, headers, "OperatorFiles=F", "F.name=name,F.id=charId",
         where="F.id IS NOT NULL",
@@ -234,8 +174,9 @@ def scrape_wiki():
             name_to_charid[name] = charid
 
     # Operators: operator name -> event it was introduced/granted through
-    # (same O.operator/O.event fields events.py's own fetch_event_operators()
-    # already trusts -- see that function's docstring in events.py).
+    # (the same O.operator/O.event fields events.py's
+    # fetch_event_operators() reads; the name field is `operator`, not
+    # `name`).
     op_rows = wiki_cargo_query(
         url, headers, "Operators=O", "O.operator=operator,O.event=event",
         where="O.event IS NOT NULL AND O.event != ''",
@@ -259,7 +200,7 @@ def scrape_wiki():
         if event and server == "global" and start:
             event_global_start[event] = start
 
-    # Join in Python, same as events.py's own event<->operator matching.
+    # charId -> name -> event -> that event's Global start.
     for name, charid in name_to_charid.items():
         event = operator_event.get(name)
         if not event:
@@ -278,32 +219,22 @@ OPERATOR_OVERRIDES_PATH = "./operator_overrides.json"
 
 def load_operator_overrides(path=OPERATOR_OVERRIDES_PATH):
     """Manually-pinned EN/Global release dates (onlineTime), keyed by
-    charId, for operators the wiki's own event-tracking data doesn't
-    cover. Confirmed live this didn't come from a join bug for most of
-    them: several real operators (Conviction, Highmore, Kestrel, Shalem,
-    Tin Man, U-Official, Valarqvin) have a perfectly correctly-populated
-    `Operators.event` value, but EventServerDetails has ZERO rows at all
-    for any of those event names -- the wiki simply doesn't model
-    activity-reward/shop-obtained operators' release timing the same way
-    it models gacha-banner operators, so there is no join-logic fix that
-    can produce a date from data that isn't there. This file is the
-    fallback for exactly that gap.
+    charId, for operators the wiki's event data doesn't cover. Several
+    event-reward/shop operators (Conviction, Highmore, Kestrel, Shalem,
+    Tin Man, U-Official, Valarqvin) have a correct `Operators.event`, but
+    EventServerDetails has no rows for those events, so there is no date
+    to join to.
 
-    Same "hand-edited JSON, starts out empty" shape events.py already
-    uses for event dates via its own sibling overrides.json -- see
-    load_overrides() there and the matching README.md section this
-    mirrors -- but with one deliberate difference in priority: an
-    operator override here ALWAYS wins over whatever the scrape found,
-    even an onlineTime the scrape DID set. events.py's event overrides
-    never clobber a wiki-confirmed date, because there a "confirmed"
-    date is reliably correct once it exists. Here that assumption
-    doesn't hold -- the scrape has been confirmed live to sometimes pick
-    up the wrong operator entirely for a shared name/version (e.g. an
-    Amiya alternate version's page data landing on base Amiya's charId),
-    so a hand-verified override needs to be able to correct a wrong
-    scraped value, not just fill in a missing one. To use: open the
-    operator's page on the site and copy their charId out of the `?id=`
-    URL, then add an entry here, e.g.:
+    The file has the same hand-edited JSON shape as events.py's
+    overrides.json (see load_overrides() there and the README), with one
+    difference: an operator override here always wins, even over an
+    onlineTime the scrape did set. Event overrides never replace a
+    wiki-confirmed date, but the scrape here can pick up the wrong
+    operator for a shared name/version (e.g. an Amiya alternate
+    version's page data landing on base Amiya's charId), so an override
+    must be able to correct a scraped value, not just fill a gap. To add
+    one, open the operator's page on the site, copy their charId from the
+    `?id=` URL, and add an entry, e.g.:
 
         {
           "char_4064_rockr": {
@@ -313,10 +244,9 @@ def load_operator_overrides(path=OPERATOR_OVERRIDES_PATH):
           }
         }
 
-    `source` and `note` are optional and purely documentation for future
-    editors of this file -- they are not read by the site itself, only
-    `onlineTime` is. Hand-edited, and optional -- a missing or unreadable
-    file just means no overrides today, not a crash.
+    Only `onlineTime` is read; `source` and `note` are optional notes for
+    whoever edits the file next. A missing or unreadable file just means
+    no overrides, not a crash.
     """
     try:
         with open(path) as f:
@@ -337,17 +267,11 @@ def load_operator_overrides(path=OPERATOR_OVERRIDES_PATH):
     return overrides
 
 
-# arknights.wiki.gg's EventServerDetails records the Global startTime
-# shared by the entire Day 1 operator roster (confirmed live: ~90
-# distinct operators, every one of them this exact same timestamp) as
-# "2020-02-05 17:00:00" -- but Arknights' actual EN/Global launch date
-# is January 16, 2020 (confirmed by the site maintainer). Rather than
-# hand-entering ~90 individual operator_overrides.json entries for
-# every Day 1 operator to fix one shared wrong wiki value, this
-# corrects that one specific value wherever it's found, in bulk, right
-# at the source. If the wiki ever fixes its own data, this becomes a
-# silent no-op (nothing will match WRONG_LAUNCH_DATE any more) rather
-# than something that needs to be remembered and removed.
+# arknights.wiki.gg's EventServerDetails gives the whole Day 1 roster
+# (~90 operators) the Global startTime "2020-02-05 17:00:00", but the
+# EN/Global launch was January 16, 2020. This corrects that one value in
+# bulk instead of needing ~90 operator_overrides.json entries. If the wiki
+# fixes its data, nothing matches WRONG_LAUNCH_DATE and this does nothing.
 WRONG_LAUNCH_DATE = "2020-02-05 17:00:00"
 CORRECT_LAUNCH_DATE = "2020-01-16 00:00:00"
 
@@ -368,9 +292,8 @@ for _entry in DATA.values():
 print(f"Corrected {_launch_date_corrected} operator(s) from the known-wrong wiki launch date")
 
 # Manual overrides apply last and always win, even over an onlineTime
-# the scrape DID set -- see load_operator_overrides()'s docstring for
-# why that's the right default here (unlike events.py's event
-# overrides, which never clobber a confirmed date).
+# the scrape set -- see load_operator_overrides() for why (events.py's
+# event overrides, by contrast, never replace a confirmed date).
 _operator_overrides = load_operator_overrides()
 _overrides_applied = 0
 for _charid, _online_time in _operator_overrides.items():

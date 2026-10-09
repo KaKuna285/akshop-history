@@ -28,8 +28,8 @@
 }
 
 /* The read-only color key and the two functional controls (view toggle,
-   status filters) share this one row now, to leave room for the event
-   preview panel below without needing its own separate bar. */
+   status filters) share this one row, leaving room for the event
+   preview panel below without a separate bar. */
 .legendSwatches {
   display: flex;
   flex-wrap: wrap;
@@ -38,9 +38,8 @@
 }
 
 /* Shared between the calendar page's own legend and the about page's
-   recap of it (#aboutContent .aboutLegendRecap) -- previously these rules
-   were scoped to #calendarLegend only, which meant the about page's swatch
-   dots had no shape or color at all. */
+   recap of it (#aboutContent .aboutLegendRecap), so both get the same
+   swatch dots. */
 #calendarLegend .legendSwatch,
 #aboutContent .aboutLegendRecap .legendSwatch {
   display: inline-block;
@@ -153,17 +152,13 @@
 }
 
 .eventPreviewImg {
-  /* Event banners are wide (the wiki's own crop is 1560x500, ~3.12:1) --
-     a fixed 220x124 box with object-fit:cover was cropping away close to
-     half of the image's width to force it into a much taller-relative-
-     to-width shape than the source art actually is, cutting off titling
-     and art that sits near the banner's edges. flex-basis 100% puts it
-     on its own row (the card has plenty of width to spare for this --
-     see .eventPreview's max-width), sized by its own real aspect ratio
-     so the full banner always shows with no cropping, and object-fit:
-     contain (rather than cover) is a safety net for the handful of
-     banners that aren't quite 3.12:1 (letterboxed into the background
-     fill below rather than cropped).*/
+  /* Event banners are wide (the wiki's own crop is 1560x500, ~3.12:1),
+     so a smaller fixed box with object-fit:cover would crop off titling
+     and art near the edges. flex-basis 100% puts the banner on its own
+     row (see .eventPreview's max-width), sized by its real aspect ratio
+     so the full banner shows uncropped; object-fit: contain is a safety
+     net for banners that aren't quite 3.12:1 (letterboxed into the
+     background fill below rather than cropped). */
   flex: 1 1 100%;
   width: 100%;
   height: auto;
@@ -382,13 +377,11 @@
 }
 
 /* A chip is a real <a> (see js/calendar.js) straight to that skin's
-   operator page -- unlike the operator chips above, there's no modal to
-   open here, just somewhere else on the site that already shows the
-   skin itself (and, once synced, whether you own it). A skin whose
-   wiki-scraped operator name never resolved to a charId renders as
-   plain, unlinked text instead (still named, just not clickable) --
-   that's the `<span>` fallback in showEventPreview()'s own skins
-   section. */
+   operator page, which shows the skin itself (and, once synced, whether
+   you own it) -- no modal, unlike the operator chips above. A skin whose
+   wiki-scraped operator name doesn't resolve to a charId renders as
+   plain, unlinked text instead -- the `<span>` fallback in
+   showEventPreview()'s skins section. */
 .eventPreviewSkinChip {
   display: flex;
   align-items: center;
@@ -583,10 +576,7 @@ span.eventPreviewSkinChip {
   font-size: 0.85em;
 }
 
-/* Same muted treatment as #pageCredit's link -- nothing here sets a
-   link color, so it was otherwise falling back to the browser's
-   default bright blue, which is hard to read against this dark
-   background. */
+/* Same muted treatment as #pageCredit's link. */
 #aboutContent a {
   color: #999;
 }
@@ -702,11 +692,10 @@ span.eventPreviewSkinChip {
    so days are never dimmed; the weekday header row stays pinned to the
    top of the scroll area via position: sticky. */
 #weekGrid {
-  /* Without this, #weekGrid isn't a positioned element, so it never
-     becomes the offsetParent for its .calDay children -- their
-     offsetTop ends up measured against the page (or body) instead of
-     against this scroll container, which is what was sending the
-     initial "scroll to today" calculation to the wrong place. */
+  /* Makes #weekGrid a positioned element, so it's the offsetParent for
+     its .calDay children and their offsetTop is measured against this
+     scroll container (not the page) -- the initial "scroll to today"
+     calculation depends on that. */
   position: relative;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -717,16 +706,13 @@ span.eventPreviewSkinChip {
   border-radius: 8px;
   max-height: 66vh;
   overflow-y: auto;
-  /* Browsers auto-adjust scrollTop on their own (CSS "scroll anchoring")
-     whenever content changes above the visible area, to stop it from
-     jumping -- but prependWeeks() in calendar.js already does that exact
-     compensation by hand (scrollTop += the height it just inserted
-     above). With both active, an insert can get compensated twice: the
-     browser's automatic nudge plus ours, landing the view a batch of
-     weeks off from where it should be. That only happens under certain
-     timing, which is why it was intermittent rather than constant.
-     Disabling the browser's version here leaves our own math as the only
-     thing moving scrollTop during a prepend. */
+  /* Browsers auto-adjust scrollTop (CSS "scroll anchoring") when content
+     changes above the visible area -- but prependWeeks() in calendar.js
+     already compensates by hand (scrollTop += the inserted height). With
+     both active, an insert can (depending on timing) be compensated
+     twice, landing the view a batch of weeks off. Disabling the browser's
+     version leaves our own math as the only thing moving scrollTop
+     during a prepend. */
   overflow-anchor: none;
 }
 
@@ -746,13 +732,12 @@ span.eventPreviewSkinChip {
 .calDay {
   background: #262626;
   min-height: 84px;
-  /* A grid item's automatic minimum width is otherwise based on its
-     content's min-content size -- and a long, unbreakable event name (see
-     .calEventChip's white-space: nowrap) would otherwise force this
-     column, and so the whole #weekGrid, wider than its container. Setting
-     both min-width and overflow here is what actually lets the "1fr"
-     columns shrink to fit -- this is the fix for needing to side-scroll to
-     see the rest of the week. */
+  /* A grid item's automatic minimum width is its content's min-content
+     size, so a long, unbreakable event name (see .calEventChip's
+     white-space: nowrap) would force this column, and the whole
+     #weekGrid, wider than its container. Setting both min-width and
+     overflow lets the "1fr" columns shrink to fit, so the week never
+     needs side-scrolling. */
   min-width: 0;
   overflow: hidden;
   padding: 4px 4px 6px;

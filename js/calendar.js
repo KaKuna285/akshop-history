@@ -24,12 +24,10 @@
   const GRACE_DAYS = 30;
   const DAY_MS = 24 * 60 * 60 * 1000;
   const WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  // The calendar view is a continuous, scrollable stream of week rows. This
-  // many weeks are rendered on the very first load, centered on the
-  // current week; after that, scrolling near either edge of what's
-  // rendered so far loads another batch on demand (see the scroll
-  // listener near the bottom), so the whole calendar is reachable just by
-  // scrolling, with Prev/Next Week and Today as a faster way to jump.
+  // The calendar view is a continuous, scrollable stream of week rows. The
+  // first render covers WEEKS_BEFORE + 1 + WEEKS_AFTER weeks around the
+  // current week; scrolling near either edge loads another batch (see
+  // handleScrollTick()). Prev/Next Week and Today jump directly.
   const WEEKS_BEFORE = 4;
   const WEEKS_AFTER = 10;
   const LOAD_BATCH_WEEKS = 4;
@@ -47,9 +45,8 @@
   let sortMode = "date"; // "date" | "name"
   let activeStatuses = new Set(["confirmed", "announced", "estimated", "cnExclusive"]);
 
-  // Restore any settings saved from a previous visit (see js/prefs.js).
-  // Deliberately NOT included here: which week the calendar view was
-  // scrolled to -- every visit starts back at today, on purpose.
+  // Restore saved settings (see js/prefs.js). The scrolled-to week is
+  // deliberately not saved -- every visit starts at today.
   currentView = getPref(
     "calendar",
     "view",
@@ -62,9 +59,8 @@
       Array.isArray(v) && v.every((s) => Object.keys(STATUS_LABEL).includes(s)),
     ),
   );
-  // The controls above are hardcoded in the HTML to match the defaults
-  // just overwritten -- reflect whatever was actually restored back into
-  // the DOM so the UI matches these variables from the very first paint.
+  // The HTML hardcodes the default control states; sync them to the
+  // restored values so the UI matches from the first paint.
   for (const b of viewToggle.querySelectorAll(".viewToggleBtn")) {
     b.classList.toggle("active", b.dataset.view === currentView);
   }
@@ -74,25 +70,20 @@
   sortSelect.value = sortMode;
 
   // Calendar-view-only state. The grid is built once (renderCalendarInitial)
-  // and then only ever grown (prependWeeks/appendWeeks) or has its chip
-  // contents refreshed in place (refreshCalendarChips) -- never torn down
-  // and rebuilt -- so scroll position survives filter changes and view
-  // toggles.
+  // and after that only grown (prependWeeks/appendWeeks) or has its chips
+  // refreshed in place (refreshCalendarChips), never rebuilt, so scroll
+  // position survives filter changes and view toggles.
   let calendarInitialized = false;
   let renderedStart = null; // first rendered day (Monday-aligned), inclusive
   let renderedEnd = null; // one day past the last rendered day
   let weekRows = []; // [{weekStart, el}], ascending, el = that week's Monday .calDay
   const dayCellsByDayNum = new Map(); // dayNum -> that day's .calChips element
   let scrollTickScheduled = false;
-  // The very first render happens before events.json has loaded (see the
-  // bottom of this file), so the initial scroll-to-today position is
-  // computed against an empty grid -- every .calDay is still just its
-  // min-height, with no event chips yet. Once real data lands, chip
-  // content changes row heights (a day with two or three chips is taller
-  // than an empty one), which shifts every later row's offsetTop -- so
-  // the scroll position has to be recomputed once, against the real
-  // layout, or the page opens a few rows off from today. This flag marks
-  // "real data has loaded but that recompute hasn't happened yet".
+  // The first render happens before events.json loads, so the initial
+  // scroll-to-today is computed against an empty grid. Event chips then
+  // make rows taller and shift every later row's offsetTop, so the scroll
+  // position has to be recomputed once against the real layout. This flag
+  // means "data has loaded but that recompute hasn't happened yet".
   let needsInitialScrollFix = false;
 
   function startOfWeek(d) {
@@ -106,10 +97,9 @@
     return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
   }
 
-  // Label for the header: not an exact date range, just which month(s) and
-  // year(s) are currently in view -- e.g. "September 2026" or, when the
-  // visible rows straddle a month (or year) boundary, "September –
-  // October 2026" / "December 2026 – January 2027".
+  // Header label naming the month(s) and year(s) in view, e.g.
+  // "September 2026", "September – October 2026" or
+  // "December 2026 – January 2027".
   function fmtMonthRangeLabel(startDate, endDate) {
     const startMonth = startDate.toLocaleDateString(undefined, { month: "long" });
     const endMonth = endDate.toLocaleDateString(undefined, { month: "long" });
@@ -131,12 +121,11 @@
     return Math.floor(c.getTime() / DAY_MS);
   }
 
-  // A few source rows have an end date earlier than their start date (a
-  // mistyped year on the wiki, most likely -- events.py now guards against
-  // this for newly-estimated dates, but already-cached JSON, or a
-  // *confirmed* Global end straight off the wiki, can still have it). Rather
-  // than trust it, every place that needs "the end of this window" goes
-  // through this helper instead of reading globalEnd/cnEnd directly.
+  // Some source rows have an end date earlier than their start date (most
+  // likely a mistyped year on the wiki). events.py guards estimated dates
+  // against this, but a confirmed Global end taken straight from the wiki
+  // can still have it, so every "end of this window" lookup goes through
+  // this helper instead of reading globalEnd/cnEnd directly.
   function effectiveEnd(startIso, endIso) {
     const start = parseTimestamp(startIso);
     const end = parseTimestamp(endIso);
@@ -151,29 +140,23 @@
     return `${fmtDate(startIso)} – ${fmtDate(endIso)}`;
   }
 
-  // Best-effort "this event looks tied to these new operators" match, used
-  // to power the planner links in the event preview panel (see
-  // showEventPreview() below). There's no scraped gacha-banner calendar to
-  // draw on -- events.py only scrapes story/side events, not headhunting
-  // banners -- but a new operator's EN release almost always lands on the
-  // same day as the event it debuts alongside, so matching by release-date
-  // proximity is a reasonable stand-in.
-  //
-  // Dates are compared by day via dayKeyFromTimestamp() (js/util.js).
+  // Best-effort "this event debuts these operators" match, for the planner
+  // chips in the event preview panel (see showEventPreview()). events.py
+  // scrapes story/side events, not headhunting banners, but a new
+  // operator's EN release almost always lands on the same day as the event
+  // it debuts alongside, so release-date proximity is a reasonable
+  // stand-in. Dates are compared by day via dayKeyFromTimestamp()
+  // (js/util.js).
 
   const OPERATOR_MATCH_WINDOW_DAYS = 1;
   // A real debut is 1-4 operators, occasionally more for a collab/
-  // anniversary batch -- this also happens to be exactly what filters out
-  // the one known false-positive case: EN's original Jan 2020 launch
-  // back-dated ~90 operators' onlineTime to the same couple of days as the
-  // catch-up "Opening Event", which would otherwise show as one event
-  // "debuting" nearly the entire early roster.
+  // anniversary batch. The cap also filters out EN's Jan 2020 launch,
+  // which back-dated ~90 operators' onlineTime to the same couple of days
+  // as the catch-up "Opening Event".
   const OPERATOR_MATCH_MAX = 6;
 
-  // Mutates each matching event in `events`, setting ev.operators to
-  // [{charId, name, icon}, ...] -- the shape showEventPreview() already
-  // expects (that rendering existed before this matching did; it's what
-  // first suggested tying the two together).
+  // Sets ev.operators = [{charId, name, icon}, ...] on each event in
+  // `events` that has a match -- the shape showEventPreview() renders.
   function matchOperatorsToEvents(events, charTable) {
     const byDay = new Map(); // dayNum -> [operator record, ...]
     for (const op of Object.values(charTable)) {
@@ -183,10 +166,10 @@
       byDay.get(day).push(op);
     }
     for (const ev of events) {
-      // A game-mode theme (Integrated Strategies / Reclamation Algorithm --
+      // A game-mode theme (Integrated Strategies / Reclamation Algorithm;
       // events.py tags these with `mode`) often drops the same day as a
-      // SideStory, and the operators released that day belong to the
-      // SideStory, not the theme -- date proximity can't tell them apart.
+      // SideStory, and that day's operators belong to the SideStory. Date
+      // proximity can't tell them apart, so themes are skipped.
       if (ev.mode) continue;
       const day = dayKeyFromTimestamp(ev.globalStart);
       if (day == null) continue;
@@ -222,17 +205,14 @@
     return `ended ${plural(today - end)} ago`;
   }
 
-  // Confirmed events are exactly what Yostar has set. An event that's
-  // only ever had an *estimated* Global date, and whose estimated window
-  // closed more than GRACE_DAYS ago with still no confirmation, is treated
-  // as CN exclusive instead of "upcoming forever" -- it's either not coming
-  // to Global at all, or running unusually late, and the grace period is
-  // there so an event that's simply a bit delayed doesn't flip red early.
+  // Confirmed events are exactly what Yostar has set. An event with only
+  // an estimated Global date whose window closed more than GRACE_DAYS ago
+  // is treated as CN exclusive rather than "upcoming forever". The grace
+  // period keeps a slightly delayed event from flipping early.
   function getStatus(ev, now) {
     if (ev.globalConfirmed) return "confirmed";
-    // Manually pinned via overrides.json -- treated as its own tier,
-    // never falls through to "CN exclusive" no matter how old its window
-    // gets, since it's officially known to be coming rather than guessed.
+    // Manually pinned via overrides.json: officially known to be coming,
+    // so it never falls through to "CN exclusive" however old its window.
     if (ev.announced) return "announced";
     const end = effectiveEnd(ev.globalStart, ev.globalEnd);
     if (now.getTime() - end.getTime() > GRACE_DAYS * DAY_MS) return "cnExclusive";
@@ -241,9 +221,8 @@
 
   // events.py records every move of an unfinished event's date or status in
   // `dateHistory` (oldest first; see update_date_history()). The latest move
-  // is worth pointing out for a while after it happens -- long enough that
-  // someone who looked at the calendar a week or two ago can see what
-  // changed since -- and then it's just how things are.
+  // is highlighted for RECENT_CHANGE_DAYS, so someone who last looked a
+  // week or two ago can see what changed.
   const RECENT_CHANGE_DAYS = 14;
 
   function describeDateChange(ev, now) {
@@ -272,10 +251,9 @@
     return { kind, text, at };
   }
 
-  // "Announced" only ever shows up when something is currently pinned via
-  // overrides.json -- most of the time nothing is, so its legend swatch and
-  // filter checkbox would just be clutter for a status that never appears.
-  // Hide both whenever no loaded event is currently in that state.
+  // "Announced" only appears when something is pinned via overrides.json,
+  // which is usually nothing. Hide its legend swatch and filter checkbox
+  // whenever no loaded event has that status.
   function updateAnnouncedVisibility() {
     const hasAnnounced = allEvents.some((ev) => ev._status === "announced");
     const display = hasAnnounced ? "" : "none";
@@ -283,12 +261,10 @@
     if (filterAnnouncedItem) filterAnnouncedItem.style.display = display;
   }
 
-  // Shared hover tooltip for calendar-grid chips, showing an event's name
-  // and dates. Built once and repositioned/repopulated per chip on hover,
-  // rather than one tooltip element per chip -- the grid can have hundreds
-  // of chips on screen at once, and only ever one tooltip is visible at a
-  // time. No banner art here (that lives in the click-to-open preview
-  // panel instead -- see showEventPreview) so hovering stays lightweight.
+  // Shared hover tooltip for calendar-grid chips (event name and dates).
+  // One element is reused for every chip, since the grid can hold hundreds
+  // of chips. Banner art lives in the click-to-open preview panel (see
+  // showEventPreview) so hovering stays lightweight.
   const hoverTooltipEl = document.createElement("div");
   hoverTooltipEl.className = "eventHoverTooltip";
   const hoverTooltipNameEl = document.createElement("div");
@@ -304,9 +280,9 @@
     hoverTooltipDatesEl.textContent = fmtRange(ev.globalStart, ev.globalEnd);
     hoverTooltipEl.classList.add("visible");
 
-    // Anchor below the chip by default, flipping above it (or clamping
-    // sideways) if there isn't room -- the tooltip's own size depends on
-    // its content, so this has to run after the content above is set.
+    // Anchor below the chip, flipping above it (or clamping sideways) if
+    // there isn't room. The tooltip's size depends on its content, so this
+    // runs after the content is set.
     const anchorRect = anchorEl.getBoundingClientRect();
     const ttRect = hoverTooltipEl.getBoundingClientRect();
     let left = anchorRect.left;
@@ -326,12 +302,11 @@
     hoverTooltipEl.classList.remove("visible");
   }
 
-  // Wires up a chip or card (a plain, non-<a> element -- see buildChip()/
-  // buildCard()) to behave like a button: clickable and keyboard-activable
-  // (Enter/Space), calling onActivate() either way. stopPropagation() on
-  // the click matters here -- the preview panel's own "click outside to
-  // close" listener is on document, and without this, opening the preview
-  // would immediately close it again as that same click bubbles up.
+  // Makes a chip or card (a plain, non-<a> element -- see buildChip()/
+  // buildCard()) behave like a button: click or Enter/Space calls
+  // onActivate(). stopPropagation() is required: the preview panel's
+  // "click outside to close" listener is on document, and would otherwise
+  // close the panel as the opening click bubbles up.
   function makeClickable(el, onActivate) {
     el.setAttribute("role", "button");
     el.tabIndex = 0;
@@ -348,11 +323,10 @@
     });
   }
 
-  // The bigger event preview panel: opened by clicking any chip or card,
-  // sitting between the legend/controls row and the calendar/list content
-  // (see calendar/index.html). Its image/close-button/body wrapper are
-  // fixed markup; only eventPreviewBodyEl's contents are rebuilt per event,
-  // the same pattern buildCard() already uses for the list view.
+  // The event preview panel, opened by clicking any chip or card. It sits
+  // between the legend/controls row and the calendar/list content (see
+  // calendar/index.html). The image, close button and body wrapper are
+  // fixed markup; only eventPreviewBodyEl's contents are rebuilt per event.
   function showEventPreview(ev) {
     eventPreviewEl.className = "eventPreview visible " + ev._status;
 
@@ -445,9 +419,8 @@
       opsSection.appendChild(opsHeading);
       const opsList = document.createElement("div");
       opsList.className = "eventPreviewOperatorsList";
-      // Read fresh each time this panel opens (rather than once at load)
-      // so it reflects whatever was added/removed since the page loaded --
-      // getPref() is cheap enough to call per chip build.
+      // Read fresh each time the panel opens so it reflects roster changes
+      // made since page load.
       const rosterCharIds = new Set(
         getPref("planner", "roster", [], (v) => Array.isArray(v))
           .filter((e) => e && typeof e.charId === "string")
@@ -455,14 +428,9 @@
       );
       ev.operators.forEach((op) => {
         const inPlanner = rosterCharIds.has(op.charId);
-        // Every chip is a real <button> now, whether or not the operator
-        // is already in the roster -- clicking it always opens the same
-        // edit card in place (adding the operator first if it isn't
-        // already on the roster), the way planner.js's own
-        // selectSearchResult() does when you add one from its search box.
-        // This used to be a link to /planner/?add=charId instead, but
-        // that navigated away from the calendar entirely rather than
-        // popping the card open here.
+        // Clicking opens the operator edit card in place, adding the
+        // operator to the roster first if needed -- the same as picking
+        // one from the planner's "Add operator" search box.
         const chip = document.createElement("button");
         chip.type = "button";
         chip.className = "eventPreviewOperatorChip" + (inPlanner ? " inPlanner" : "");
@@ -500,17 +468,14 @@
       skinsSection.appendChild(skinsHeading);
       const skinsList = document.createElement("div");
       skinsList.className = "eventPreviewSkinsList";
-      // Sorted by operator name, same as the operators section above --
-      // skinName alone would scatter one operator's own skins apart from
-      // each other whenever a batch introduces more than one for them.
+      // Sorted by operator name, like the operators section, so one
+      // operator's skins stay together.
       ev.skins
         .slice()
         .sort((a, b) => (a.operatorName || "").localeCompare(b.operatorName || ""))
         .forEach((skin) => {
-          // No charId (the wiki-scraped operator name on events.py's side
-          // didn't resolve to one, or this skin was named on a page but
-          // never cross-referenced) -- still show the name rather than
-          // silently dropping it, just not as a link to anywhere.
+          // A skin without a charId (events.py couldn't resolve the
+          // wiki-scraped operator name) is still shown, just not as a link.
           const chip = skin.charId ? document.createElement("a") : document.createElement("span");
           chip.className = "eventPreviewSkinChip";
           if (skin.charId) {
@@ -525,11 +490,10 @@
           name.className = "eventPreviewSkinName";
           name.textContent = skin.operatorName ? `${skin.skinName} (${skin.operatorName})` : skin.skinName;
           chip.appendChild(name);
-          // Out on CN already but not yet confirmed for Global (events.py
-          // flags it cnOnly -- see index_outfit_brand_releases()): shown
-          // so an upcoming event lists what it's expected to bring, but
-          // tagged, since it's the same "estimated" caveat the event's own
-          // badge carries, not a promise.
+          // Out on CN but not yet confirmed for Global (events.py flags it
+          // cnOnly -- see index_outfit_brand_releases()). Shown so an
+          // upcoming event lists what it's expected to bring, but tagged
+          // as unconfirmed.
           if (skin.cnOnly) {
             chip.classList.add("eventPreviewSkinChipUnconfirmed");
             chip.title = "Out on CN, not yet confirmed for Global";
@@ -555,32 +519,25 @@
       eventPreviewBodyEl.appendChild(link);
     }
 
-    // Clicking a chip deep in the grid (or a card near the bottom of a
-    // long list) can open the panel off-screen above the current scroll
-    // position -- bring it into view rather than leaving the person to
-    // notice and scroll up themselves.
+    // A chip deep in the grid (or a card low in a long list) can open the
+    // panel off-screen above the scroll position, so bring it into view.
     eventPreviewEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
-  // Opens the shared operator edit modal (js/operator-edit-modal.js) for
-  // the operator an "Add to planner"/"In planner" chip was clicked for --
-  // adding it to the roster first if it wasn't already there, the same
-  // add-then-open sequence planner.js's own selectSearchResult() uses.
-  // The modal is injected into <body>, a sibling of #eventPreview rather
-  // than a descendant of it, so it stays open (and the calendar page
-  // underneath it stays put) regardless of what the preview panel does.
+  // Opens the shared operator edit modal (js/operator-edit-modal.js) for a
+  // clicked "Add to planner"/"In planner" chip, adding the operator to the
+  // roster first if needed -- the same add-then-open sequence as the
+  // planner's "Add operator" search box (its createSearchBox() onPick).
+  // The modal is injected into <body> as a sibling of #eventPreview, so it
+  // stays open regardless of what the preview panel does.
   //
-  // The chip's own "Add to planner"/"In planner" label is deliberately
-  // NOT refreshed synchronously here, even right after adding -- doing
-  // so would rebuild (detach + recreate) the very chip this click is
-  // still bubbling from, and loadCharTable()'s promise can resolve *in
-  // the middle* of that bubble (Chromium runs a microtask checkpoint
-  // between each event listener), which would make the "click landed
-  // outside the preview panel" check below see a detached, already-
-  // orphaned target and close the panel out from under the modal that
-  // was just opened. Refreshing once the modal actually closes (via
-  // onClose) sidesteps that race entirely, since by then this click's
-  // dispatch has long finished.
+  // The chip labels are refreshed only when the modal closes (onClose),
+  // not right after adding. Rebuilding the panel synchronously would
+  // detach the chip this click is still bubbling from, and
+  // loadCharTable()'s promise can resolve mid-bubble (Chromium runs a
+  // microtask checkpoint between event listeners). The "click outside the
+  // preview" listener below would then see a detached target and close
+  // the panel under the newly opened modal.
   function openOperatorModalFromChip(op, ev) {
     OperatorEditModal.loadCharTable()
       .then((charTable) => {
@@ -623,12 +580,10 @@
     if (e.key === "Escape" && !OperatorEditModal.isOpen()) hideEventPreview();
   });
 
-  // Closes the preview on a click anywhere outside it. Safe from
-  // immediately closing a panel that was just opened -- see
-  // makeClickable()'s stopPropagation(). The modal is injected as a
-  // sibling of #eventPreview (not a descendant), so without this guard
-  // every click inside it -- picking a phase, typing a level -- would
-  // also be seen as "outside the preview" and close the panel under it.
+  // Closes the preview on a click anywhere outside it (the opening click
+  // never reaches here -- see makeClickable()'s stopPropagation()). Clicks
+  // inside the operator edit modal are ignored: it's a sibling of
+  // #eventPreview, not a descendant, so they'd otherwise count as outside.
   document.addEventListener("click", (e) => {
     if (!eventPreviewEl.classList.contains("visible")) return;
     if (eventPreviewEl.contains(e.target)) return;
@@ -705,9 +660,8 @@
     const chip = document.createElement("div");
     chip.className = "calEventChip " + ev._status;
     chip.textContent = ev.event;
-    // No native title attribute here -- the custom hover tooltip below
-    // (which also carries the art) shows the same name/date info, and a
-    // native tooltip on top of it just doubles up visually.
+    // No native title attribute: the custom hover tooltip shows the same
+    // name and dates, and both at once would double up.
     chip.addEventListener("mouseenter", () => showHoverTooltip(ev, chip));
     chip.addEventListener("mouseleave", hideHoverTooltip);
     makeClickable(chip, () => showEventPreview(ev));
@@ -770,9 +724,8 @@
   }
 
   // Builds one day cell. filtered = computeFilteredRanges() output.
-  // forceMonthLabel is only used for the very first cell ever rendered, so
-  // the top of the scroll area always has its bearings even when day 1 of
-  // that month isn't the first visible cell.
+  // forceMonthLabel is set for the first cell rendered, so the top of the
+  // grid shows a month even when it doesn't start on the 1st.
   function buildDayCell(cellDate, filtered, todayDayNum, forceMonthLabel) {
     const cellDayNum = toDayNum(cellDate);
     const cell = document.createElement("div");
@@ -812,9 +765,8 @@
   }
 
   // Scrolls so the current week sits right under the sticky weekday
-  // header, using whatever the grid's layout actually is right now (see
-  // needsInitialScrollFix above for why this needs to be callable more
-  // than once against the same rendered rows).
+  // header, using the grid's current layout (see needsInitialScrollFix for
+  // why this can run more than once).
   function positionOnToday() {
     const initialWeek = startOfWeek(new Date());
     const todayRow = weekRows.find((w) => w.weekStart.getTime() === initialWeek.getTime());
@@ -824,12 +776,9 @@
     updateWeekLabel();
   }
 
-  // The very first calendar render: builds WEEKS_BEFORE + 1 + WEEKS_AFTER
-  // weeks centered on the current week, and scrolls so the current week
-  // sits right under the sticky weekday header. Only ever called once --
-  // after this, the grid is only grown (prependWeeks/appendWeeks) or has
-  // its chips refreshed in place, never rebuilt, so scroll position is
-  // never lost to a filter change or a view toggle.
+  // The first calendar render: builds WEEKS_BEFORE + 1 + WEEKS_AFTER weeks
+  // around the current week and scrolls to it. Called only once (see the
+  // calendar-view state comment at the top).
   function renderCalendarInitial() {
     const now = new Date();
     const todayDayNum = toDayNum(now);
@@ -862,8 +811,8 @@
     positionOnToday();
   }
 
-  // Redraws every already-rendered day's chips in place (status filter
-  // changed) without touching renderedStart/renderedEnd, weekRows, or
+  // Redraws every rendered day's chips in place (e.g. after a filter
+  // change) without touching renderedStart/renderedEnd, weekRows, or
   // scroll position.
   function refreshCalendarChips() {
     const filtered = computeFilteredRanges();
@@ -894,8 +843,8 @@
       if (i % 7 === 0) newRows.push({ weekStart: cellDate, el: cell });
     }
     const oldScrollHeight = weekGridEl.scrollHeight;
-    // The first 7 children are always the (never-touched) weekday header
-    // cells, so the current first day cell is always at index 7.
+    // The first 7 children are the weekday header cells, so the first day
+    // cell is at index 7.
     const marker = weekGridEl.children[7] || null;
     weekGridEl.insertBefore(frag, marker);
     weekRows.unshift(...newRows);
@@ -921,9 +870,8 @@
     renderedEnd = addDays(renderedEnd, n * 7);
   }
 
-  // The week currently at (or just above) the top of the visible scrolled
-  // area -- weekRows is always kept in ascending order, so this is the
-  // last row whose top has scrolled to/past the header.
+  // The week at the top of the visible area: the last row (weekRows is
+  // ascending) whose top has scrolled to or past the header.
   function findTopWeekStart() {
     if (weekRows.length === 0) return null;
     const scrollPos = weekGridEl.scrollTop + headerHeight() + 1;
@@ -935,9 +883,8 @@
     return current.weekStart;
   }
 
-  // The first and last day currently visible anywhere in the scrolled
-  // viewport (not just the top row) -- used to label the header with
-  // whichever month(s)/year(s) are actually on screen right now.
+  // The first and last day visible anywhere in the viewport, used for the
+  // header's month/year label.
   function findVisibleDateRange() {
     if (weekRows.length === 0) return null;
     const viewTop = weekGridEl.scrollTop + headerHeight();
@@ -988,11 +935,10 @@
     }
   }
 
-  // Keeps the calendar scrollable in both directions indefinitely: once
-  // the user scrolls within LOAD_THRESHOLD_PX of either edge of what's
-  // rendered so far, another batch of weeks is loaded on that side. Old
-  // weeks are never trimmed back out -- fine for a normal browsing
-  // session, since the whole dataset is only a couple hundred events.
+  // Keeps the calendar scrollable in both directions: within
+  // LOAD_THRESHOLD_PX of either rendered edge, another batch of weeks is
+  // loaded on that side. Rendered weeks are never trimmed; the dataset is
+  // only a couple hundred events.
   function handleScrollTick() {
     let guard = 0;
     while (weekGridEl.scrollTop < LOAD_THRESHOLD_PX && guard++ < 50) {
@@ -1019,10 +965,8 @@
   });
 
   function render() {
-    // Whatever's currently previewed may no longer be visible (a filter
-    // change hid its status, or the view just switched) -- closing it
-    // here rather than trying to track whether it's still valid keeps
-    // this simple, and re-opening it is one click away either way.
+    // The previewed event may no longer be visible after a filter change
+    // or view switch, so always close the preview.
     hideEventPreview();
     if (currentView === "calendar") {
       calendarViewRoot.style.display = "";
@@ -1095,10 +1039,8 @@
       const now = new Date();
       allEvents = (data.events || []).map((ev) => ({ ...ev, _status: getStatus(ev, now) }));
       updateAnnouncedVisibility();
-      // Real chip content is about to exist for the first time -- the
-      // scroll-to-today position computed on the empty grid no longer
-      // reflects the real row heights, so it needs to be redone once
-      // render() below reaches the calendar view with this data in place.
+      // Row heights are about to change; redo scroll-to-today once
+      // render() reaches the calendar view (see needsInitialScrollFix).
       needsInitialScrollFix = true;
 
       const hasCurrentLag = data.currentLagDays != null;
@@ -1109,23 +1051,19 @@
           : `Historical CN→Global lag: ~${Math.round(lagDays)} days (dataset average -- switches to the current lag after the next data refresh)`;
       }
       // generatedAt is only as fresh as events.py's last successful daily
-      // run -- see the "Update banner history" GitHub Action.
-      // (and meta.json, from health.py, says whether that run was healthy)
+      // run (the "Update banner history" GitHub Action); DataHealth also
+      // checks meta.json, from health.py, for whether that run was healthy.
       DataHealth.mount(dataFreshnessEl, { generatedAt: data.generatedAt, warnings: data.warnings });
 
       render();
 
-      // Best-effort operator-release matching (see matchOperatorsToEvents()
-      // above) for the "Add to planner" chips in the preview panel.
-      // Deliberately fetched *after* the render above so a slow or failed
-      // character-data load never holds up the calendar itself -- anyone
-      // who opens the preview before this resolves just won't see operator
-      // chips on that one open. Routed through OperatorEditModal.loadCharTable()
-      // (js/operator-edit-modal.js) rather than a separate get_char_table()
-      // call here -- that table already carries onlineTime (extra_data,
-      // needed for matching) *and* modules (needed by the edit modal a chip
-      // opens), and both this matching step and the modal want the exact
-      // same table, so there's no reason to fetch character_table.json twice.
+      // Operator-release matching (see matchOperatorsToEvents()) for the
+      // "Add to planner" chips. Fetched after the render so a slow or
+      // failed character-data load never holds up the calendar; a preview
+      // opened before this resolves just has no operator chips.
+      // OperatorEditModal.loadCharTable() returns the table the edit modal
+      // also uses (it carries onlineTime for matching and modules for the
+      // modal), so character_table.json is fetched only once.
       try {
         const charTable = await OperatorEditModal.loadCharTable();
         matchOperatorsToEvents(allEvents, charTable);

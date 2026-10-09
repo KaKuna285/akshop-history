@@ -6,11 +6,10 @@ from datetime import datetime
 
 import requests
 
-# Plain requests.get() has no timeout by default, so a slow or rate-limited
-# host can hang a run indefinitely instead of failing loudly. http_get()
-# always sets a timeout and retries a couple of times with backoff before
-# raising, so a genuinely-down host still fails fast with a clear error in
-# the Action log.
+# Plain requests.get() has no timeout, so a slow or rate-limited host could
+# hang a run indefinitely. http_get() always sets a timeout and retries a
+# couple of times with backoff before raising, so a down host fails fast
+# with a clear error in the Action log.
 REQUEST_TIMEOUT = 30  # seconds, per attempt
 REQUEST_RETRIES = 3
 REQUEST_BACKOFF = 5  # seconds, multiplied by attempt number

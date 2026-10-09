@@ -1,31 +1,18 @@
-// Shared "sync your Arknights account" feature. This used to live only
-// inside the Operator Planner's Depot tab as an "Import from Arknights
-// account" disclosure -- it's moved here, and onto the home page, so
-// it's one feature usable (and visible) from anywhere on the site,
-// rather than something you had to already be inside Planner to
-// discover. Every page loads this file (after config.js and prefs.js)
-// so the "Synced as <name>" nav badge shows up everywhere, but only the
-// home page actually calls mount() to show the full sync form.
+// Account sync: links an Arknights account and reads its depot, roster,
+// per-operator progress, medals and skins. Every page loads this file
+// (after config.js and prefs.js) so the "Synced as <name>" nav badge shows
+// everywhere; only the home page calls mount() to show the sync form.
 //
-// Talks to the Cloudflare Worker at cloudflare/depot-import/index.js (base URL
-// in js/config.js's DEPOT_IMPORT_ENDPOINT). That Worker's fetch-depot
-// response includes `nickname`/`level` alongside the depot, plus the
-// owned-operator roster (`ownedOperators`), for each owned operator its
-// actual Elite/level/potential/skill/module progress
-// (`ownedOperatorProgress`), obtained medals (`obtainedMedals`), and owned
-// skins (`ownedSkins`) -- see that file's extractOwnedOperators()/
-// extractOwnedOperatorProgress()/extractObtainedMedals()/
-// extractOwnedSkins() for exactly what's in each and their own caveats
-// about how well-confirmed those shapes are (obtainedMedals is the
-// least-confirmed of the four; ownedSkins, like the roster/progress
-// fields, is read directly against a documented reference shape, not
-// guessed).
+// Talks to the Cloudflare Worker in cloudflare/depot-import/index.js (base
+// URL: DEPOT_IMPORT_ENDPOINT in js/config.js). Its fetch-depot response
+// carries `nickname`/`level`, the depot, `ownedOperators`,
+// `ownedOperatorProgress`, `obtainedMedals` and `ownedSkins` -- see that
+// file's extract*() functions for each shape and how well-confirmed it is
+// (obtainedMedals is the least certain).
 //
-// Persisted state lives in the shared prefs blob (see js/prefs.js)
-// under its own "account" section -- separate from "planner" (which
-// still owns the actual depot data) so any page can answer "are we
-// synced, and as who" without needing to know anything about Planner's
-// own prefs shape.
+// State is saved in the shared prefs blob (js/prefs.js) under its own
+// "account" section, separate from "planner" (which holds the depot), so
+// any page can tell whether and as whom you're synced.
 const AccountSync = (function () {
   const SECTION = "account";
 
@@ -37,105 +24,77 @@ const AccountSync = (function () {
     setPref(SECTION, "profile", {
       nickname,
       level: level || null,
-      // Array of charIds ("char_002_amiya", ...), or null when the last
-      // sync couldn't read a roster at all (see cloudflare/depot-import/index.js's
-      // extractOwnedOperators()) -- kept apart from an empty array on
-      // purpose so getOwnedOperators() callers (the operator page's
-      // owned/not-owned filter) can tell "synced, owns nothing" from
-      // "we don't actually know" instead of assuming the former.
+      // Array of charIds ("char_002_amiya", ...), or null when the last sync
+      // couldn't read a roster (see extractOwnedOperators() in the Worker).
+      // Kept distinct from [] so callers can tell "synced, owns nothing" from
+      // "unknown".
       ownedOperators: Array.isArray(ownedOperators) ? ownedOperators : null,
-      // charId -> { evolvePhase, level, potentialRank, mainSkillLvl,
-      // skills, modules, currentEquip } from the same sync, for the
-      // operator page's "Your stats" toggle (see
-      // cloudflare/depot-import/index.js's extractOwnedOperatorProgress() for
-      // the exact shape and its own caveats). Independently nullable
-      // from ownedOperators -- an older sync (from before this field
-      // existed) or a Worker that hasn't been redeployed since still has
-      // a roster, just no per-operator detail to show "Your stats" with.
+      // charId -> { evolvePhase, level, potentialRank, mainSkillLvl, skills,
+      // modules, currentEquip }, for the operator page's "Your stats" toggle
+      // (shape: extractOwnedOperatorProgress() in the Worker). Can be null
+      // while ownedOperators isn't: a sync made by an older Worker has a
+      // roster but no per-operator detail.
       ownedOperatorProgress:
         ownedOperatorProgress && typeof ownedOperatorProgress === "object" ? ownedOperatorProgress : null,
-      // medalId -> { ts } from the same sync, for the /account overview
-      // page's medal progress section (see cloudflare/depot-import/index.js's
-      // extractObtainedMedals() -- flagged there as the least-confirmed
-      // shape this site reads). Independently nullable from the two
-      // fields above for the same reason: an older sync, or a Worker not
-      // yet redeployed with this field, still has a roster/depot with no
-      // medal data to show.
+      // medalId -> { ts }, for the /account page's medal progress (shape:
+      // extractObtainedMedals() in the Worker). Nullable on its own, for the
+      // same reason as above.
       obtainedMedals: obtainedMedals && typeof obtainedMedals === "object" ? obtainedMedals : null,
-      // skinId -> { ts } from the same sync, for the operator page's skin
-      // gallery "grey out owned" toggle (see cloudflare/depot-import/index.js's
-      // extractOwnedSkins()). Independently nullable from the fields
-      // above for the same reason -- an older sync, or a Worker not yet
-      // redeployed with this field, still has everything else with no
-      // skin ownership data to grey against yet.
+      // skinId -> { ts }, for the operator page's "grey out owned" skins
+      // toggle (shape: extractOwnedSkins() in the Worker). Nullable on its own,
+      // for the same reason as above.
       ownedSkins: ownedSkins && typeof ownedSkins === "object" ? ownedSkins : null,
       syncedAt: new Date().toISOString(),
     });
   }
 
-  // Array of owned charIds from the last sync, or null if never synced
-  // or the last sync didn't include roster data. Exists as its own
-  // function (rather than making every caller reach into getAccount()'s
-  // shape directly) so the operator page's filter doesn't need to know
-  // this lives under "profile" internally.
+  // Array of owned charIds from the last sync, or null if never synced or
+  // the sync had no roster data.
   function getOwnedOperators() {
     const account = getAccount();
     return account ? account.ownedOperators || null : null;
   }
 
-  // A single owned operator's synced progress ({ evolvePhase, level,
-  // potentialRank, mainSkillLvl, skills, modules, currentEquip }), or
-  // null if there's no sync, this charId isn't owned, or the sync that's
-  // there predates per-operator progress data. Same "own function"
-  // reasoning as getOwnedOperators() above -- the operator page's "Your
-  // stats" toggle doesn't need to know this lives under
-  // ownedOperatorProgress[charId] internally.
+  // One owned operator's synced progress ({ evolvePhase, level,
+  // potentialRank, mainSkillLvl, skills, modules, currentEquip }), or null
+  // if there's no sync, the operator isn't owned, or the sync has no
+  // per-operator progress.
   function getOperatorProgress(charId) {
     const account = getAccount();
     const all = account && account.ownedOperatorProgress;
     return all && charId && all[charId] ? all[charId] : null;
   }
 
-  // medalId -> { ts } from the last sync, or null if there's no sync or
-  // the last sync didn't include medal data at all (see
-  // cloudflare/depot-import/index.js's extractObtainedMedals()). The /account
-  // overview page's medal section gates its whole progress display on
-  // this being non-null, rather than treating null the same as "synced,
-  // zero medals obtained" -- those are different things and conflating
-  // them would show a confidently wrong 0%.
+  // medalId -> { ts } from the last sync, or null if there's no sync or it
+  // had no medal data. The /account page shows medal progress only when
+  // this is non-null: null means "unknown", not "zero medals", and treating
+  // it as zero would show a wrong 0%.
   function getObtainedMedals() {
     const account = getAccount();
     return account ? account.obtainedMedals || null : null;
   }
 
-  // skinId -> { ts } from the last sync, or null if there's no sync or
-  // the last sync didn't include skin ownership data at all (see
-  // cloudflare/depot-import/index.js's extractOwnedSkins()). The operator
-  // page's skin gallery gates its "grey out owned" toggle's visibility on
-  // this being non-null, same convention as getOwnedOperators() above --
-  // a toggle that can't do anything stays hidden rather than visibly
-  // doing nothing.
+  // skinId -> { ts } from the last sync, or null if there's no sync or it
+  // had no skin data. The operator page shows its "grey out owned" toggle
+  // only when this is non-null, so the toggle never appears without data
+  // to act on.
   function getOwnedSkins() {
     const account = getAccount();
     return account ? account.ownedSkins || null : null;
   }
 
   // --- shared progress formatting -------------------------------------
-  // Turns one owned operator's synced progress into short display
-  // strings -- shared by the operator page's header summary and the
-  // /account overview page's roster table, so the two can't end up
-  // describing the same operator two different ways. `op` is a
-  // character_table.json record merged the way OperatorEditModal.
-  // loadCharTable() returns it (op.skills[].levelUpCostCond and
-  // op.modules both need to be present); `progress` is one entry from
-  // ownedOperatorProgress (see cloudflare/depot-import/index.js's
-  // extractOwnedOperatorProgress()).
+  // Short display strings for one owned operator's synced progress, shared
+  // by the operator page's header and the /account roster table so both
+  // describe an operator the same way. `op` is a character_table record as
+  // returned by OperatorEditModal.loadCharTable() (needs
+  // op.skills[].levelUpCostCond and op.modules); `progress` is one
+  // ownedOperatorProgress entry.
 
-  // "Skill 7 (M2/M0)" below Skill Level 7 every skill shares the same
-  // level, so just that; at 7, each masterable skill's own mastery rank
-  // (0 if none picked yet) is listed in op.skills' own order. Returns
-  // null (not a placeholder string) when there's nothing to say, so
-  // callers can tell "no data" apart from a real "Skill 1".
+  // "Skill 7 (M2/M0)": below skill level 7 all skills share one level, so
+  // just that; at 7, each masterable skill's mastery rank (0 if none) in
+  // op.skills order. Returns null when there's nothing to show, so callers
+  // can tell "no data" from a real "Skill 1".
   function formatSkillSummary(op, progress) {
     if (!progress || typeof progress.mainSkillLvl !== "number") return null;
     if (progress.mainSkillLvl < 7) return `Skill ${progress.mainSkillLvl}`;
@@ -152,13 +111,11 @@ const AccountSync = (function () {
     return masteries.length ? `Skill 7 (${masteries.join("/")})` : "Skill 7";
   }
 
-  // "Reflexive Thinking Stage 2" (really "<typeName2> <stage>", since
-  // typeName2 -- "A", "B", ... -- is what the Stats section's own Module
-  // dropdown already labels modules with) for whichever module is
-  // actually equipped (see cloudflare/depot-import/index.js's
-  // extractOwnedOperatorProgress() comment on `currentEquip` for why
-  // only one counts). null when nothing's equipped, or the equipped
-  // module isn't one of this operator's actual modules (stale data).
+  // "Reflexive Thinking Stage 2" ("<typeName2> <stage>"; typeName2 is the
+  // "A"/"B"/... label the Stats section's module dropdown also uses) for
+  // the equipped module. Only the equipped one counts (see the Worker's
+  // extractOwnedOperatorProgress() note on currentEquip). null when none
+  // is equipped or it isn't one of this operator's modules (stale data).
   function formatModuleSummary(op, progress) {
     if (!progress || !progress.currentEquip || !progress.modules) return null;
     const stage = progress.modules[progress.currentEquip];
@@ -170,10 +127,9 @@ const AccountSync = (function () {
     return `${mod.typeName2 || "Module"} ${stage}`;
   }
 
-  // The single-line "Owned · E1 · Lv55 · Potential 3 · Skill 7 (M2) ·
-  // Reflexive Thinking Stage 2" summary -- "Owned" alone when there's no
-  // progress to describe (an older sync, or a Worker not yet redeployed
-  // with this field).
+  // One-line "Owned · E1 · Lv55 · Potential 3 · Skill 7 (M2) · Reflexive
+  // Thinking Stage 2" summary; just "Owned" when the sync has no progress
+  // data for this operator.
   function formatInvestmentSummary(op, progress) {
     if (!progress) return "Owned";
     const parts = [];
@@ -189,12 +145,9 @@ const AccountSync = (function () {
 
   // --- nav badge ----------------------------------------------------
 
-  // Inserts (or updates, or removes) a small "Synced as <name>" link
-  // into #topNav's nav-right, between the siteNav links and the first
-  // icon button (home -- or, on the calendar page, about-then-home).
-  // Runs automatically on every page load (bottom of this file) since
-  // every page loads this script, and is safe to call again right
-  // after a sync completes on the home page to refresh it immediately.
+  // Adds, updates or removes the "Synced as <name>" link in #topNav's
+  // nav-right, before the first icon button. Runs on every page load (end
+  // of this file) and again after a sync on the home page.
   function renderNavBadge() {
     const navRight = document.querySelector("#topNav .nav-right");
     if (!navRight) return; // page has no shared top nav at all
@@ -208,12 +161,8 @@ const AccountSync = (function () {
       badge = document.createElement("a");
       badge.id = "accountNavBadge";
       badge.className = "accountNavBadge";
-      // Points at the read-only overview page (see /account/index.html +
-      // js/account-page.js) rather than the home page -- the sync form
-      // itself still only lives there (and /account links back to it to
-      // re-sync), but "click your own name" reading as "see your
-      // account" is the more useful default once there's somewhere to
-      // land.
+      // Links to the read-only /account overview; the sync form itself is on
+      // the home page (and /account links back to it).
       badge.href = "/account/";
       const firstIconButton = navRight.querySelector(".rightButton");
       navRight.insertBefore(badge, firstIconButton || null);
@@ -226,10 +175,8 @@ const AccountSync = (function () {
 
   // --- a compact status line, for Planner's Depot tab ----------------
 
-  // Planner no longer has its own copy of the sync form (see mount()
-  // below) -- just this one line pointing at the home page, so the two
-  // places can't drift out of sync with each other about what state
-  // "synced" even means.
+  // One line pointing at the home page's sync form, so Planner shows the
+  // same sync state as everywhere else.
   function renderStatusLine(container) {
     if (!container) return;
     const account = getAccount();
@@ -260,14 +207,12 @@ const AccountSync = (function () {
 
   // --- the actual sync flow ------------------------------------------
 
-  // Builds the full email/code/fetch/confirm form inside `container` --
-  // an existing, empty element already on the page. Only ever called on
-  // the home page today, but kept generic (not hardcoded to any one
-  // page's surrounding markup) in case a future page wants it too.
+  // Builds the full email/code/fetch/confirm form inside `container`, an
+  // existing empty element. Used on the home page.
   function mount(container) {
     if (!container) return;
     if (typeof DEPOT_IMPORT_ENDPOINT === "undefined" || !DEPOT_IMPORT_ENDPOINT) {
-      return; // no Worker deployed for this fork -- stay invisible, as before
+      return; // no Worker configured for this deployment: show nothing
     }
 
     container.innerHTML =
@@ -331,10 +276,9 @@ const AccountSync = (function () {
     const applyBtn = container.querySelector("#accountSyncApply");
     const cancelBtn = container.querySelector("#accountSyncCancel");
 
-    // Holds the fetched-but-not-yet-applied result between "Sync
-    // account" and "Replace my depot with this" -- nothing here is
-    // saved until the user confirms, and it's discarded either way
-    // (applied or cancelled), never left sitting around.
+    // The fetched result between "Sync account" and "Replace my depot with
+    // this". Nothing is saved until the user confirms, and it's discarded
+    // either way.
     let pending = null;
 
     function setStatus(text, isError) {
@@ -451,11 +395,9 @@ const AccountSync = (function () {
 
     function apply() {
       if (!pending) return;
-      // The depot gets written straight into Planner's own prefs key --
-      // Planner already re-validates whatever it finds there against the
-      // real item table on its own next load (see planner.js's boot
-      // sequence), so there's no need to duplicate that check here just
-      // because this form isn't running on the planner page.
+      // The depot goes straight into Planner's prefs; Planner re-validates it
+      // against the item table on its next load (see planner.js's boot
+      // sequence), so no check is needed here.
       setPref("planner", "depot", pending.depot);
       saveAccount(
         pending.nickname || "Unknown Doctor",

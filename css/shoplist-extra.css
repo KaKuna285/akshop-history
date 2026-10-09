@@ -2,16 +2,12 @@
    Kept separate from style2.css (shared across pages) so it only affects
    this page and is easy to find/tweak. */
 
-/* Was a flat 1200px, which left big dead margins on wide screens. This
-   halves the side margin instead of using a fixed number: on any screen
-   wider than 1200px, each side's empty space becomes half of what a plain
-   1200px cap would leave (derivation: margin-per-side = (100vw - 1200px)/2
-   before; halving that and solving for the resulting width gives
-   (100vw + 1200px)/2). On narrower/mobile screens this evaluates to more
-   than 100vw, so it's wrapped in min(100%, ...) to clamp it back down --
-   a plain block wouldn't overflow from this alone, but it's cheap
-   insurance against a descendant with unbreakable content (long text,
-   etc.) actually forcing it wider. */
+/* Grows with the screen instead of a fixed cap: on screens wider than
+   1200px, each side margin is half of what a plain 1200px max-width
+   would leave ((100vw - 1200px)/2 per side, halved, gives a width of
+   (100vw + 1200px)/2). Below 1200px that exceeds 100vw, so min(100%, ...)
+   clamps it -- insurance against a descendant with unbreakable content
+   forcing the block wider. */
 .btnPanel,
 #chartLegend,
 #chartDiv {
@@ -74,11 +70,10 @@
   pointer-events: none;
 }
 
-/* Lifts pointer-events back on once a portrait/bar tooltip is pinned (see
-   showIconTooltip()/hideIconTooltip() in js/shoplist.js) -- the only way
-   the "View operator page" link inside it can ever actually be clicked,
-   since the box otherwise has to stay click-through so it never blocks
-   hovering/clicking the chart underneath it. */
+/* Re-enables pointer-events while a portrait/bar tooltip is pinned (see
+   showIconTooltip()/hideIconTooltip() in js/shoplist.js) so the "View
+   operator page" link inside it is clickable; otherwise the box stays
+   click-through so it never blocks the chart underneath. */
 #chartjs-tooltip.pinned {
   pointer-events: auto;
 }
@@ -124,12 +119,11 @@
   color: #999;
 }
 
-/* Give the Server/Show/Sort/Period filter buttons the same soft
+/* Gives the Server/Show/Sort/Period filter buttons the same soft
    translucent-gold "active" treatment used elsewhere on the site
    (calendar's .viewToggleBtn.active, planner's .plannerTab.active)
    instead of the base .button class's plain white-border /
-   black-on-white-when-active look -- that mismatch was the actual
-   cause of this page reading as visually different from the rest of
+   black-on-white-when-active look, so this page matches the rest of
    the site. Scoped to .btnPanel so it never touches the home/about
    icon buttons, which also use .button. */
 .btnPanel .button {

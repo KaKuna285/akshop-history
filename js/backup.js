@@ -1,16 +1,12 @@
-// "Back up or restore your data" -- home page only. The entire site's
-// persisted state (Planner's depot/roster, synced account data, and
-// every page's own view/sort/filter prefs) lives in one localStorage
-// blob (see js/prefs.js's PREFS_KEY) -- this just lets you get that
-// blob out as a file, and back in again, since none of it syncs
-// anywhere on its own and clearing site data (or switching browsers)
-// would otherwise lose it for good.
+// "Back up or restore your data" (home page). All of the site's saved
+// state -- Planner's depot/roster, synced account data, each page's view
+// prefs -- lives in one localStorage blob (PREFS_KEY in js/prefs.js).
+// This saves that blob to a file and loads it back, since nothing syncs on
+// its own and clearing site data or switching browsers would lose it.
 //
-// Mirrors AccountSync's own UI conventions on purpose (same
-// account-sync.css classes, same staged fetch-then-confirm pattern for
-// the destructive step) rather than inventing a new visual language or
-// using a native confirm() dialog -- this codebase doesn't use
-// confirm() anywhere else.
+// Uses AccountSync's UI conventions (account-sync.css classes, a
+// load-then-confirm step before anything destructive) instead of a native
+// confirm() dialog.
 const Backup = (function () {
   function filenameNow() {
     const d = new Date();
@@ -44,11 +40,9 @@ const Backup = (function () {
     });
   }
 
-  // One line summarizing what's actually in a parsed backup blob, for
-  // the confirm step -- so "Restore this backup" isn't a leap of faith.
-  // Deliberately generic about every section it doesn't specifically
-  // recognize (new pages will add their own prefs sections over time
-  // without this needing to know about them).
+  // One line summarizing a parsed backup for the confirm step, so you can
+  // see what you're restoring. Sections it doesn't recognize are counted
+  // generically.
   function describeBlob(blob) {
     const parts = [];
     const account = blob.account && blob.account.profile;
@@ -100,10 +94,8 @@ const Backup = (function () {
     const applyBtn = container.querySelector("#backupApply");
     const cancelBtn = container.querySelector("#backupCancel");
 
-    // Holds the parsed-but-not-yet-applied file between picking it and
-    // confirming "Restore this backup" -- same shape as AccountSync's
-    // own `pending`, for the same reason: nothing is written to storage
-    // until the user explicitly confirms.
+    // The parsed file between picking it and confirming "Restore this
+    // backup"; nothing is written until the user confirms.
     let pending = null;
 
     function setStatus(text, isError) {
@@ -146,10 +138,8 @@ const Backup = (function () {
       summaryEl.textContent = "";
       pending = null;
       setStatus("Restored. Reloading...");
-      // Every page (including this one -- the nav badge, AccountSync's
-      // own "synced as" view) reads prefs once at load time, so a
-      // reload is the simplest way to make the restored data actually
-      // take effect everywhere rather than only on the next navigation.
+      // Every page (this one included) reads prefs once at load, so reload to
+      // apply the restored data everywhere.
       setTimeout(() => location.reload(), 600);
     }
 

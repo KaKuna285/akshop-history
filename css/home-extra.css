@@ -1,14 +1,8 @@
-/* Extra styling for the home/hub page. Kept separate from style2.css
-   (shared across pages) so it only affects this page and is easy to
-   find/tweak, matching the convention used by the other pages'
-   -extra.css files.
-
-   This page used to have its own completely bespoke inline stylesheet
-   instead of the shared reset.css/style.css/style2.css bundle every
-   other page uses. It's been migrated onto that shared bundle so the
-   whole site shares one layout/font/color system -- this file now only
-   holds what's actually specific to the project-list layout below
-   #topNav. */
+/* Extra styling for the home/hub page, on top of the shared
+   reset.css/style.css/style2.css bundle every page uses. Kept separate
+   from style2.css so it only affects this page, matching the other
+   pages' -extra.css files. Holds only what's specific to the
+   project-list layout below #topNav. */
 
 body {
   padding: 2.5rem 20px 3rem;

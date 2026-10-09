@@ -1,7 +1,7 @@
 {
-  // Explicit static-site config, so Cloudflare doesn't have to guess how to
-  // serve this (its auto-detection was treating this like a single-page app
-  // and serving unstyled content at "/" while 404ing on "/shoplist/").
+  // Explicit static-site config, so Cloudflare doesn't auto-detect how to
+  // serve this (auto-detection treats it as a single-page app, which breaks
+  // styling at "/" and 404s "/shoplist/").
   "name": "akshop-history",
   "compatibility_date": "2024-09-23",
   // Only runs for /mirror/* (see assets.run_worker_first): the R2-backed
@@ -24,7 +24,8 @@
     "html_handling": "auto-trailing-slash"
   },
   // The mirror's storage. The bucket is created once in the dashboard
-  // (R2 -> Create bucket); see the README's Cloudflare setup section.
+  // (R2 -> Create bucket); see the README's "Running your own
+  // daily-refreshed copy" section.
   "r2_buckets": [{ "binding": "MIRROR", "bucket_name": "akshop-mirror" }],
   // Caps how many files one visitor IP can make the mirror fetch from
   // its sources per minute (files already in R2 don't count). Opening a skin

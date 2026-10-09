@@ -1,9 +1,9 @@
-// EXTRA_DATA_REPO_RAW_BASE now lives in js/config.js (loaded before this
-// file) -- shared across util.js, shoplist.js, and calendar.js.
+// EXTRA_DATA_REPO_RAW_BASE and extraDataUrl() come from js/config.js,
+// which every page loads before this file.
 
 // The upstream game-data mirror (ArknightsAssets/ArknightsGamedata, updated
-// on every game patch). Pages don't read it directly any more: they load the
-// slim copies via gameDataFetch() below, which only falls back to this.
+// on every game patch). Pages load the slim copies via gameDataFetch()
+// below, which only falls back to this.
 const GAME_DATA_MIRROR = "https://raw.githubusercontent.com/ArknightsAssets/ArknightsGamedata/master";
 const DATA_SOURCE_LOCAL = "https://cdn.jsdelivr.net/gh/akgcc/arkdata@main/";
 const ASSET_SOURCE = {
@@ -16,14 +16,15 @@ const ASSET_SOURCE = {
   MYRTLE: "https://api.myrtle.moe/api/assets/",
 };
 
-// do not modify SERVERS even if you change data source as this is used locally as well.
+// Don't change SERVERS when switching data sources: these values are also
+// used as local keys.
 const SERVERS = {
   EN: "en_US",
   JP: "ja_JP",
   KR: "ko_KR",
   CN: "zh_CN",
 };
-// data URI gen:
+// --- asset URLs ---
 function uri_avatar(charId, source = ASSET_SOURCE.LOCAL) {
   let skinSuffix = "";
   if (charId.includes("_amiya")) skinSuffix = "_2";
@@ -35,15 +36,12 @@ function uri_avatar(charId, source = ASSET_SOURCE.LOCAL) {
   }
 }
 
-// A skin's own avatarId (e.g. "char_002_amiya_winter#1", from skin_table.
-// json's charSkins[skinId].avatarId -- see operator-page.js's loadSkinTable())
-// already names the exact asset, unlike uri_avatar()'s charId+hardcoded-
-// Amiya-suffix guess above, so no special-casing is needed here -- just
-// URL-encode it (avatarIds contain "#", which breaks an unencoded URL by
-// being read as a fragment). Verified against both mirrors directly
-// (real browser fetch, not assumed from uri_avatar()'s convention) before
-// relying on this: LOCAL and ACESHIP both serve it from the same
-// charavatars/avatars folders real operator icons already come from.
+// Avatar icon for a skin, by its avatarId (e.g. "char_002_amiya_winter#1",
+// from skin_table.json's charSkins[skinId].avatarId -- see loadSkinTable()
+// in operator-page.js). The avatarId names the exact file, so unlike
+// uri_avatar() there's no Amiya special case. It must be URL-encoded:
+// avatarIds contain "#", which would otherwise start a URL fragment. Both
+// mirrors serve these from the same folder as operator icons.
 function uri_skin_avatar(avatarId, source = ASSET_SOURCE.LOCAL) {
   const enc = encodeURIComponent(avatarId);
   switch (source) {
@@ -54,27 +52,20 @@ function uri_skin_avatar(avatarId, source = ASSET_SOURCE.LOCAL) {
   }
 }
 
-// The full splash illustration for a skin on the Aceship mirror -- only
-// the last fallback in showSkinPreview() (operator-page.js) now: Aceship
-// hasn't been updated since May 2024, has only the full-size file, and
-// is slow through jsDelivr (~3s for a 1MB file, measured). Loaded one at
-// a time on user action, never in bulk.
+// The full splash illustration for a skin on the Aceship mirror -- the
+// skin preview's last fallback (loadFullArt() in operator-page.js).
+// Aceship hasn't been updated since May 2024, has only the full-size
+// file, and is slow through jsDelivr (~3s for a 1MB file), so it's only
+// loaded one at a time on user action, never in bulk.
 //
-// Callers must pass the skin's "portraitId" here, NOT "avatarId" and NOT
-// skin_table.json's "illustId" field:
-//  - avatarId is the small avatar-crop id (see uri_skin_avatar() above)
-//    and for the base/"Default outfit" (ILLUST_0) entry specifically it
-//    does NOT match this mirror's illustration filename -- e.g. Amiya's
-//    avatarId is the bare "char_002_amiya" (no such file here), while her
-//    portraitId is "char_002_amiya_1" (a real file). For every other
-//    skin (Elite 1/Elite 2 default art, and real purchasable skins)
-//    portraitId and avatarId happen to be identical, which is how this
-//    was initially missed.
+// Callers must pass the skin's "portraitId", not "avatarId" or
+// skin_table.json's "illustId":
+//  - avatarId matches portraitId for every skin except the base "Default
+//    outfit" (ILLUST_0), e.g. Amiya's avatarId is the bare
+//    "char_002_amiya" (no such file here) while her portraitId is
+//    "char_002_amiya_1".
 //  - illustId (e.g. "illust_char_002_amiya_winter#1") never matches this
-//    mirror's actual filenames (e.g. "char_002_amiya_winter#1.png") --
-//    confirmed directly, not assumed; trusting that field name over a
-//    live fetch would have repeated the same mistake this project has
-//    already made twice before with large upstream game-data JSON files.
+//    mirror's filenames (e.g. "char_002_amiya_winter#1.png").
 function uri_skin_illust(portraitId, source = ASSET_SOURCE.ACESHIP) {
   const enc = encodeURIComponent(portraitId);
   switch (source) {
@@ -135,30 +126,18 @@ function setSkinAvatarIcon(imgEl, avatarId) {
   setIconWithFallback(imgEl, uri_skin_avatar(avatarId), uri_skin_avatar(avatarId, ASSET_SOURCE.ACESHIP), false);
 }
 
-// setAvatarIcon()/buildCnBadge() (and their shared helpers below) are used
-// by both the planner page (roster cards, search results, the operator
-// edit modal) and the calendar page (the same edit modal, opened in place
-// from an event's operator chips -- see js/operator-edit-modal.js) -- kept
-// here, already loaded by both, rather than duplicated in each.
+// Operator/item icons with fallbacks, shared by every page that shows
+// roster cards, search results or the edit modal.
 //
-// The community asset mirror uri_avatar() defaults to (LOCAL, an
-// akgcc/arkdata jsdelivr mirror) doesn't have full coverage -- some
-// operators' icons 404 there. Rather than leave a broken-image glyph
-// showing, fall back to the Aceship mirror (a separately-maintained, more
-// complete asset repo, already wired up as ASSET_SOURCE.ACESHIP above)
-// and, if that also fails, hide the <img> so the icon's circular
-// background shows as an empty placeholder instead of a broken-image icon.
+// The default LOCAL mirror (akgcc/arkdata on jsDelivr) is missing some
+// icons, so a failed load retries from Aceship; if that fails too, the
+// <img> gets the "iconMissing" class (hidden, so the icon's circular
+// background shows as an empty placeholder instead of a broken image).
 //
-// Both of those sources are mirrors of RELEASED client data -- an
-// operator that isn't out on EN yet has no art in either one, by
-// construction, regardless of charId correctness. There's no reliable
-// third-party mirror of actual CN client art currently reachable (a
-// dedicated CN asset-dump repo exists but its real path layout isn't
-// discoverable, and wiki sites that do show this art block scripted
-// access). So for a cnOnly entity specifically, once both real sources
-// fail, show a small generated "CN" placeholder instead of the plain
-// blank circle -- same "nothing to show yet" outcome, but it reads as
-// expected/labeled rather than looking like a broken image.
+// Both mirrors only carry released EN client art, so an operator or item
+// not yet out on EN has no icon in either. For a cnOnly entity, a small
+// generated "CN" placeholder is shown instead of the blank circle, so it
+// reads as expected rather than broken.
 const CN_ICON_PLACEHOLDER =
   "data:image/svg+xml," +
   encodeURIComponent(
@@ -194,9 +173,8 @@ function setAvatarIcon(imgEl, charId, isCnOnly) {
 
 // A small "CN" tag for any operator/material flagged cnOnly during an
 // EN+CN data merge (see loadData() in planner.js, loadCharTable() in
-// operator-edit-modal.js) -- not yet released on the EN server, so shown
-// with EN data throughout but marked wherever it appears so it's never
-// mistaken for an EN-available entry.
+// operator-edit-modal.js): not yet released on the EN server, so it's
+// marked wherever it appears.
 function buildCnBadge(entity) {
   const badge = document.createElement("span");
   badge.className = "cnBadge";
@@ -224,22 +202,14 @@ function uri_skill(skillId, source = ASSET_SOURCE.LOCAL) {
       return `${ASSET_SOURCE.ACESHIP}skills/skill_icon_${skillId}.png`;
   }
 }
-// Medal (achievement) icons -- used by the account overview page's medal
-// detail popup. Neither of this project's usual two mirrors (LOCAL/
-// akgcc-arkdata, ACESHIP/Arknight-Images) carries these; the only mirror
-// found to actually serve them, tested against several real medalIds, is
-// fexli/ArknightsResource's own medal/ folder (auto-synced from the
-// official client), keyed directly by the full medalId string. No second
-// mirror is known to fall back to here, unlike uri_avatar() and friends --
-// callers should hide the <img> on error rather than chain a fallback src.
+// Medal (achievement) icons, for the account page's medal detail popup.
+// Neither LOCAL nor ACESHIP carries these; fexli/ArknightsResource's
+// medal/ folder (synced from the official client) does, keyed by the full
+// medalId. There's no second mirror to fall back to, so callers should
+// hide the <img> on error.
 function uri_medal(medalId) {
-  // Lowercase ONLY the id, not the whole URL -- unlike the LOCAL/ACESHIP
-  // mirrors above (whose repo-path portions are already all-lowercase,
-  // so chaining .toLowerCase() across the whole string was always a
-  // no-op there), this repo/owner path ("fexli/ArknightsResource") is
-  // mixed-case and genuinely case-sensitive on GitHub/jsdelivr -- naively
-  // reusing that same whole-string .toLowerCase() pattern here would 404
-  // every request.
+  // Lowercase only the id: unlike the other mirrors' paths, the repo path
+  // "fexli/ArknightsResource" is mixed-case and case-sensitive on jsDelivr.
   return `https://cdn.jsdelivr.net/gh/fexli/ArknightsResource@master/medal/${medalId.toLowerCase()}.png`;
 }
 
@@ -283,6 +253,126 @@ function fmtDate(d) {
   const date = parseTimestamp(d);
   if (!date) return null;
   return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+// A text box with a drop-down list of matches (the "Jump to operator",
+// "Add operator" and "Add material" boxes). Typing shows the first `limit`
+// entries of items() whose name contains the text (case-insensitive); the
+// first match is highlighted, ArrowUp/ArrowDown move the highlight, and
+// Enter or a click picks one. Escape or a click anywhere else closes the
+// list. Picking clears the box, closes the list and calls onPick(item).
+//
+//   input, results -- the <input> and the (initially .hidden) list element
+//   items()        -- the entries to search, each with a .name; return []
+//                     while the data is still loading
+//   buildRow(item) -- returns the row element for one match
+//
+// Returns { clear() }, which empties the box and closes the list.
+function createSearchBox({ input, results, items, buildRow, onPick, limit = 20 }) {
+  let matches = [];
+  let highlighted = -1;
+
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-autocomplete", "list");
+  input.setAttribute("aria-controls", results.id);
+  input.setAttribute("aria-expanded", "false");
+  results.setAttribute("role", "listbox");
+
+  function highlight(index) {
+    highlighted = index;
+    Array.from(results.children).forEach((row, i) => {
+      row.classList.toggle("highlighted", i === index);
+      row.setAttribute("aria-selected", i === index ? "true" : "false");
+    });
+    const row = results.children[index];
+    if (!row) {
+      input.removeAttribute("aria-activedescendant");
+      return;
+    }
+    input.setAttribute("aria-activedescendant", row.id);
+    // Keep the highlighted row visible inside the scrolling list (without
+    // scrolling the page itself).
+    if (row.offsetTop < results.scrollTop) {
+      results.scrollTop = row.offsetTop;
+    } else if (row.offsetTop + row.offsetHeight > results.scrollTop + results.clientHeight) {
+      results.scrollTop = row.offsetTop + row.offsetHeight - results.clientHeight;
+    }
+  }
+
+  function show(list) {
+    matches = list;
+    results.innerHTML = "";
+    list.forEach((item, i) => {
+      const row = buildRow(item);
+      row.id = `${results.id}-option-${i}`;
+      row.setAttribute("role", "option");
+      row.addEventListener("click", () => pick(item));
+      results.appendChild(row);
+    });
+    results.classList.toggle("hidden", !list.length);
+    input.setAttribute("aria-expanded", list.length ? "true" : "false");
+    results.scrollTop = 0;
+    highlight(list.length ? 0 : -1);
+  }
+
+  function clear() {
+    input.value = "";
+    show([]);
+  }
+
+  function pick(item) {
+    clear();
+    onPick(item);
+  }
+
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    show(q ? items().filter((item) => item.name.toLowerCase().includes(q)).slice(0, limit) : []);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (results.classList.contains("hidden")) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      highlight(Math.min(highlighted + 1, matches.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      highlight(Math.max(highlighted - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (matches[highlighted]) pick(matches[highlighted]);
+    } else if (e.key === "Escape") {
+      show([]);
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (e.target !== input && !results.contains(e.target)) show([]);
+  });
+
+  return { clear };
+}
+
+// A search-result row for an operator: avatar, name, CN tag if it's
+// CN-only, and rarity stars.
+function buildOperatorResultRow(op) {
+  const row = document.createElement("div");
+  row.className = "operatorSearchResult";
+  const icon = document.createElement("img");
+  icon.className = "operatorSearchResultIcon";
+  setAvatarIcon(icon, op.charId, op.cnOnly);
+  icon.alt = "";
+  const name = document.createElement("span");
+  name.className = "operatorSearchResultName";
+  name.textContent = op.name;
+  const rarity = document.createElement("span");
+  rarity.className = "operatorSearchResultRarity";
+  rarity.textContent = op.rarity + 1 + "★";
+  row.appendChild(icon);
+  row.appendChild(name);
+  if (op.cnOnly) row.appendChild(buildCnBadge(op));
+  row.appendChild(rarity);
+  return row;
 }
 
 // Keyboard focus for the site's pop-up dialogs: moves focus into
@@ -449,6 +539,7 @@ const RARITY_MAP = {
   TIER_6: 5,
 };
 const SHORT_NAMES = {};
+// Scraped shop-history names that differ from the game data's names.
 const GAMEPRESS_NAME_MAP = {
   "Rosa (Poca)": "Rosa",
   Pozëmka: "Позёмка",
@@ -476,7 +567,8 @@ function updateJSON(dest, src, existingOnly = false) {
   return dest;
 }
 
-//add tooltip element for use in below functions
+// The tooltip element (#chartjs-tooltip) the store page's charts use
+// (shoplist.js).
 let tt = document.createElement("div");
 tt.id = "chartjs-tooltip";
 tt.classList.add("hidden");
@@ -488,13 +580,16 @@ async function get_char_table(
   server = "en_US",
   extra_data = false,
 ) {
-  // gets a modified character table:
-  // non-playable characters removed
-  // add charId key for each character
-  // patch characters added and renamed (only guardmiya for now)
-  // also builds charIdMap for use elsewhere
-  // converts internal profession names to in-game ones
-  // if "extra_data" is true, adds "isLimited", "onlineTime", "cnOnlineTime" at the cost of 1 extra github fetch
+  // Returns the character table, modified:
+  // - non-playable characters removed (unless keep_non_playable)
+  // - a charId key on each character
+  // - patch characters (Amiya's extra class forms) merged in and renamed
+  // - internal profession names converted to the in-game ones
+  // - rarity remapped to a 0-5 int
+  // Also fills charIdMap (name/appellation -> charId) for use elsewhere.
+  // With extra_data, adds isLimited, notInGachaPool, onlineTime and
+  // cnOnlineTime from operator_release_dates.json (one extra fetch,
+  // shared across calls -- see loadOperatorReleaseDates()).
   let raw = await gameDataFetch(server, "character_table");
   let json = await fixedJson(raw);
   raw = await gameDataFetch(server, "char_patch_table");
@@ -505,13 +600,11 @@ async function get_char_table(
     for (const [charId, data] of Object.entries(extra_chardata)) {
       if (json[charId]) {
         json[charId].isLimited = data.isLimited ?? false;
-        // See operator_online.py's scrape_PRTS() for what this means and
-        // how it's derived -- "not currently offered through any known
-        // gacha pool" (most often: obtained only through a past event's
-        // activity rewards/shop), as opposed to just "not limited/collab".
-        // Left unset (not even `false`) when the upstream data doesn't
-        // know either way, same "absence means uncertain, not disproven"
-        // reasoning as the onlineTime/cnOnlineTime fields right below.
+        // notInGachaPool: not offered through any known gacha pool (usually
+        // an event-reward operator) -- see scrape_PRTS() in
+        // operator_online.py. Like onlineTime/cnOnlineTime below, it's left
+        // unset (not `false`) when the data doesn't say, since a missing
+        // value means "unknown", not "no".
         if (data.notInGachaPool) json[charId].notInGachaPool = true;
         if (data.onlineTime != null) json[charId].onlineTime = data.onlineTime;
         if (data.cnOnlineTime != null)
@@ -533,14 +626,14 @@ async function get_char_table(
       charIdMap[json[key].name] = key;
       if (json[key].appellation) charIdMap[json[key].appellation] = key;
       json[key].charId = key;
-      // remap "rarity" field (AK 2.0)
+      // Game data stores rarity as "TIER_1".."TIER_6"; the site uses 0-5.
       json[key].rarity = RARITY_MAP[json[key].rarity] ?? json[key].rarity;
     }
   }
   for (const [k, v] of Object.entries(CN_ID_MAP)) {
     if (!(k in charIdMap)) charIdMap[k] = charIdMap[v];
   }
-  // add skadiva short name
+  // short-name aliases (SHORT_NAMES: full name -> short name)
   for (const [k, v] of Object.entries(SHORT_NAMES)) {
     charIdMap[v] = charIdMap[k];
   }
@@ -557,9 +650,8 @@ async function fixedJson(res) {
     );
 }
 
-// The per-rarity/phase/level EXP+LMD curve and the per-rarity/phase Elite
-// promotion LMD cost -- used alongside calcOperatorCost() below, by the
-// planner page.
+// The per-phase/level EXP+LMD curve and the per-rarity/phase Elite
+// promotion LMD cost, for calcOperatorCost() below (planner page).
 async function loadGameConst(server) {
   const res = await gameDataFetch(server, "gamedata_const");
   const json = await fixedJson(res);
@@ -571,7 +663,7 @@ async function loadGameConst(server) {
 }
 
 // Material/LMD/EXP names, icons and rarity -- itemId -> { name, iconId,
-// rarity, ... }. Same reasoning as loadGameConst() above.
+// rarity, ... }.
 async function loadItemTable(server) {
   const res = await gameDataFetch(server, "item_table");
   const json = await fixedJson(res);
@@ -686,9 +778,9 @@ function calcOperatorCost(op, current, target, gameConst) {
 // image. Entries whose name doesn't resolve to a known charId are dropped
 // (a stale/removed name, or the odd "APRIL FOOLS" joke entry).
 //
-// Returns a derived charId -> entry index of what's left -- charId is the
-// key every other part of the site already uses, whereas the scraper's
-// raw output is keyed by name only because that's what's shown in-game.
+// Returns a charId -> entry index of what's left, since charId is the key
+// the rest of the site uses (the scraper keys by name because that's
+// what the in-game shop shows).
 function normalizeShopHistory(servdata, charTableForServer) {
   const byCharId = {};
   for (const [op, data] of Object.entries(servdata)) {
@@ -720,11 +812,9 @@ function normalizeShopHistory(servdata, charTableForServer) {
     });
     img.src = uri_avatar(charId);
     data.img = img;
-    // Use the true minimum banner date rather than trusting banner[0]
-    // after the sort above: a single malformed/unparseable date string
-    // anywhere in the array makes Array.sort's comparisons with NaN
-    // unreliable, which can silently leave a later (e.g. rerun) date in
-    // slot 0.
+    // Take the true minimum rather than banner[0]: one unparseable date
+    // makes the sort's NaN comparisons unreliable, which can leave a later
+    // (e.g. rerun) date in slot 0.
     data.first = Math.min(...data.banner.map((b) => timestampMs(b.date)));
     data.shop = data.shop
       .map((entry) => ({ ...entry, date: timestampMs(entry.date) }))
@@ -740,19 +830,15 @@ function normalizeShopHistory(servdata, charTableForServer) {
 const SHOP_DEBUT_CADENCE_WEEKS = { 5: 6, 4: 5 };
 
 // Standard-pool (non-Kernel, non-Limited) operators of a given remapped
-// rarity, on one server. The anchor date is when the shop cadence last
-// actually ticked forward -- i.e. the most recent FIRST shop appearance
-// among ops that have already been shopped -- not any operator's
-// original character-release date. (A never-shopped operator can easily
-// have been released more recently than the last operator actually added
-// to the shop, and using their release date as the anchor pulls the
-// whole prediction off by however early/late that operator happens to
-// be.) Also returns the "queue" of ops that have never appeared in the
-// shop yet, oldest-released first -- those are presumably next in line,
-// one cadence-length apart: the longest-waiting one is expected
-// `cadence` weeks after the anchor, the next one 2x`cadence`, and so on.
-// De-duped by charId in case the source data lists the same operator
-// under more than one name/alias.
+// rarity, on one server. The anchor date (returned as latestRelease) is
+// when the shop cadence last ticked forward: the most recent FIRST shop
+// appearance among operators already shopped. Release dates aren't used
+// as the anchor, since a never-shopped operator can have been released
+// after the last one added to the shop. Also returns the queue of
+// operators never in the shop yet, oldest-released first -- presumably
+// next in line, one cadence apart: the first is expected `cadence` weeks
+// after the anchor, the next 2x`cadence`, and so on. De-duped by charId
+// in case the data lists an operator under more than one name.
 //
 // shopDataForServer/charTableForServer: one server's normalizeShopHistory()
 // input (or output -- only Object.values() is used, so either the
@@ -769,9 +855,7 @@ function getStandardPoolPipeline(rarity, shopDataForServer, charTableForServer) 
     if (seen.has(data.charId)) continue;
     seen.add(data.charId);
     if (data.shop.length) {
-      // data.shop[].date is already a numeric timestamp by this point
-      // (normalizeShopHistory() above), so this is a plain min over
-      // numbers -- NOT another Date.parse.
+      // data.shop[].date is already a number (normalizeShopHistory()).
       const firstShopDate = Math.min(...data.shop.map((s) => s.date));
       if (firstShopDate > anchorDate) {
         anchorDate = firstShopDate;
@@ -812,7 +896,9 @@ function predictShopDebut(opInfo, shopDataForServer, charTableForServer) {
   return { predictedDate: latestRelease + position * cadenceMs, position, anchorOp: latestOp, anchorDate: latestRelease };
 }
 
-// Modify chartjs pointElement to draw a circular image instead.
+// Patches Chart.js's PointElement to draw image points clipped to a
+// circle -- or, when several points overlap (pointStyle.conflictCount),
+// to that point's slice of the circle.
 if (typeof Chart !== "undefined") {
   const drawPoint_round = (ctx, options, x, y) => {
     let type, xOffset, yOffset, size, cornerRadius;
@@ -831,7 +917,7 @@ if (typeof Chart !== "undefined") {
         ctx.translate(x, y);
         ctx.rotate(rad);
 
-        // below block is modified code.
+        // Custom part (the rest follows Chart.js's own drawPoint):
         let sliceSize = Math.max(
           (1 / 4) * 2,
           (1 / options.pointStyle.conflictCount) * 2,
@@ -851,7 +937,6 @@ if (typeof Chart !== "undefined") {
         ctx.closePath();
         ctx.stroke();
         ctx.clip();
-        // ctx.globalAlpha = 0.8;
         ctx.drawImage(
           style,
           -style.width / 2,
@@ -859,7 +944,7 @@ if (typeof Chart !== "undefined") {
           style.width,
           style.height,
         );
-        ///////////////////////////////
+        // end of custom part
 
         ctx.restore();
         return;
@@ -884,7 +969,7 @@ if (typeof Chart !== "undefined") {
     ctx.lineWidth = options.borderWidth;
     ctx.fillStyle = options.backgroundColor;
 
-    drawPoint_round(ctx, options, this.x, this.y); // only this line was modified
+    drawPoint_round(ctx, options, this.x, this.y); // the only change from Chart.js's own draw()
   };
 
   Chart.defaults.scales.logarithmic.ticks.callback = function (

@@ -22,6 +22,7 @@
     <link type="text/css" href="/css/style.css" rel="stylesheet" />
     <link type="text/css" href="/css/style2.css" rel="stylesheet" />
     <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
+    <link type="text/css" href="/css/search-box.css" rel="stylesheet" />
     <link type="text/css" href="/css/planner-extra.css" rel="stylesheet" />
     <link type="text/css" href="/css/operator-edit-modal.css" rel="stylesheet" />
     <link type="text/css" href="/css/account-sync.css" rel="stylesheet" />
@@ -82,14 +83,15 @@
         <div id="rosterLeftCol">
           <div id="operatorAdd">
             <label for="operatorSearch">Add operator</label>
-            <div id="operatorSearchWrap">
+            <div id="operatorSearchWrap" class="searchBox">
               <input
                 type="text"
                 id="operatorSearch"
+                class="searchBoxInput"
                 placeholder="Type a name..."
                 autocomplete="off"
               />
-              <div id="operatorSearchResults" class="hidden"></div>
+              <div id="operatorSearchResults" class="searchBoxResults hidden"></div>
             </div>
           </div>
           <div id="rosterEmpty" class="rosterEmpty">
@@ -124,22 +126,23 @@
         subtracted from the totals on the Roster tab so you see what's
         actually still missing.
       </div>
-      <!-- The full "sync your account" form now only lives on the home
-           page (js/account-sync.js, mounted from index.html) -- this is
-           just a one-line status pointing there, kept in sync by reading
-           the same shared prefs section, so Planner never has its own
-           separate idea of whether (or as who) you're synced. -->
+      <!-- One-line sync status pointing at the full "sync your account"
+           form on the home page (js/account-sync.js, mounted from
+           index.html). It reads the same shared prefs section, so Planner
+           always agrees with the home page on whether (and as who) you're
+           synced. Filled by AccountSync.renderStatusLine(). -->
       <div id="accountSyncPlannerStatus"></div>
       <div id="depotAdd">
         <label for="depotSearch">Add material</label>
-        <div id="depotSearchWrap">
+        <div id="depotSearchWrap" class="searchBox">
           <input
             type="text"
             id="depotSearch"
+            class="searchBoxInput"
             placeholder="Type a material name..."
             autocomplete="off"
           />
-          <div id="depotSearchResults" class="hidden"></div>
+          <div id="depotSearchResults" class="searchBoxResults hidden"></div>
         </div>
       </div>
       <div id="depotEmpty" class="rosterEmpty">
@@ -156,10 +159,9 @@
     </div>
 
     <!-- The edit modal (current/target Elite, level, skill level, mastery,
-         modules) is no longer static markup here -- js/operator-edit-modal.js
-         injects it into <body> itself on first use, so the exact same modal
-         can also be opened from the calendar page without duplicating this
-         HTML there. -->
+         modules) is shared with the operator and calendar pages --
+         js/operator-edit-modal.js injects it into <body> itself on first
+         use. -->
 
     <script type="text/javascript" src="/js/operator-edit-modal.js"></script>
     <script type="text/javascript" src="/js/planner.js"></script>

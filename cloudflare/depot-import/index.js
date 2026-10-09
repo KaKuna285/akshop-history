@@ -1,25 +1,22 @@
 // Cloudflare Worker: one-shot Arknights (EN/Yostar) account sync, used by
-// the home page's "Sync your Arknights account" section (js/account-sync.js)
-// and, downstream, the Operator Planner (/planner/), the owned/not-owned
+// the home page's "Sync your Arknights account" section (js/account-sync.js).
+// The synced data feeds the Operator Planner (/planner/), the owned/not-owned
 // filter and "Your stats" toggle on the operator browser (/operator/), and
 // the medal progress section on the account overview page (/account/).
 // Given an account email and the one-time code Yostar emails to it, this
-// logs in exactly the way the mobile client does, reads the account's
-// current item inventory, operator roster (including each owned
-// operator's own progress), and obtained medals once, and returns them.
-// Nothing about the account is kept anywhere afterwards.
+// logs in the way the mobile client does, reads the account's item
+// inventory, operator roster (with each operator's progress), skins and
+// medals once, and returns them. Nothing about the account is kept.
 //
 // This is an independent JavaScript implementation of the login/session
 // protocol documented by the ArkPRTS project
-// (https://github.com/thesadru/arkprts, GPLv3) -- endpoints, field names,
-// and the request-signing schemes below were worked out by reading that
-// project's source, but every line here was written fresh for the Workers
-// runtime rather than translated from its Python, so this file carries
-// this repo's own MIT license rather than arkprts's GPLv3. If Yostar ever
-// changes this protocol, arkprts is the first place to check for an
-// updated version of it.
+// (https://github.com/thesadru/arkprts, GPLv3). Endpoints, field names and
+// the request-signing schemes below come from reading that project's
+// source, but the code is written for the Workers runtime, not translated
+// from its Python, so this file carries this repo's MIT license. If Yostar
+// changes the protocol, arkprts is the first place to check.
 //
-// What this Worker does, and deliberately doesn't, do:
+// Scope:
 //   - EN (Yostar) accounts only. No CN/JP/KR support.
 //   - Fetch-and-discard: the account's session token/secret and the fetched
 //     inventory/roster exist only in memory for the lifetime of a single
@@ -31,8 +28,7 @@
 //     email, code, session secret, inventory, or roster contents themselves.
 //   - Unofficial API. This talks to Yostar/Hypergryph's real game backend
 //     the same way the app does, which isn't a documented or sanctioned
-//     integration -- see the Operator Planner's import UI for the
-//     disclosure shown to whoever uses it.
+//     integration -- the sync form (js/account-sync.js) tells the user so.
 //
 // Deployed automatically: this folder's wrangler.jsonc plus Cloudflare's
 // Workers Builds, connected to this repo with root directory
@@ -46,22 +42,11 @@
 //      see the README section above.
 //   2. Settings -> Variables and Secrets -> add (wrangler.jsonc has
 //      keep_vars: true, so deploys never touch these):
-//        ALLOWED_ORIGIN - the origin the planner is served from, e.g.
+//        ALLOWED_ORIGIN - the origin the site is served from, e.g.
 //                         "https://ak.athansson.com". Requests from any
 //                         other Origin header are rejected. Origins on
 //                         http://localhost or http://127.0.0.1 (any port)
 //                         are always allowed too, for local testing.
-//     The Origin check only stops other websites from calling this from a
-//     visitor's browser -- a script can send any Origin it likes. What
-//     actually limits abuse (mailing codes to arbitrary addresses, guessing
-//     codes) is the rate limiting below (RATE_LIMITS, bindings in
-//     wrangler.jsonc), plus ACCESS_KEY_HASH if set.
-//     There's no access-key secret here on purpose: this file is served
-//     to anyone who views the planner's page source, so anything baked in
-//     there isn't actually secret. Instead, the planner's import UI asks
-//     for an access key at use time (see js/planner.js) and sends it as
-//     the "X-Access-Key" header -- set ACCESS_KEY_HASH below to gate on
-//     that instead, if you want this endpoint to require one.
 //        ACCESS_KEY_HASH - OPTIONAL. If set, requests must include a
 //                         "X-Access-Key" header whose SHA-256 hex digest
 //                         matches this value, or they're rejected before
@@ -70,9 +55,17 @@
 //                         behind an unlisted *.workers.dev URL; add it if
 //                         you want a second gate). Generate one with:
 //                           echo -n 'your-chosen-key' | sha256sum
-//   3. Point js/planner.js's DEPOT_IMPORT_ENDPOINT (in js/config.js) at
-//      this Worker's URL (its default *.workers.dev URL is fine, or a
-//      Custom Domain under Settings -> Triggers if you set one up).
+//     The Origin check only stops other websites from calling this from a
+//     visitor's browser -- a script can send any Origin it likes. Abuse
+//     (mailing codes to arbitrary addresses, guessing codes) is limited by
+//     the per-IP/per-email rate limits (rateLimited() below, bindings in
+//     wrangler.jsonc), plus ACCESS_KEY_HASH if set.
+//     The site's own code is public, so it holds no access key: the sync
+//     form asks for one at use time and sends it as the "X-Access-Key"
+//     header (js/account-sync.js). Only its hash is stored here.
+//   3. Point DEPOT_IMPORT_ENDPOINT in js/config.js at this Worker's URL
+//      (its default *.workers.dev URL is fine, or a Custom Domain under
+//      Settings -> Triggers if you set one up).
 
 const NETWORK_CONFIG_URL =
   "https://ak-conf.arknights.global/config/prod/official/network_config";
@@ -252,10 +245,9 @@ function quotePlus(str) {
     .replace(/%20/g, "+");
 }
 
-// RFC 1321 MD5, verified against Python's hashlib.md5 across boundary-length
-// inputs (55/56/63/64/65 bytes, 1000 bytes, empty string) before being
-// wired into the signing logic below -- see the project's dev notes if
-// this ever needs re-checking.
+// RFC 1321 MD5, for the Yostar request signature. Matches Python's
+// hashlib.md5 on padding-boundary inputs (empty, 55/56/63/64/65 bytes,
+// 1000 bytes) -- re-check those if this is ever touched.
 function md5Hex(bytes) {
   function rotl(x, c) {
     return (x << c) | (x >>> (32 - c));
@@ -448,9 +440,8 @@ async function getYostarToken(email, emailToken) {
 async function loadNetworkConfig() {
   const resp = await fetch(NETWORK_CONFIG_URL);
   const raw = await parseJsonOrThrow(resp, "network config");
-  // arkprts's own generic HTTP wrapper nests the real payload as a string
-  // under "content"; the endpoint's own JSON may or may not already be
-  // unwrapped depending on how it's fronted, so handle either shape.
+  // The config may arrive as a JSON string under "content" (the shape
+  // arkprts reads) or already unwrapped, so handle either shape.
   const cfg = raw.configs ? raw : JSON.parse(raw.content);
   const network = cfg?.configs?.[cfg.funcVer]?.network;
   if (!network || !network.gs || !network.u8) {
@@ -527,14 +518,11 @@ async function getGameSecret(gsHost, uid, u8Token, versions, deviceIds) {
   return secret;
 }
 
-// The four "Battle Record" cards operators consume for EXP -- confirmed
-// against Penguin Stats' item list (real itemIds) and the wiki's stated
-// per-unit EXP values. These are genuine, separately-tracked inventory
-// items in their own right (they'll also appear under their own ids in
-// the returned depot), used here only to compute the single combined
-// "EXP owned" total the planner already expects under EXP_ITEM_ID "5001"
-// -- the same aggregate a user would otherwise work out by hand and type
-// in themselves.
+// The four "Battle Record" items operators consume for EXP, with their
+// EXP per unit (item ids from Penguin Stats, values from the wiki).
+// fetchDepot() sums them into the single "EXP owned" total the planner
+// reads under EXP_ITEM_ID ("5001"); the items also stay in the depot
+// under their own ids.
 const BATTLE_RECORD_EXP_VALUES = {
   "2001": 200, // Drill Battle Record
   "2002": 400, // Frontline Battle Record
@@ -559,26 +547,19 @@ async function getInventory(gsHost, uid, secret) {
   return user;
 }
 
-// The same /account/syncData response already fetched for the depot
-// (see getInventory() above) carries the player's actual operator
-// roster too, under `user.troop.chars` -- an { [instanceId]: { charId,
-// ... }, ... } map, one entry per operator the account owns. This is
-// the same field essentially every other community Arknights tool
-// (arkprts and the various box/depot viewers built on it) reads for
-// "what operators does this account have", and `charId` there is
-// already in the exact "char_002_amiya"-style format this site uses
-// everywhere else -- no name mapping needed, just collect and dedupe.
+// The owned-operator list, from the same /account/syncData response as
+// the depot (getInventory() above): `user.troop.chars` is an
+// { [instanceId]: { charId, ... } } map with one entry per owned
+// operator -- the field arkprts and the box/depot viewers built on it
+// read. `charId` is already in this site's "char_002_amiya" format, so
+// this just collects and dedupes.
 //
-// Defensive, more so than the inventory/status fields above: this
-// field's shape has only been confirmed by reading other open-source
-// implementations of this same login flow, not by a live response
-// captured specifically for this Worker. If a real response doesn't
-// have `troop.chars` in this shape, this returns null -- not an empty
-// array -- so the frontend can tell "couldn't read your roster" apart
-// from "this account genuinely owns zero operators" (which shouldn't
-// be possible; every account starts with several) and skip greying out
-// every single operator on a bad guess instead of just disabling the
-// owned/not-owned filter until this gets sorted out.
+// The shape comes from other open-source implementations of this login
+// flow, so it's read defensively. If it doesn't match, this returns null
+// rather than an empty array, so the frontend can tell "couldn't read
+// your roster" from an empty roster (impossible -- every account starts
+// with several operators) and disable the owned/not-owned filter instead
+// of greying out every operator.
 function extractOwnedOperators(user) {
   const chars = user?.troop?.chars;
   if (!chars || typeof chars !== "object") return null;
@@ -592,27 +573,15 @@ function extractOwnedOperators(user) {
   return ids.size ? Array.from(ids) : null;
 }
 
-// Amiya is the one operator in the game with swappable alternate classes
-// (base Caster, plus the Guard and Medic forms unlocked later in the
-// story) -- confirmed live (see the account overview's own "Amiya's
-// alternate forms aren't tracked" report) this does NOT show up as three
-// separate troop.chars entries the way every other operator's roster
-// data does. Confirmed instead, by reading the ArkPRTS reference
-// implementation's own data model (this file's own header comment above
-// explains why that's the reference here): a troop.chars entry has a
-// `tmpl` field, a map of { [charId]: <that form's own full character
-// data -- charId/level/evolvePhase/skills/equip/etc, same shape as the
-// entry itself> }, documented there as "Alternative operator class data.
-// Only for Amiya." The outer entry's own `charId` is whichever form is
-// CURRENTLY ACTIVE/equipped (base Caster, for most accounts, since
-// that's the default) -- so reading only entry.charId, as both functions
-// below used to, silently drops whichever form(s) aren't currently
-// equipped: not undercounted, not miscategorized, just entirely absent
-// from both the owned-operator list and the per-operator progress map,
-// no matter how much real progress that account has on them. This walks
-// `tmpl` alongside the entry itself so every owned form is counted, not
-// just the active one. Harmless/a no-op for every other operator, whose
-// entries have no `tmpl` field at all.
+// Amiya is the one operator with swappable classes (base Caster, plus the
+// Guard and Medic forms unlocked later in the story), and her forms don't
+// get separate troop.chars entries. Her one entry's `charId` is whichever
+// form is currently equipped; every form she has is in its `tmpl` field,
+// a { [charId]: <that form's character data, same shape as the entry> }
+// map (ArkPRTS: "Alternative operator class data. Only for Amiya.").
+// Reading only entry.charId would leave the unequipped forms out of both
+// the owned-operator list and the progress map, so both walk `tmpl` with
+// this as well. A no-op for every other operator (no `tmpl` field).
 function forEachAmiyaTmpl(entry, fn) {
   const tmpl = entry && entry.tmpl;
   if (!tmpl || typeof tmpl !== "object") return;
@@ -623,27 +592,16 @@ function forEachAmiyaTmpl(entry, fn) {
 }
 
 // Per-operator progress (Elite phase, level, potential rank, skill levels
-// and masteries, module stages, and which module is currently equipped),
-// for the operator page's "Your stats" toggle -- a further read of the
-// exact same `troop.chars` entries extractOwnedOperators() above already
-// walks for the owned/not-owned filter. Field names here (evolvePhase,
-// level, potentialRank, mainSkillLvl, skills[].specializeLevel,
-// equip[uniEquipId].level, currentEquip) come from the same arkprts-
-// derived reading of this protocol as the rest of this file (see the
-// header comment), but -- even more so than extractOwnedOperators()'s own
-// charId-only read -- this has NOT been checked against a real account's
-// actual response: a real `troop.chars` entry carries a lot more fields
-// than either function reads, and the shapes of `skills`/`equip`
-// specifically are the ones most likely to have shifted since arkprts'
-// own notes on them were written. Every field below is read
-// defensively and just comes back null/omitted if it's not the type
-// expected, so a wrong guess here means a particular operator's "Your
-// stats" view falls back to "Maxed" (see js/operator-page.js) rather
-// than showing a wrong number -- never throws, and never guesses a
-// plausible-looking value for a field that isn't actually there.
-// Shared by extractOwnedOperatorProgress() below for both a top-level
-// troop.chars entry and one of its Amiya tmpl sub-entries (see
-// forEachAmiyaTmpl()'s comment above) -- both are the same shape.
+// and masteries, module stages, and which module is equipped) for the
+// operator page's "Your stats" toggle, from one troop.chars entry or one
+// of its Amiya tmpl sub-entries (same shape).
+// The field names (evolvePhase, level, potentialRank, mainSkillLvl,
+// skills[].specializeLevel, equip[uniEquipId].level, currentEquip) come
+// from arkprts and haven't been checked against a real account's
+// response; `skills` and `equip` are the likeliest to differ. Every field
+// is type-checked and comes back null/omitted when it isn't the expected
+// type, so a wrong guess makes that operator's "Your stats" view fall
+// back to "Maxed" (js/operator-page.js) instead of showing a wrong number.
 function buildOperatorProgress(entry) {
   return {
     evolvePhase: typeof entry.evolvePhase === "number" ? entry.evolvePhase : null,
@@ -660,13 +618,10 @@ function extractOwnedOperatorProgress(user) {
   const chars = user?.troop?.chars;
   if (!chars || typeof chars !== "object") return null;
   const byChar = {};
-  // A handful of community tools' own notes mention accounts that can end
-  // up with more than one troop entry for the same charId (e.g. a
-  // recruited-then-recalled slot); not confirmed to actually happen, but
-  // guarded for anyway -- keep whichever looks the most invested-in
-  // rather than just whichever was last in iteration order. Shared here
-  // so a tmpl-derived entry (see forEachAmiyaTmpl()) is deduped against a
-  // same-charId entry found any other way by the exact same rule.
+  // Some community tools' notes mention accounts with more than one troop
+  // entry for the same charId (unconfirmed). If that happens, keep the
+  // highest-level one rather than the last one seen. Amiya's tmpl entries
+  // go through the same rule.
   const consider = (charId, data) => {
     if (typeof charId !== "string" || !charId) return;
     const progress = buildOperatorProgress(data);
@@ -711,18 +666,17 @@ function extractModuleProgress(equip) {
 // progress section -- keyed by medalId against the full catalog it loads
 // itself from medal_table.json.
 //
-// Shape of `user.medal.medals`, confirmed against a real synced account's
-// raw response: an object keyed by medalId, one entry per medal the game
-// tracks for the account -- including ones not earned yet (e.g. progress
-// toward a counter-based medal), which is why "present" doesn't mean
-// "obtained":
+// `user.medal.medals` (checked against a real synced account) is an
+// object keyed by medalId, one entry per medal the game tracks for the
+// account -- including ones not earned yet (e.g. progress toward a
+// counter-based medal), so "present" doesn't mean "obtained":
 //   { id: "medal_player_lv_01", fts: 1601399226, rts: -1, ... }
 // `fts` is when the medal was first obtained (Unix seconds); an entry that
 // hasn't been earned has no positive fts. (`rts` is a separate timestamp,
 // -1 on most entries, and isn't needed here.) If no entry carries a
-// numeric fts at all, the format has changed: return null, which the
-// account page shows as "this sync didn't include medal data", rather
-// than guess.
+// numeric fts at all, the format isn't the expected one: return null,
+// which the account page shows as "this sync didn't include medal data",
+// rather than guess.
 function extractObtainedMedals(user) {
   const medals = user?.medal?.medals;
   if (!medals || typeof medals !== "object") return null;
@@ -740,22 +694,13 @@ function extractObtainedMedals(user) {
 }
 
 // Owned skins (and when each was obtained), for the operator page's skin
-// gallery "grey out owned" toggle -- keyed by skinId against the per-
-// operator skins listed in skin_table.json (the frontend side of that
-// match is already solid: skin_table.json's own skinId values, e.g.
-// "char_002_amiya#1", are exactly what a real account's ownership map
-// uses too). The top-level shape here was right on the first guess
-// (ArkPRTS's reference model: `user.skin.characterSkins` as a
-// `{ [skinId]: ... }` ownership map, `user.skin.skinTs` as a parallel
-// `{ [skinId]: timestamp }` obtained-time map) -- confirmed via a real
-// account's own synced response. What was wrong was the *value* type:
-// ArkPRTS's own `Mapping[str, bool]` typing implied a literal `true`,
-// but a real response's characterSkins entries are the *number* 1 (this
-// game's own JSON encoding for booleans elsewhere too) -- a strict
-// `=== true` check silently treated every single owned skin as
-// unowned. Plain truthiness below covers both that real shape and a
-// literal `true`, while still correctly skipping a falsy (0/false)
-// entry if one ever does show up.
+// gallery "grey out owned" toggle, keyed by skinId -- the same ids as
+// skin_table.json (e.g. "char_002_amiya#1"). In a real synced response,
+// `user.skin.characterSkins` is a { [skinId]: owned } map and
+// `user.skin.skinTs` a parallel { [skinId]: timestamp } map. ArkPRTS
+// types the owned flag as a bool, but real responses use the number 1
+// (the game encodes booleans that way elsewhere too), so this checks
+// truthiness rather than `=== true`.
 function extractOwnedSkins(user) {
   const owned = user?.skin?.characterSkins;
   if (!owned || typeof owned !== "object") return null;
@@ -780,10 +725,9 @@ async function fetchDepot(email, code) {
   const secret = await getGameSecret(network.gs, uid, u8Token, versions, deviceIds);
   const user = await getInventory(network.gs, uid, secret);
 
-  // LMD isn't part of "inventory" at all -- it's tracked as its own
-  // currency field, status.gold -- so it's merged in here under the same
-  // itemId ("4001") the planner already uses for LMD everywhere else,
-  // rather than silently always coming back missing from an import.
+  // LMD isn't part of "inventory" -- it's its own currency field,
+  // status.gold -- so merge it in under the itemId the planner uses for
+  // LMD ("4001").
   const depot = { ...user.inventory };
   if (typeof user?.status?.gold === "number" && user.status.gold > 0) {
     depot["4001"] = user.status.gold;

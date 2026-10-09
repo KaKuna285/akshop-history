@@ -1,13 +1,10 @@
 name: Update banner history
 on:
-  # No `schedule:` trigger here on purpose. GitHub auto-disables a scheduled
-  # workflow after 60 days with no repo activity, so instead a Cloudflare
-  # Worker (with its own Cron Trigger, running entirely on Cloudflare) calls
-  # the GitHub API once a day to fire this via workflow_dispatch below. See
-  # cloudflare/dispatch-cron/index.js and the "Hands-off forever" section of the
-  # README for the Worker setup. This also means the schedule lives on
-  # Cloudflare, which is the point: one less thing tied to GitHub staying
-  # "active" on its own.
+  # No `schedule:` trigger on purpose: GitHub auto-disables a scheduled
+  # workflow after 60 days with no repo activity. Instead a Cloudflare
+  # Worker's Cron Trigger calls the GitHub API once a day to fire this via
+  # workflow_dispatch below. See cloudflare/dispatch-cron/index.js and the
+  # README's "Hands-off forever" section for the Worker setup.
   workflow_dispatch:
 # One run at a time: a manual run started while the daily one is still
 # going waits for it instead of racing it to commit the same files.
@@ -28,8 +25,8 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        # the scraper scripts live in this subfolder here, unlike in
-        # akgcc/akgcc-extra-data where they're at the repo root
+        # the scraper scripts live in this subfolder (in upstream
+        # akgcc/akgcc-extra-data they're at the repo root)
         working-directory: akgcc-extra-data
     steps:
       # Actions are pinned to an exact commit (the tag it was at is in the
@@ -45,8 +42,8 @@ jobs:
         # Pinned versions (requirements.txt), so a new release can't break
         # the daily run without a commit here.
         run: pip install -r requirements.txt
-      # The three updates are independent: each one failing must not stop
-      # the other two (or the commit below) from running, so each has
+      # The four updates are independent: one failing must not stop the
+      # others (or the commit below) from running, so each has
       # `continue-on-error` and an id whose `outcome` the health step reads.
       # The job is still made to fail at the very end if any of them did --
       # see "Fail the run" -- so a broken scraper shows up as a red run
@@ -61,10 +58,6 @@ jobs:
         run: python operator_online.py
       - name: Update EN event dates (past + estimated upcoming)
         id: events
-        # This is newer/less proven than the two scrapers above -- if its
-        # Cargo query turns out to need a field/table name fix, it
-        # shouldn't take the whole daily update down with it. Check this
-        # step's own log for the actual error if it goes red.
         continue-on-error: true
         run: python events.py
       - name: Build slim game data

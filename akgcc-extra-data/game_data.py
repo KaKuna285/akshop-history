@@ -1,19 +1,19 @@
 """Build slim copies of the game-data tables the site reads.
 
-Every page used to download the full Arknights game-data tables from the
-ArknightsAssets/ArknightsGamedata mirror, for both EN and CN: ~100 MB of
-JSON on the operator page and ~49 MB on the calendar, of which the site
-reads a small fraction. This writes, per server, a copy of each table
-with the *same top-level shape and the same field names/value formats*
-but only the rows and fields some page actually reads:
+The full Arknights game-data tables on the ArknightsAssets/ArknightsGamedata
+mirror are large (EN + CN: ~100 MB of JSON for the operator page, ~49 MB
+for the calendar), and the site reads a small fraction of them. This
+writes, per server, a copy of each table with the *same top-level shape
+and the same field names/value formats* but only the rows and fields some
+page actually reads:
 
     json/gamedata/<en|cn>/<table>.json
 
-js/util.js's fetchGameData() loads these (falling back to the upstream
-mirror if one is missing), so the pages' own code is unchanged. All the
-client-side transforms (char_patch merge, rarity remap, profession names,
-the Amiya rename, the EN/CN merges, module grouping) still happen in the
-browser exactly as before -- this only removes what nothing reads.
+js/util.js's gameDataFetch() loads these (falling back to the upstream
+mirror if one is missing), so page code treats them exactly like the
+full tables. All the client-side transforms (char_patch merge, rarity
+remap, profession names, the Amiya rename, the EN/CN merges, module
+grouping) happen in the browser -- this only removes what nothing reads.
 
 The field lists below come from tracing every read in js/*.js. When a
 page starts reading a new field, add it here, or it will be missing:
@@ -246,7 +246,7 @@ def build(tables):
 
     # Characters: the client deletes records without a displayNumber
     # (tokens, traps), so they're dropped here too. Patch characters
-    # (Amiya's other forms) are kept whole-row-slimmed in char_patch_table.
+    # (Amiya's other forms) are slimmed the same way, in char_patch_table.
     chars = {
         k: slim(v, CHARACTER)
         for k, v in tables["character_table"].items()
@@ -321,7 +321,7 @@ TABLES = [
 
 
 def parse_json_lenient(text):
-    # Same as util.js's fixedJson(): the mirror has had trailing commas.
+    # Same as util.js's fixedJson(): the mirror can serve trailing commas.
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -365,11 +365,11 @@ def write_if_changed(path, data):
 
 
 def sanity_check(server, slim_tables):
-    # (Run on the full per-server build, before build_cn() cuts CN down to
-    # its gaps -- the gap tables can legitimately be near-empty.)
     """Refuse to write an obviously broken result (a renamed field upstream
     could otherwise produce an empty-but-valid file the site would happily
-    load). Thresholds are far below today's real counts."""
+    load). Thresholds are far below the real counts. Runs on the full
+    per-server build, before build_cn() cuts CN down to its gaps (the gap
+    tables can legitimately be near-empty)."""
     counts = {
         "character_table": len(slim_tables["character_table"]),
         "skill_table": len(slim_tables["skill_table"]),

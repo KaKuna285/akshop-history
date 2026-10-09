@@ -128,9 +128,8 @@ async function handleMirror(request, env, ctx) {
 
   const key = `${source}/${path}`;
   const stored = await env.MIRROR.get(key);
-  // (Objects with missingSince metadata are 404 markers an earlier version
-  // of this Worker stored; they're ignored and get overwritten if the file
-  // turns up.)
+  // Objects with missingSince metadata are leftover 404 markers: treat them
+  // as missing (they get overwritten if the file turns up).
   if (stored && !(stored.customMetadata && stored.customMetadata.missingSince)) {
     return finish(respond(200, stored.body, path, FOUND_CACHE, { "x-mirror": "r2" }));
   }

@@ -59,8 +59,8 @@ def load_js_name_maps(path=UTIL_JS_PATH):
 
 
 def parse_json_lenient(text):
-    """util.js's fixedJson(): the mirror has served JSON with trailing
-    commas before, so retry with those stripped."""
+    """util.js's fixedJson(): the mirror can serve JSON with trailing
+    commas, so retry with those stripped."""
     try:
         return json.loads(text)
     except json.JSONDecodeError:

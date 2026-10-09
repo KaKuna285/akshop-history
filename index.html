@@ -58,7 +58,7 @@
       </div>
 
       <!--
-        To add a new project later: copy one <li>...</li> block below,
+        To add a new project: copy one <li>...</li> block below,
         point the href at that project's own folder (e.g. /new-project/),
         and update the name/desc text. That's the only change needed here.
       -->
@@ -114,9 +114,8 @@
     </div>
 
     <script type="text/javascript">
-      // Matches the old depotImport-block convention it replaces: stays
-      // hidden entirely (not just an empty form) on a fork that hasn't
-      // deployed its own cloudflare/depot-import/index.js Worker yet.
+      // The sync section stays hidden on a deployment without the
+      // cloudflare/depot-import Worker (no DEPOT_IMPORT_ENDPOINT).
       if (typeof DEPOT_IMPORT_ENDPOINT !== "undefined" && DEPOT_IMPORT_ENDPOINT) {
         document.getElementById("accountSync").classList.remove("hidden");
       }

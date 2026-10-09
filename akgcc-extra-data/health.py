@@ -1,10 +1,10 @@
 """Write json/meta.json: whether the daily update actually worked.
 
 The update steps (shop_operators.py, operator_online.py, events.py,
-game_data.py) are each allowed to fail without stopping the others -- but a scraper
-that breaks quietly (the wiki changes a template, an API starts erroring)
-otherwise just leaves the site showing yesterday's data with nothing to
-say so. This runs last, with `if: always()`, and records what happened:
+game_data.py) are each allowed to fail without stopping the others, so a
+scraper that breaks quietly (the wiki changes a template, an API starts
+erroring) would otherwise just leave the site showing yesterday's data with
+nothing to say so. This runs last, with `if: always()`, and records what happened:
 
     python health.py shop=success operators=failure events=success gamedata=success
 
@@ -159,7 +159,8 @@ def build_meta(outcomes, previous, now):
 
     # Shop-history names the site can't match to an operator (see
     # name_check.py) -- the one thing here that needs a person: an alias in
-    # js/util.js (GAMEPRESS_NAME_MAP / CN_ID_MAP) or shop_operators.py (ALIAS).
+    # js/util.js (GAMEPRESS_NAME_MAP / CN_ID_MAP / SHORT_NAMES) or
+    # shop_operators.py (ALIAS).
     banners = read_json(f"{JSON_DIR}/banner_history.json")
     if isinstance(banners, dict):
         unmatched = banners.get("unmatchedNames")

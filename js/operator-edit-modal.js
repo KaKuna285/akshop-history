@@ -1,32 +1,21 @@
-// The "set current/target Elite, level, skill level, mastery, and module
-// stages" card -- shared between the planner page (opened from a roster
-// card, or right after adding one via search) and the calendar page
-// (opened from an event's "Add to planner"/"In planner" operator chips,
-// so setting an operator's target doesn't require leaving the calendar).
-// Both pages use exactly this one module rather than each keeping their
-// own copy of the editing UI, so the two can't drift apart from each
-// other over time.
+// The planner's edit card: current/target Elite, level, skill level,
+// mastery and module stages for one roster entry. Shared by the planner
+// page (roster cards, "Add operator" search), the calendar page (an
+// event's "Add to planner"/"In planner" chips) and the operator page
+// ("Add to planner"), so each opens the same card in place.
 //
-// Deliberately self-contained:
-// - Its own DOM, injected into <body> the first time open() is called
-//   (so no page has to carry the modal's markup in its own HTML).
-// - The state-math helpers (maxPhase, clampState, defaultState, etc.) --
-//   small, stable game-mechanics math. This module owns them and exports
-//   them; planner.js uses these same functions rather than keeping its own
-//   copy, so the planner and this card can't disagree on what a valid
-//   state is.
-// - Its own (separately cached) character-data fetch, for a caller --
-//   like calendar.js -- that doesn't already have a full charTable
-//   loaded. A caller that already has one (the planner page) just
-//   passes its own `op` record straight into open() and never calls
-//   loadCharTable() at all.
+// Self-contained:
+// - Its own DOM, injected into <body> on the first open(), so no page
+//   carries the modal's markup.
+// - The state helpers (maxPhase, clampState, defaultState, etc.), exported
+//   so planner.js and operator-page.js use the same rules for a valid state.
+// - loadCharTable(): a cached EN+CN character-data fetch for callers that
+//   don't load their own (calendar, operator and account pages). The
+//   planner passes its own `op` records to open() instead.
 //
-// This module never touches roster storage itself -- open() is handed
-// the exact `entry` object to mutate in place, and every change is
-// reported back through the `onChange`/`onRemove` callbacks passed in,
-// leaving the caller in charge of actually persisting/re-rendering
-// whatever it owns (planner.js's in-memory roster + its own UI;
-// calendar.js's localStorage-backed roster + its chip labels).
+// It never touches roster storage: open() is handed the `entry` object to
+// mutate in place and reports every change through the onChange/onRemove
+// callbacks; the caller saves and re-renders whatever it owns.
 const OperatorEditModal = (function () {
   let overlayEl, iconEl, nameEl, closeEl, statesEl, extraEl, removeEl;
   let currentOp = null;
@@ -73,7 +62,7 @@ const OperatorEditModal = (function () {
     });
   }
 
-  // --- state-math helpers (also used by planner.js -- see file header) ---
+  // --- state helpers (exported -- see file header) ---
   function maxPhase(op) {
     return op.phases.length - 1;
   }
@@ -88,13 +77,10 @@ const OperatorEditModal = (function () {
     const skill = op.skills && op.skills[skillIdx];
     return skill && skill.levelUpCostCond ? skill.levelUpCostCond.length : 0;
   }
-  // Keeps a state object's phase/level/skillLevel/mastery/modules within
-  // whatever's actually valid for this operator -- needed both right
-  // after restoring a possibly-stale saved roster (an operator's own
-  // skill/module list can't shrink in practice, but this also guards
-  // against a saved roster entry that's just malformed) and whenever the
-  // phase field changes and the level field's own valid range shifts
-  // under it.
+  // Clamps a state's phase/level/skillLevel/mastery/modules to what's
+  // valid for this operator, in place. Used on saved (possibly malformed)
+  // roster entries and whenever the phase changes, which moves the
+  // level's valid range.
   function clampState(op, state) {
     state.phase = Math.max(0, Math.min(state.phase, maxPhase(op)));
     state.level = Math.max(1, Math.min(state.level, maxLevelFor(op, state.phase)));
@@ -122,11 +108,9 @@ const OperatorEditModal = (function () {
   function defaultState() {
     return { phase: 0, level: 1, skillLevel: 1, mastery: {}, modules: {} };
   }
-  // A newly-added operator's target starts at a common "just promoted"
-  // goal -- E2 level 1, skill level 7 -- rather than mirroring their
-  // (equally blank) current state, so there's usually something to see
-  // in the summary right away. Mastery/module ranks still default to
-  // None, since there's no similarly common default for those.
+  // A newly-added operator's target is a common goal -- E2 level 1 (or
+  // their highest phase), skill level 7 -- so the summary has something
+  // to show right away. Mastery and modules default to None.
   function defaultTargetState(op) {
     return {
       phase: Math.min(2, maxPhase(op)),
@@ -238,10 +222,9 @@ const OperatorEditModal = (function () {
     return row;
   }
 
-  // Mastery (per skill) and module (per module) rows -- each is its own
-  // independent current -> target rank, so they're rendered as compact
-  // "label [current] -> [target]" lines rather than folded into
-  // buildStateFields's two-column layout.
+  // Mastery (per skill) and module (per module) rows, each a compact
+  // "label [current] -> [target]" line below buildStateFields()'s
+  // two-column layout. Returns null when there are none.
   function buildExtraFields(op, entry) {
     const masterySkills = (op.skills || []).filter((_, idx) => maxMastery(op, idx) > 0);
     const modules = op.modules || [];
@@ -273,10 +256,9 @@ const OperatorEditModal = (function () {
     return wrap;
   }
 
-  // Every field change goes through here: report it to whoever opened the
-  // modal (to persist + refresh their own UI), then rebuild this modal's
-  // own fields (a phase change moves the level field's valid range, for
-  // instance, so the modal never shows a stale control while it's open).
+  // Every field change goes through here: report it to the caller (to
+  // save and refresh its own UI), then rebuild the modal's fields, since
+  // e.g. a phase change moves the level field's valid range.
   function onFieldChange() {
     if (currentCallbacks && currentCallbacks.onChange) currentCallbacks.onChange(currentEntry);
     refresh();
@@ -316,15 +298,10 @@ const OperatorEditModal = (function () {
   // entry: the roster entry to edit in place ({ charId, current, target }).
   // callbacks.onChange(entry): called after every field edit.
   // callbacks.onRemove(): called when "Remove operator" is clicked --
-  //     the caller decides what removal actually means for its own
-  //     roster, then should call close() itself once it has.
-  // callbacks.onClose(): called once the modal is actually closed, by
-  //     whatever means (X button, clicking the overlay, Escape, or a
-  //     close() a caller's own onRemove triggered) -- the one place a
-  //     caller that only wants to react to "the person is done editing"
-  //     (e.g. to refresh a still-open summary elsewhere on the page)
-  //     needs to hook, rather than duplicating that logic across every
-  //     way the modal can close.
+  //     the caller removes the entry from its roster, then calls close().
+  // callbacks.onClose(): called once the modal closes, by any means (X
+  //     button, overlay click, Escape, or a close() from onRemove) -- the
+  //     hook for reacting to "done editing".
   function open(op, entry, callbacks) {
     ensureDom();
     currentOp = op;
@@ -352,14 +329,12 @@ const OperatorEditModal = (function () {
     return !!(overlayEl && !overlayEl.classList.contains("hidden"));
   }
 
-  // Fetches (once -- cached for the rest of the page's life) just enough
-  // EN+CN character data for this modal to work with: phases, skills, and
-  // (via its own uniequip_table.json fetch + charId grouping, mirroring
-  // what the planner page's own loadData() does for the same reason)
-  // modules. No item_table.json/gamedata_const.json here -- a caller that
-  // also needs cost totals (the planner page) already loads its own
-  // fuller copy of those through get_char_table() directly, and this
-  // module never needed them for anything the modal itself shows.
+  // Fetches (once per page load) the EN+CN character data the modal
+  // needs: phases, skills, and modules (from uniequip_table, grouped by
+  // charId the same way as the planner's loadData()). Uses
+  // get_char_table()'s extra_data, so records also carry release dates
+  // and isLimited for other callers. No item or cost tables: the modal
+  // doesn't show costs.
   function loadCharTable() {
     if (charTablePromise) return charTablePromise;
     charTablePromise = (async () => {
@@ -370,9 +345,8 @@ const OperatorEditModal = (function () {
       const equipJson = await fixedJson(equipRes);
       const equipDict = equipJson.equipDict || equipJson;
 
-      // Best-effort CN merge for anything not yet released on EN, same
-      // approach (and same "never let a slow/down CN mirror break EN
-      // data" reasoning) as the planner page's own loadData().
+      // Best-effort CN merge for anything not yet released on EN, the same
+      // as the planner's loadData(): a CN failure still leaves EN data.
       try {
         const [cnChars, cnEquipRes] = await Promise.all([
           get_char_table(false, SERVERS.CN, true),

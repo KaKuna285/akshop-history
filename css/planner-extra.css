@@ -1,8 +1,6 @@
 /* Every top-level block on this page (intro, tabs, roster layout, depot)
    shares this same max-width/padding/centering so their left and right
-   edges all line up as you scroll, instead of each block picking its own
-   narrower width and drifting out of alignment with the ones above and
-   below it. */
+   edges line up as you scroll. */
 #plannerIntro {
   max-width: 900px;
   margin: 16px auto 20px;
@@ -55,10 +53,9 @@
 }
 
 /* Left-aligned (not independently centered) so its edge matches the
-   roster cards/depot rows below it, rather than floating as its own
-   narrower centered block. Kept deliberately compact (small gap/margin,
-   tight input padding) so the roster/depot content below starts higher
-   on the page instead of this bar eating vertical space it doesn't need. */
+   roster cards/depot rows below it. Kept compact (small gap/margin,
+   tight input padding) so the roster/depot content starts higher on the
+   page. */
 #operatorAdd,
 #depotAdd {
   max-width: 480px;
@@ -72,75 +69,6 @@
 #depotAdd label {
   font-size: 0.75rem;
   color: #aaa;
-}
-
-#operatorSearchWrap,
-#depotSearchWrap {
-  position: relative;
-}
-
-#operatorSearch,
-#depotSearch {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #555;
-  background: #1c1c1c;
-  color: #eee;
-  font-size: 0.95rem;
-}
-
-#operatorSearchResults,
-#depotSearchResults {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  max-height: 280px;
-  overflow-y: auto;
-  background: #2c2c2c;
-  border: 1px solid #555;
-  border-radius: 6px;
-  z-index: 20;
-}
-
-#operatorSearchResults.hidden,
-#depotSearchResults.hidden {
-  display: none;
-}
-
-.operatorSearchResult {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-}
-
-.operatorSearchResult:hover,
-.operatorSearchResult.highlighted {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.operatorSearchResultIcon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: rgba(255, 255, 255, 0.08);
-  flex: 0 0 auto;
-}
-
-.operatorSearchResultName {
-  font-size: 0.88rem;
-  color: #eee;
-}
-
-.operatorSearchResultRarity {
-  margin-left: auto;
-  font-size: 0.75rem;
-  color: #999;
 }
 
 /* Marks an operator/material not yet released on the EN server (shown
@@ -193,8 +121,8 @@
 /* Two-column layout: the "Add operator" search bar + operator cards on
    the left, the list-style "what you still need" summary on the right --
    always both present (even with an empty roster, so there's somewhere
-   to add the first operator), which is what keeps "Total needed" level
-   with "Add operator" instead of starting only once cards exist. Stacks
+   to add the first operator), which keeps "Total needed" level with
+   "Add operator". Stacks
    on narrow screens (see the media query at the bottom). */
 #rosterLayout {
   max-width: 900px;
@@ -243,9 +171,8 @@
   flex: 0 0 auto;
 }
 
-/* One line now (name + optional CN badge) -- the current/target summary
-   that used to live here as a second visible line is now the card's
-   hover tooltip (see formatCardTooltip() in planner.js) instead. */
+/* One line: name + optional CN badge. The current/target summary is the
+   card's hover tooltip (see formatCardTooltip() in planner.js). */
 .operatorCardInfo {
   display: flex;
   align-items: center;
@@ -348,9 +275,8 @@
   display: none;
 }
 
-/* The "what you still need" list -- one row per material, rather than
-   the old wrapped pill-chip layout, so it reads as a list next to the
-   operator cards instead of a cluttered cloud of tags. */
+/* The "what you still need" list -- one row per material, so it reads
+   as a list next to the operator cards rather than a cloud of tags. */
 #summaryMaterials {
   display: flex;
   flex-direction: column;
@@ -543,9 +469,8 @@
 }
 
 /* The edit modal itself (current/target phase, level, skill level,
-   mastery, modules) is now styled by css/operator-edit-modal.css,
-   shared with the calendar page's copy of the same card -- see
-   js/operator-edit-modal.js. */
+   mastery, modules) is styled by css/operator-edit-modal.css, shared
+   with every page that opens it -- see js/operator-edit-modal.js. */
 
 /* Matches calendar's #pageCredit treatment exactly. */
 #pageCredit {

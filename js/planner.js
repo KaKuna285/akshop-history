@@ -1,45 +1,31 @@
 (function () {
-  // Covers operator level, Elite promotion, skill level (1-7, shared
-  // across all of an operator's skills), skill mastery (M1-M3, per
-  // individual skill), and module stages, for a roster of operators
-  // combined into one running total -- reduced by a depot of materials
-  // (and LMD, and EXP -- both are real, searchable items in the game
-  // data, ids "4001" and "5001" respectively) you already own, if
-  // you've entered any. Nothing here tracks a real in-game inventory
-  // automatically; the depot is just numbers you type in once and it
-  // remembers.
+  // Operator Planner: totals the LMD, EXP and materials a roster of
+  // operators needs to reach their targets -- operator level, Elite
+  // promotion, skill level (1-7, shared across an operator's skills),
+  // mastery (M1-M3, per skill) and module stages -- minus whatever the
+  // depot says you already own. The depot is just numbers you enter (or
+  // import through account sync); LMD and EXP are ordinary items in it
+  // (ids "4001" and "5001").
   //
-  // All the cost data this page needs is plain, static JSON already served
-  // by the same raw game-data mirror util.js's DATA_BASE points at -- no
-  // new scraper/GitHub Action needed. get_char_table() (from util.js)
-  // already fetches character_table.json for the shop page and, along the
-  // way, keeps each operator's own "phases" (Elite promotion cost),
-  // "skills" (mastery cost, via each skill's own levelUpCostCond), and
-  // "allSkillLvlup" (shared skill-level cost) fields untouched -- so it's
-  // reused as-is here rather than fetching character_table.json a second
-  // time. Three more files are fetched fresh: gamedata_const.json, for the
-  // per-rarity/phase/level EXP+LMD curve and the per-rarity/phase Elite
-  // promotion LMD cost; item_table.json, for material names/icons (and
-  // LMD/EXP's own names/icons); and uniequip_table.json, for module stage
-  // costs (equipDict, keyed by uniEquipId, each entry carrying its own
-  // charId back-reference -- there's no separate charId -> module-list
-  // table, so that list is built here by filtering). Unlike every other
-  // cost source on this page, a module's itemCost list embeds its LMD cost
-  // directly as a normal entry (id "4001", type "GOLD") instead of a
-  // separate LMD-only table -- addCosts() (in util.js, alongside
-  // calcOperatorCost()) is what routes a GOLD-type entry into the LMD
-  // total rather than the material list, so that one difference doesn't
-  // need special-casing anywhere else.
+  // Cost data, all via util.js:
+  //  - get_char_table(): each operator's "phases" (Elite promotion cost),
+  //    "skills" (mastery cost, via levelUpCostCond) and "allSkillLvlup"
+  //    (skill-level cost)
+  //  - loadGameConst(): the EXP/LMD level curve and Elite promotion LMD
+  //  - loadItemTable(): material names/icons/rarity
+  //  - uniequip_table: module stage costs. equipDict is keyed by
+  //    uniEquipId with a charId on each entry; there's no charId ->
+  //    modules table, so loadData() builds one.
+  // A module's itemCost includes its LMD as a normal entry (id "4001",
+  // type "GOLD"); addCosts() in util.js routes it into the LMD total.
   //
-  // Roster entries render as compact cards on the left of the Roster tab;
-  // clicking one opens the edit modal (current/target phase, level, skill
-  // level, mastery, modules) rather than editing inline, which leaves the
-  // "what you still need" list room to read as an actual list on the
-  // right instead of a cramped, wrapped cloud of chips.
+  // Roster entries render as compact cards on the Roster tab; clicking one
+  // opens the shared edit modal (js/operator-edit-modal.js) rather than
+  // editing inline, leaving room for the "what you still need" list.
+
   // --- state helpers --------------------------------------------------
-  // Owned by js/operator-edit-modal.js (loaded before this file), which
-  // the planner's edit card already is -- one copy, so the roster logic
-  // here and the card can't disagree on what a valid state is.
+  // From js/operator-edit-modal.js (loaded before this file), so the
+  // roster logic here and the edit card agree on what a valid state is.
   const {
     hasSkills,
     clampState,
@@ -48,36 +34,14 @@
   } = OperatorEditModal;
 
 
-  // EN is the primary/default server; CN is merged in on top of it in
-  // loadData() below to cover operators/materials not yet released on EN
-  // (flagged cnOnly and badged in the UI) -- see the merge block there.
+  // EN is the primary server; loadData() merges CN in on top of it for
+  // operators/materials not yet released on EN (flagged cnOnly and badged
+  // in the UI).
   const SERVER = SERVERS.EN;
 
-  // The community asset mirror uri_avatar()/uri_item() default to (LOCAL,
-  // an akgcc/arkdata jsdelivr mirror) doesn't have full coverage -- some
-  // rarer materials' icons 404 there. Rather than leave a broken-image
-  // glyph in the material list, fall back to the Aceship mirror (a
-  // separately-maintained, more complete asset repo already wired up as
-  // ASSET_SOURCE.ACESHIP in util.js) and, if that also fails, hide the
-  // <img> so the icon's circular background shows as an empty placeholder
-  // instead of a jarring broken-image icon.
-  //
-  // Both of those sources are mirrors of RELEASED client data (an EN
-  // client asset dump, and an EN-focused community art repo respectively)
-  // -- an operator/material that isn't out on EN yet has no art in either
-  // one, by construction, regardless of iconId/charId correctness. There's
-  // no reliable third-party mirror of actual CN client art currently
-  // reachable (checked: a dedicated CN asset-dump repo exists but its real
-  // path layout isn't discoverable, and wiki sites that do show this art
-  // block scripted access). So for a cnOnly entity specifically, once both
-  // real sources fail, show a small generated "CN" placeholder instead of
-  // the plain blank circle -- same "nothing to show yet" outcome, but it
-  // reads as expected/labeled rather than looking like a broken image.
-  //
-  // CN_ICON_PLACEHOLDER/setIconWithFallback/setAvatarIcon/buildCnBadge
-  // used to live here too, but are also needed by the calendar page (for
-  // the shared operator edit modal -- see js/operator-edit-modal.js) and
-  // now live in util.js, already loaded by both pages, instead.
+  // Material icon, with the same mirror fallback and CN placeholder as
+  // setAvatarIcon() in util.js. An item with no iconId goes straight to
+  // the placeholder (cnOnly) or the hidden "missing" state.
   function setItemIcon(imgEl, iconId, isCnOnly) {
     if (!iconId) {
       if (isCnOnly) {
@@ -90,14 +54,9 @@
     setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP), isCnOnly);
   }
 
-  // buildCnBadge() (small "CN" tag for anything flagged cnOnly during the
-  // EN+CN merge in loadData() -- not yet released on the EN server) also
-  // moved to util.js alongside setAvatarIcon(), for the same reason.
-
-  // LMD and EXP are real, individually-iconed items in the game data
-  // (ids "4001" and "5001") -- kept searchable/addable in the depot like
-  // any other material, but their owned amounts subtract from the LMD/EXP
-  // totals directly rather than ever appearing as a generic material row.
+  // LMD and EXP are real items in the game data, searchable/addable in the
+  // depot like any other material, but their owned amounts subtract from
+  // the LMD/EXP totals rather than appearing as material rows.
   const LMD_ITEM_ID = "4001";
   const EXP_ITEM_ID = "5001";
 
@@ -122,10 +81,6 @@
   const depotListEl = document.getElementById("depotList");
   const depotEmptyEl = document.getElementById("depotEmpty");
   const accountSyncPlannerStatusEl = document.getElementById("accountSyncPlannerStatus");
-  // The edit modal itself (current/target phase, level, skill, mastery,
-  // modules) is owned by js/operator-edit-modal.js -- shared with the
-  // calendar page, which opens the exact same card in place rather than
-  // navigating here. See openOperatorModal() below.
 
   let charTable = null; // charId -> operator record (rarity already 0-5 numeric, see util.js)
   let operatorList = []; // playable operators, sorted by name, for search
@@ -143,16 +98,10 @@
   let heldDepot = {};
   let cnDataLoaded = false;
   let dataReady = false;
-  let highlightedIndex = -1;
-  let currentResults = [];
-  let depotHighlightedIndex = -1;
-  let depotCurrentResults = [];
 
-  // A one-time migration for anyone who used this page back when it was
-  // called "materials" -- their roster/depot/active-tab were saved under
-  // the "materials" prefs section, and this page now reads/writes
-  // "planner" instead. Rename the section in place (once) rather than
-  // silently discarding their saved data.
+  // Older saves keep the roster/depot/active tab under a "materials" prefs
+  // section (the page's former name). Move it to "planner", once, so that
+  // data isn't lost.
   (function migrateFromMaterialsSection() {
     const blob = akPrefsLoadBlob();
     if (blob.materials && !blob.planner) {
@@ -212,14 +161,11 @@
     const equipJson = await fixedJson(equipRes);
     const equipDict = equipJson.equipDict || equipJson;
 
-    // Operators/materials not yet released on EN simply have no entry in
-    // EN's own tables at all -- there's no per-record flag to check.
-    // Fetching CN's copies of the same three files and adding whatever
-    // charIds/itemIds are missing from EN (flagged cnOnly so the UI can
-    // badge them) covers those without disturbing anything EN already
-    // has. This is best-effort: if the CN mirror is slow or down, EN data
-    // should still load and work normally, just without CN-exclusive
-    // entries for that session.
+    // Operators/materials not yet released on EN have no entry in EN's
+    // tables at all. CN's copies of the same three tables fill those in:
+    // anything missing from EN is added, flagged cnOnly so the UI can
+    // badge it; EN entries are left alone. Best-effort: if the CN data
+    // fails to load, EN still works, just without CN-only entries.
     try {
       const [cnChars, cnItemRes, cnEquipRes] = await Promise.all([
         get_char_table(false, SERVERS.CN, false),
@@ -229,14 +175,11 @@
       for (const [charId, op] of Object.entries(cnChars)) {
         if (!charTable[charId]) {
           op.cnOnly = true;
-          // CN's own character_table.json has no English localization for
-          // an operator EN hasn't gotten yet -- "name" is in Chinese, so
-          // searching/reading it by an English term wouldn't work at all.
-          // "appellation" is the operator's internal codename and is
-          // always Latin (this is how every other AK tool displays
-          // not-yet-localized operators too) -- use that as the
-          // searchable/displayed name instead, keeping the original
-          // Chinese name (cnName) around only for the CN badge's tooltip.
+          // CN's "name" is in Chinese, so it can't be searched in English.
+          // "appellation" is the operator's Latin-script codename (what
+          // other AK tools show for not-yet-localized operators), so use
+          // that as the name and keep the Chinese one (cnName) for the CN
+          // badge's tooltip.
           if (op.appellation && /[A-Za-z]/.test(op.appellation)) {
             op.cnName = op.name;
             op.name = op.appellation;
@@ -265,10 +208,8 @@
       );
     }
 
-    // Group modules by charId (there's no ready-made charId -> module-list
-    // table) and drop the non-upgradeable placeholder entries every
-    // operator has (itemCost/typeName2 both null -- their base "no
-    // module" outfit, not a real selectable module).
+    // Group modules by charId, skipping each operator's base "no module"
+    // entry (itemCost/typeName2 both null), which isn't upgradeable.
     const modulesByChar = {};
     for (const equip of Object.values(equipDict)) {
       if (!equip.charId || !equip.itemCost || !equip.typeName2) continue;
@@ -285,17 +226,14 @@
       op.modules = modulesByChar[op.charId] || [];
     });
 
-    // LMD and EXP are real items too (ids "4001"/"5001") and stay in this
-    // list -- searchable and addable to the depot like any other
-    // material, same as they are in-game.
+    // Includes LMD and EXP, so they can be added to the depot.
     itemList = Object.values(itemTable)
       .filter((it) => it && it.name)
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   // --- cost calculation ---------------------------------------------------
-  // addCosts()/calcOperatorCost() live in util.js and take gameConst
-  // explicitly.
+  // Per-operator costs come from calcOperatorCost() in util.js.
 
   function calcRosterTotals() {
     const totals = { lmd: 0, exp: 0, materials: {} };
@@ -352,12 +290,10 @@
     renderSummary();
   }
 
-  // Deep-link support: /planner/?add=charId[,charId2,...], set by the
-  // calendar page's "Add to planner" links (js/calendar.js) next to an
-  // event's newly-released operators. Adds whichever charIds are
-  // recognized, switches to the Roster tab, leaves a short status note,
-  // and strips "add" from the URL so refreshing or bookmarking the page
-  // doesn't keep re-adding it on every load.
+  // Deep link: /planner/?add=charId[,charId2,...]. Adds whichever charIds
+  // are recognized, switches to the Roster tab, shows a short status note,
+  // and strips "add" from the URL so a refresh or bookmark doesn't add
+  // them again.
   function applyAddFromLink() {
     const params = new URLSearchParams(location.search);
     const raw = params.get("add");
@@ -404,14 +340,11 @@
 
   // --- rendering: roster cards --------------------------------------------
 
-  // A multi-line summary of where an operator is vs. where they're headed,
-  // set as the card's hover tooltip (native title attribute) rather than
-  // shown inline, so the card itself stays compact. Elite/level always
-  // shows; skill level shows as a current->target range UNLESS at least
-  // one mastery target is set, in which case the skill-level line is
-  // replaced entirely by the selected masteries (one "S{skill}M{rank}"
-  // entry per skill with a nonzero target, e.g. "S2M3"); modules only
-  // appear when a nonzero target stage is set, as "Mod {letter} Lv. {n}".
+  // The card's hover tooltip (title attribute): current vs. target, so the
+  // card itself stays compact. Elite/level always shows. The skill line
+  // is the mastery targets ("S2M3", one per skill with a nonzero target)
+  // if any are set, else the skill level (as a range if it changes).
+  // Modules show only with a nonzero target, as "Mod {letter} Lv. {n}".
   function formatCardTooltip(op, entry) {
     const c = entry.current;
     const t = entry.target;
@@ -450,9 +383,8 @@
 
   function renderRoster() {
     rosterCardsEl.innerHTML = "";
-    // #rosterLayout (and the "Add operator" search bar inside it) always
-    // stays visible now, even with an empty/loading roster -- only the
-    // empty-state message vs. the card list toggles within it.
+    // #rosterLayout (with the "Add operator" search box) stays visible even
+    // while loading or empty; only the empty-state message toggles.
     if (!dataReady) {
       rosterEmptyEl.textContent = "Loading operator data...";
       rosterEmptyEl.classList.remove("hidden");
@@ -526,11 +458,9 @@
 
   // --- edit modal ----------------------------------------------------------
   //
-  // The actual modal (DOM, fields, current/target/mastery/module rows) is
-  // js/operator-edit-modal.js, shared as-is with the calendar page so
-  // "Add to planner" there opens this exact same card in place instead of
-  // navigating here. This is just the thin wiring: which roster index is
-  // being edited, and what to do when it changes or is removed.
+  // The modal itself is js/operator-edit-modal.js (shared with the
+  // calendar and operator pages). This is just the wiring: which roster
+  // entry is being edited, and what to do when it changes or is removed.
   function openOperatorModal(index) {
     const entry = roster[index];
     if (!entry) return;
@@ -564,9 +494,8 @@
     return `(have ${owned.toLocaleString()} of ${needed.toLocaleString()})`;
   }
 
-  // Builds one material row, shared by every category in the grouped
-  // summary list below -- identical markup to what used to be inlined
-  // directly in renderSummary()'s loop.
+  // One row of the "materials needed" list: icon, name, shortfall, and
+  // "(have X of Y)" when the depot covers part of it.
   function buildSummaryMaterialRow(id, totals) {
     const owned = depot[id] || 0;
     const shortfall = totals.materials[id] - owned;
@@ -634,11 +563,10 @@
     summaryExpOwnedEl.textContent = expNote || "";
     summaryExpOwnedEl.classList.toggle("hidden", !expNote);
 
-    // Materials the depot already fully covers are left out of the list
-    // entirely -- the point of tracking what you own is to see what's
-    // still missing, not to re-show something you don't need more of.
-    // LMD/EXP never belong in this list at all (they have their own
-    // tiles above), even though nothing currently routes them here.
+    // Materials the depot fully covers are left out of the list (a note
+    // says how many). LMD/EXP have their own tiles, so they're excluded
+    // here too, as a safeguard (the cost data doesn't normally put them
+    // in materials).
     const neededIds = Object.keys(totals.materials).filter(
       (id) => totals.materials[id] > 0 && id !== LMD_ITEM_ID && id !== EXP_ITEM_ID,
     );
@@ -666,12 +594,9 @@
       return nameA.localeCompare(nameB);
     };
 
-    // Group the shortfall list into a few recognizable buckets instead
-    // of one long undifferentiated list: chips, skill summaries, and
-    // module tokens each get their own (usually short) section, while
-    // the remaining, usually much longer, pool of ordinary farmable
-    // materials stays one section broken up by rarity rather than
-    // getting a heading per item.
+    // Chips, skill summaries and module items each get their own section;
+    // ordinary farmable materials are one section with a heading per
+    // rarity.
     const buckets = { chip: [], skill: [], module: [], farm: [] };
     for (const id of shortfallIds) buckets[categorizeMaterial(id)].push(id);
     for (const key of Object.keys(buckets)) buckets[key].sort(byRarityThenName);
@@ -714,107 +639,39 @@
 
   // --- operator search -----------------------------------------------------
 
-  function renderSearchResults(results) {
-    currentResults = results;
-    highlightedIndex = results.length ? 0 : -1;
-    searchResultsEl.innerHTML = "";
-    if (!results.length) {
-      searchResultsEl.classList.add("hidden");
-      return;
-    }
-    results.forEach((op, i) => {
-      const row = document.createElement("div");
-      row.className = "operatorSearchResult" + (i === highlightedIndex ? " highlighted" : "");
-      const icon = document.createElement("img");
-      icon.className = "operatorSearchResultIcon";
-      setAvatarIcon(icon, op.charId, op.cnOnly);
-      icon.alt = "";
-      const name = document.createElement("span");
-      name.className = "operatorSearchResultName";
-      name.textContent = op.name;
-      const rarity = document.createElement("span");
-      rarity.className = "operatorSearchResultRarity";
-      rarity.textContent = (op.rarity + 1) + "★";
-      row.appendChild(icon);
-      row.appendChild(name);
-      if (op.cnOnly) row.appendChild(buildCnBadge(op));
-      row.appendChild(rarity);
+  createSearchBox({
+    input: searchInput,
+    results: searchResultsEl,
+    items: () => (dataReady ? operatorList : []),
+    buildRow: (op) => {
+      const row = buildOperatorResultRow(op);
       const detailsLink = document.createElement("a");
       detailsLink.className = "operatorSearchResultDetails";
       detailsLink.href = `/operator/?id=${encodeURIComponent(op.charId)}`;
       detailsLink.title = `View ${op.name}'s operator page`;
       detailsLink.setAttribute("aria-label", `View ${op.name}'s operator page`);
       detailsLink.textContent = "ⓘ";
-      // Otherwise this bubbles up to the row's own onclick below and adds
-      // the operator to the roster instead of following the link.
-      detailsLink.onclick = (e) => e.stopPropagation();
+      // Follows the link without also picking the row.
+      detailsLink.addEventListener("click", (e) => e.stopPropagation());
       row.appendChild(detailsLink);
-      row.onclick = () => selectSearchResult(op);
-      searchResultsEl.appendChild(row);
-    });
-    searchResultsEl.classList.remove("hidden");
-  }
-
-  function selectSearchResult(op) {
-    addOperator(op.charId);
-    searchInput.value = "";
-    renderSearchResults([]);
-    const index = roster.findIndex((e) => e.charId === op.charId);
-    if (index >= 0) {
-      openOperatorModal(index);
-    } else {
-      searchInput.focus();
-    }
-  }
-
-  function updateHighlight() {
-    Array.from(searchResultsEl.children).forEach((el, i) => {
-      el.classList.toggle("highlighted", i === highlightedIndex);
-    });
-  }
-
-  searchInput.addEventListener("input", () => {
-    const q = searchInput.value.trim().toLowerCase();
-    if (!dataReady || !q) {
-      renderSearchResults([]);
-      return;
-    }
-    const results = operatorList
-      .filter((op) => (op.name).toLowerCase().includes(q))
-      .slice(0, 20);
-    renderSearchResults(results);
-  });
-
-  searchInput.addEventListener("keydown", (e) => {
-    if (searchResultsEl.classList.contains("hidden")) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      highlightedIndex = Math.min(highlightedIndex + 1, currentResults.length - 1);
-      updateHighlight();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      highlightedIndex = Math.max(highlightedIndex - 1, 0);
-      updateHighlight();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (currentResults[highlightedIndex]) selectSearchResult(currentResults[highlightedIndex]);
-    } else if (e.key === "Escape") {
-      renderSearchResults([]);
-    }
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!searchResultsEl.contains(e.target) && e.target !== searchInput) {
-      renderSearchResults([]);
-    }
+      return row;
+    },
+    onPick: (op) => {
+      addOperator(op.charId);
+      const index = roster.findIndex((e) => e.charId === op.charId);
+      if (index >= 0) {
+        openOperatorModal(index);
+      } else {
+        searchInput.focus();
+      }
+    },
   });
 
   // --- depot -----------------------------------------------------------
 
-  // Drops anything that no longer resolves to a real item, or that's
-  // gone non-positive -- the same kind of defensive pass sanitizeRoster()
-  // does for the roster, for a saved depot blob that could be stale or
-  // hand-edited.
+  // Cleans up a saved depot (possibly stale or hand-edited): drops
+  // non-positive counts and unknown items (held instead while the CN data
+  // is missing, like sanitizeRoster()), and floors counts to integers.
   function sanitizeDepot() {
     const clean = {};
     heldDepot = {};
@@ -834,11 +691,10 @@
     renderSummary();
   }
 
-  // Builds one editable depot row -- same icon/name layout as a Roster-tab
-  // material row, but with an amount you can actually change instead of a
-  // read-only shortfall figure. The count displays with thousands
-  // separators (large LMD/EXP totals are otherwise unreadable) and shows
-  // plain digits only while focused, so editing isn't fighting commas.
+  // One editable depot row: same icon/name layout as a Roster-tab material
+  // row, with an editable amount. The count shows thousands separators
+  // (large LMD/EXP amounts are otherwise hard to read) and plain digits
+  // while focused, so editing doesn't fight the commas.
   function buildDepotRow(id) {
     const it = itemTable[id];
     const displayName = (it && it.name) || id;
@@ -921,11 +777,9 @@
       return nameA.localeCompare(nameB);
     };
 
-    // Same grouping the Roster tab's "materials needed" list uses (see
-    // renderSummary/categorizeMaterial), plus LMD/EXP pulled to the very
-    // top -- they're just ordinary editable rows here (no dedicated tile
-    // the way the Roster tab gives them), but they still shouldn't get
-    // lost alphabetically in the middle of everything else.
+    // Same grouping as the Roster tab's "materials needed" list (see
+    // renderSummary()/categorizeMaterial()), with LMD and EXP in their own
+    // section at the top.
     const currencyIds = ids.filter((id) => id === LMD_ITEM_ID || id === EXP_ITEM_ID);
     currencyIds.sort((a) => (a === LMD_ITEM_ID ? -1 : 1));
     const buckets = { chip: [], skill: [], module: [], farm: [] };
@@ -975,20 +829,15 @@
     }
   }
 
-  // --- depot search (mirrors the operator search above, over itemList) ---
+  // --- depot search ----------------------------------------------------
 
-  function renderDepotSearchResults(results) {
-    depotCurrentResults = results;
-    depotHighlightedIndex = results.length ? 0 : -1;
-    depotSearchResultsEl.innerHTML = "";
-    if (!results.length) {
-      depotSearchResultsEl.classList.add("hidden");
-      return;
-    }
-    results.forEach((it, i) => {
+  createSearchBox({
+    input: depotSearchInput,
+    results: depotSearchResultsEl,
+    items: () => (dataReady ? itemList : []),
+    buildRow: (it) => {
       const row = document.createElement("div");
-      row.className =
-        "operatorSearchResult" + (i === depotHighlightedIndex ? " highlighted" : "");
+      row.className = "operatorSearchResult";
       const icon = document.createElement("img");
       icon.className = "operatorSearchResultIcon";
       setItemIcon(icon, it.iconId, it.cnOnly);
@@ -999,64 +848,17 @@
       row.appendChild(icon);
       row.appendChild(name);
       if (it.cnOnly) row.appendChild(buildCnBadge(it));
-      row.onclick = () => selectDepotSearchResult(it);
-      depotSearchResultsEl.appendChild(row);
-    });
-    depotSearchResultsEl.classList.remove("hidden");
-  }
-
-  function selectDepotSearchResult(it) {
-    addDepotItem(it.itemId);
-    depotSearchInput.value = "";
-    renderDepotSearchResults([]);
-    depotSearchInput.focus();
-  }
-
-  function updateDepotHighlight() {
-    Array.from(depotSearchResultsEl.children).forEach((el, i) => {
-      el.classList.toggle("highlighted", i === depotHighlightedIndex);
-    });
-  }
-
-  depotSearchInput.addEventListener("input", () => {
-    const q = depotSearchInput.value.trim().toLowerCase();
-    if (!dataReady || !q) {
-      renderDepotSearchResults([]);
-      return;
-    }
-    const results = itemList.filter((it) => it.name.toLowerCase().includes(q)).slice(0, 20);
-    renderDepotSearchResults(results);
+      return row;
+    },
+    onPick: (it) => {
+      addDepotItem(it.itemId);
+      depotSearchInput.focus();
+    },
   });
 
-  depotSearchInput.addEventListener("keydown", (e) => {
-    if (depotSearchResultsEl.classList.contains("hidden")) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      depotHighlightedIndex = Math.min(depotHighlightedIndex + 1, depotCurrentResults.length - 1);
-      updateDepotHighlight();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      depotHighlightedIndex = Math.max(depotHighlightedIndex - 1, 0);
-      updateDepotHighlight();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (depotCurrentResults[depotHighlightedIndex]) {
-        selectDepotSearchResult(depotCurrentResults[depotHighlightedIndex]);
-      }
-    } else if (e.key === "Escape") {
-      renderDepotSearchResults([]);
-    }
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!depotSearchResultsEl.contains(e.target) && e.target !== depotSearchInput) {
-      renderDepotSearchResults([]);
-    }
-  });
-
-  // --- account sync status (actual sync flow lives on the home page,
-  // js/account-sync.js -- this just reflects whatever it last saved,
-  // since both read the exact same shared prefs section) -----------
+  // --- account sync status -------------------------------------------
+  // The sync form is on the home page (js/account-sync.js); this line
+  // shows what it last saved.
 
   AccountSync.renderStatusLine(accountSyncPlannerStatusEl);
 

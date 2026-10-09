@@ -45,37 +45,24 @@ body {
   --operator-shadow-color: #2d2d2d;
   --operator-selected-scale: 1.1;
   --operator-skill-selected-color: #ff2020;
-  /* The site's muted default link color -- #pageCredit/#aboutContent's
-     own "a { color: #999 } a:hover { color: #ccc }" treatment, copy-
-     pasted near-identically into calendar-extra.css, operator-extra.css,
-     planner-extra.css, shoplist-extra.css and account-extra.css, each
-     with its own comment explaining that without it the link falls back
-     to the browser's default bright blue/purple, which is hard to read
-     here. That repetition (independently rediscovered per-page instead
-     of written once) is exactly the bug the global rule below closes.
-     Named here so it and anything written later can reference it
-     instead of re-typing the hex. Not the site's yellow accent
-     (#f8d511) -- that's reserved for the account-sync feature's own
-     call-to-action links (see .accountSyncLinkBtn and friends) and
-     isn't the right default for an arbitrary, otherwise-unremarkable
-     link. */
+  /* The site's muted default link color, used by the global link rule
+     below so links never fall back to the browser's bright blue/purple,
+     which is hard to read on this background. Not the site's yellow
+     accent (#f8d511) -- that's reserved for the account-sync feature's
+     call-to-action links (see .accountSyncLinkBtn and friends). */
   --link-color: #999;
   --link-hover-color: #ccc;
 }
 
-/* Default color for any plain <a> anywhere on the site that nothing
-   more specific has already styled -- the fix for the recurring bug
-   described above, generalized instead of re-discovered per page. This
-   is a low-specificity base rule (a plain element/pseudo-class
-   selector), so a classed or ID'd link -- .siteNav a, .projects a,
-   .accountPageRosterTable a, .accountNavBadge, .opOwnedFilterHint a,
-   button-styled links like .accountSyncLinkBtn, icon-only nav buttons
-   like #homeButton/#backButton (see their own color: inherit below),
-   or a context that deliberately wants the yellow CTA treatment -- all
-   still win and keep their own color exactly as before. New inline
-   links don't need their own color rule written for them to look right
-   anymore; write one only to deliberately deviate from this default
-   (the yellow accent for a call-to-action link, for instance). */
+/* Default color for any plain <a> on the site that nothing more
+   specific styles. This is a low-specificity base rule (a plain
+   element/pseudo-class selector), so a classed or ID'd link -- .siteNav
+   a, .projects a, .accountPageRosterTable a, .accountNavBadge,
+   .opOwnedFilterHint a, button-styled links like .accountSyncLinkBtn,
+   icon-only nav buttons like #homeButton/#backButton (see their own
+   color: inherit below), or a yellow CTA link -- still wins. Inline
+   links need their own color rule only to deliberately deviate from
+   this default. */
 a {
   color: var(--link-color);
 }

@@ -1,126 +1,65 @@
 """Get past + upcoming EN (Global) event dates and write json/events.json.
 
-Yostar (the EN publisher) only ever officially confirms an event's
-Global date a week or two ahead of time. There's no source of "confirmed
-EN dates months out" because that information doesn't exist yet -- so
-"preliminary" here means: once an event has run on CN, arknights.wiki.gg
-tracks it, and once Yostar has confirmed its Global date that's tracked
-too, but for the (usually many-months) gap in between, we estimate it.
+Yostar (the EN publisher) only confirms an event's Global date a week or
+two ahead. arknights.wiki.gg tracks each event's CN date and, once
+known, its confirmed Global date; for the gap in between, this script
+estimates the Global date.
 
-The estimate is "this event's own CN date plus a lag" -- but which lag
-matters a lot. The real Global lag drifts over time (Yostar has sped
-up localization before and can again), so a flat lag averaged over the
-*entire* dataset reacts to that far too slowly: months of schedule
-changes get diluted by years of older history sitting in the same
-average. Instead, the lag applied to every current estimate is the
-median CN->Global lag from just the last RECENT_LAG_WINDOW_EVENTS
-*confirmed events* (by Global release order, not calendar days) --
-a trailing window recomputed fresh on every run. That's still a median
-over several events rather than one single data point, so one unusually
-fast or slow event doesn't swing every estimate on the page, but it
-tracks a real shift in pace (the schedule speeding up or slowing down)
-much faster than an all-time average would, and unlike a fixed-days
-window it doesn't go quiet (or noisy) just because events happened to
-ship more slowly (or quickly) than usual recently. A CN/Global pair with
-a non-positive lag is dropped before any of this is computed -- that's
-not a real observation, just the wiki having the same (or an inverted)
-date recorded for both servers. The all-time median (across every
-confirmed event ever) is also reported in the output, for comparison --
-it's not used to build any estimate, just a reference point for how far
-the current pace has drifted from the historical one.
+The estimate is the event's CN date plus a lag: the median CN->Global
+lag of the last RECENT_LAG_WINDOW_EVENTS confirmed events (in Global
+release order), recomputed every run. A median over several events keeps
+one unusually fast or slow event from moving every estimate, while the
+trailing window follows real changes in localization pace much faster
+than an all-time average would. Pairs with a non-positive lag are
+dropped (the wiki has the same or an inverted date for both servers).
+The all-time median is also written out, for comparison only.
 
-To sanity-check the window size, `backtest()` below simulates the same
-model against history: at each past confirmed event, it rebuilds the
-trailing-window model using only the events that were confirmed earlier,
-estimates that event's date the same way the page would have at the
-time, and compares the estimate to what actually happened. The
-resulting median/p75/p90/max absolute errors (in days) are reported in
-the output alongside the current lag, as a running check on how
-accurate this approach actually is.
+backtest_lag_model() checks the model against history: for each past
+confirmed event it rebuilds the model from the events confirmed before
+it, estimates that event's date, and compares it with what happened.
+The median/p75/p90/max absolute errors (days) go into the output.
 
-NOTE: this script's field names (EventServerDetails.event/startTime/
-endTime/server/image) were confirmed against the live table structure
-at Special:CargoTables/EventServerDetails on arknights.wiki.gg -- that
-page (like api.php itself) is blocked by the wiki's robots.txt to this
-project's own research tooling, so it was checked by hand instead.
-EventServerDetails carries one row per (event, server) pair, each with
-its own `image` (the page's per-language banner art -- CN and Global
-often use different key art for the same event), so the same query
-already used for dates also gives us art for free; see pick_image()
-below for how a per-event image is chosen from those rows.
+Data sources (arknights.wiki.gg Cargo tables, via api.php):
+- EventServerDetails (event/startTime/endTime/server/image): one row
+  per (event, server). `image` is that server's banner art; CN and
+  Global often differ (see pick_image()).
+- Operators, via its `event` field: the operators an event introduced
+  (the same link operator_online.py uses for Global release dates).
+  A rerun is its own event name on the wiki and operators link only to
+  the original, so reruns correctly list no new operators.
 
-Event art is mirrored into this repo (see resolve_image_urls()/
-download_image()/localize_images()) rather than linked straight to
-arknights.wiki.gg. That's not optional: confirmed live, the wiki's
-image host sends a Cross-Origin-Resource-Policy header that makes a
-browser refuse to embed it from another site at all
-(NS_ERROR_DOM_CORP_FAILED in Firefox) -- a direct link to the same
-image loads fine, only *embedding* it cross-site is blocked, so
-hotlinking was never going to work no matter how the URL was built. A
-plain server-side download isn't affected by CORP (that's a browser
-embedding restriction, not a fetch restriction), so this downloads
-each banner once into akgcc-extra-data/images/ and serves it from
-there from then on -- skipping the download whenever a same-named
-file already exists locally, so only a new or changed banner costs a
-request on any given run.
+Event banners and operator icons are mirrored into
+akgcc-extra-data/images/ (resolve_image_urls() / download_image() /
+localize_images()) instead of linked from the wiki: the wiki's image
+host sends a Cross-Origin-Resource-Policy header, so browsers refuse to
+embed its images on another site. A server-side download isn't affected.
+Files are resolved through MediaWiki's imageinfo API rather than
+Special:FilePath, which returns a bot-protection 403 to GitHub Actions.
 
-The actual bytes are fetched via MediaWiki's imageinfo API (api.php),
-not Special:FilePath -- also confirmed live, every single
-Special:FilePath request from a GitHub Actions run came back a 403
-with an HTML body (a bot-protection page) even though api.php's
-cargoquery calls from that same run succeeded normally, which lines up
-with robots.txt singling out the Special: namespace specifically. See
-resolve_image_urls()'s own docstring.
-
-New operators (fetch_event_operators()/group_operators_by_event()) come
-from the wiki's own Operators table, via the `event` field it already
-maintains linking an operator to the event that introduced (or
-granted) them -- the same link operator_online.py's scrape_wiki()
-already joins against to get each operator's Global release date, so
-this isn't a new guess, just the same trusted linkage reused here. A
-rerun event's own page is a separate event name from the original on
-this wiki (see e.g. "X" vs "X - Rerun" in EventServerDetails), and
-operators are only ever linked to the original, so a rerun naturally
-ends up with no operators listed -- which is correct, since a rerun by
-definition doesn't introduce anyone new. Operator portrait icons are
-mirrored into the repo exactly like event banner art (see above),
-resolved in the same batched imageinfo call as the banners rather than
-a separate one.
-
-New skins per event (attach_event_skins() and friends) have no direct
-field to join against on either wiki -- confirmed live, arknights.wiki.gg's
-own Skins Cargo table carries no event (or even populated id/skinGroup)
-column, and prts.wiki has no skins-related Cargo table at all. Two wiki
-*pages* carry the link instead:
+New skins per event (attach_event_skins()) have no event field on the
+wiki's Skins table, so two kinds of page supply the link:
 
 1. The outfit *brand* pages ("Outfit/Test Collection", "Outfit/EPOQUE",
-   ...): each lists every outfit released under that brand as an
-   {{Outfit cell}} with a `release` field naming the event it came out
-   with, and a `model` field naming the operator. This is the primary,
-   authoritative source -- it covers minor events whose own page never
-   lists their outfit (e.g. Greyy's "My Fellow Newsboy" with "Vector
-   Breakthrough Trial from Misery"), and it wins over an event page that
-   claims an outfit belonging to a different event. See
-   fetch_outfit_brand_releases(); CN-only releases are skipped.
-2. The event's own ==Outfits== section, used only for outfits no brand
-   page lists at all (e.g. one too new for its brand page to have caught
-   up). That page is only scraped for an event whose Global run is still
-   ongoing/estimated, or finished too recently to trust the wiki's
-   editors to have caught up yet -- see event_outfits_are_final(); once
-   an event clears that bar its scraped result is cached forever in
-   skin_outfit_cache.json rather than re-fetched on every run.
+   ...): each {{Outfit cell}} has a `release` field naming the event it
+   came with and a `model` field naming the operator. This is the
+   authoritative source: it covers minor events whose own page never
+   lists their outfit, and it wins over an event page that claims an
+   outfit from a different event. See fetch_outfit_brand_releases().
+2. The event's own ==Outfits== section, only for outfits no brand page
+   lists (e.g. one too new for its brand page). An event page is
+   re-scraped until the event is final (see event_outfits_are_final()),
+   then cached for good in skin_outfit_cache.json.
 
-An outfit neither source ties to an event is left off the calendar
-entirely -- guessing by release date was tried and removed, since an
-unrelated shop-skin rotation landing on the same day as a SideStory is
-indistinguishable from a real tie.
+An outfit neither source ties to an event is left off the calendar: a
+match by release date alone can't tell a real tie from an unrelated
+shop-skin rotation on the same day.
 
-Integrated Strategies / Reclamation Algorithm themes aren't in
-EventServerDetails (they're game modes), so their release dates are read
-from each mode page's own {{Game mode themes cell}} entries and added as
-extra events -- see fetch_game_mode_theme_rows(). They're tagged with
-`mode`, given a fixed-length window when the wiki has no end date, and
-kept out of the lag model; see GAME_MODE_THEME_DAYS and build_events().
+Integrated Strategies / Reclamation Algorithm themes are game modes, not
+EventServerDetails rows, so their dates come from each mode page's
+{{Game mode themes cell}} entries and are added as extra events (see
+fetch_game_mode_theme_rows()). They're tagged with `mode`, given a
+fixed-length window when the wiki has no end date, and kept out of the
+lag model; see GAME_MODE_THEME_DAYS and build_events().
 """
 import hashlib
 import re
@@ -133,16 +72,11 @@ from urllib.parse import quote
 
 from common import http_get, parse_date
 
-# Pause between individual image-resolve batches and image downloads (see
-# resolve_image_urls()/download_image()). Mirroring event banners alone
-# only ever needed a handful of these calls per run, but the first run that
-# also mirrors every operator's icon can send hundreds of consecutive
-# requests -- far more api.php/CDN traffic in one run than this project had
-# ever sent before, and confirmed live to trip something (every single
-# resolve batch came back with an empty, non-JSON body) that a low-volume
-# run never hit. A short pause between requests is cheap insurance against
-# that; once every icon is mirrored once, later runs only fetch a handful
-# of new ones per month and this barely adds any time.
+# Pause between image-resolve batches and image downloads (see
+# resolve_image_urls()/download_image()). Hundreds of back-to-back
+# requests (e.g. mirroring every operator icon at once) get empty,
+# non-JSON responses from the wiki; once everything is mirrored, a run
+# only fetches a few new images, so this costs little time.
 REQUEST_PACING = 1  # seconds
 
 # How many of the most recently Global-released confirmed events to take
@@ -150,9 +84,8 @@ REQUEST_PACING = 1  # seconds
 # default window size myrtle.moe's own release-lag model uses.
 RECENT_LAG_WINDOW_EVENTS = 10
 
-# backtest() needs at least this many earlier confirmed events before it'll
-# simulate a prediction for a given point -- an estimate built from 1-2
-# data points isn't a meaningful test of the model, just noise.
+# backtest_lag_model() only tests an event with at least this many earlier
+# confirmed events to build the model from; 1-2 data points are just noise.
 MIN_BACKTEST_PRIOR = 3
 
 
@@ -173,13 +106,13 @@ def percentile(sorted_values, p):
 
 
 # Parts of a run that failed without taking the whole run down (the
-# game-mode themes, the skin scrape, a batch of image downloads, ...). Each
-# of those is wrapped in its own try/except on purpose -- one wiki hiccup
-# shouldn't cost every other event its dates -- but that also makes them
-# *silent*: the run still goes green and the page just quietly carries less
-# data. note_degraded() keeps a list of them, written into events.json as
-# `warnings` (so the calendar can say "some details may be incomplete") and
-# read by health.py for json/meta.json and the workflow's failure issue.
+# game-mode themes, the skin scrape, a batch of image downloads, ...).
+# Each is wrapped in its own try/except so one wiki hiccup doesn't cost
+# every event its dates, which also makes them silent: the run stays green
+# with less data. note_degraded() collects them; they're written into
+# events.json as `warnings` (the calendar shows "some details may be
+# incomplete") and read by health.py for json/meta.json and the workflow's
+# failure issue.
 RUN_WARNINGS = []
 
 
@@ -202,19 +135,13 @@ OVERRIDES_PATH = "./overrides.json"
 
 
 def load_overrides(path=OVERRIDES_PATH):
-    """Manually-pinned Global dates for events Yostar/Hypergryph has
-    announced or teased ahead of arknights.wiki.gg tracking a confirmed
-    Global date for them -- or to correct a wiki data error without
-    waiting on the wiki itself. This is the third tier alongside
-    "confirmed" (from the wiki) and "estimated" (computed): it takes
-    priority over an estimate, but never over an actual wiki-confirmed
-    date, and only applies to an event that already has a CN date
-    tracked (there's nothing to anchor an end date/duration to
-    otherwise). See README.md for the exact file format.
+    """Hand-pinned Global dates from overrides.json: for events Yostar has
+    announced before the wiki tracks a confirmed date, or to correct a
+    wiki data error. This "announced" tier beats an estimate but never a
+    wiki-confirmed date, and only applies to an event with a CN date (to
+    anchor its duration). See README.md for the file format.
 
-    Hand-edited, and optional -- a missing or unreadable file just means
-    no overrides today, not a crash. `overrides.json` starts out empty
-    ({}) and is meant to be edited directly in the repo when needed."""
+    Optional: a missing or unreadable file means no overrides."""
     try:
         with open(path) as f:
             raw = json.load(f)
@@ -270,11 +197,9 @@ def fetch_event_server_details():
 
 def pick_image(servers):
     """Choose one banner image *filename* for an event out of its
-    per-server rows -- EventServerDetails.image holds a bare wiki
-    filename (confirmed by hand via Special:CargoQuery -- e.g. "EN A
-    Death in Chunfen banner.png"), not a resolved URL, and it's kept
-    that way here (see localize_images() for turning it into something
-    servable). Prefers the Global server's own art, but falls back to
+    per-server rows. EventServerDetails.image is a bare wiki filename
+    (e.g. "EN A Death in Chunfen banner.png"), kept as is here (see
+    localize_images() for turning it into something servable). Prefers the Global server's own art, but falls back to
     another server's (usually CN) -- an event with no Global row yet
     (estimated or announced) is exactly the case where showing *some*
     preview art is most useful, and CN's banner is normally a close
@@ -291,12 +216,10 @@ def pick_image(servers):
 
 
 def fetch_event_operators():
-    """Pull every Operators row that's tied to an event via the table's
-    own `event` field (see the module docstring) -- rarity, class, and
-    portrait icon filename included so the calendar's preview panel can
-    show more than just a name. `class` is aliased to `opClass` in the
-    query since it's a reserved word in some SQL dialects Cargo's query
-    layer sits on top of; safer to just not use it as an output key."""
+    """Pull every Operators row tied to an event via the table's `event`
+    field (see the module docstring), with rarity, class and portrait icon
+    filename for the calendar's preview panel. `class` is aliased to
+    `opClass` since it's a reserved word in SQL."""
     rows = []
     offset = 0
     limit = 500
@@ -337,12 +260,9 @@ def group_operators_by_event(rows):
     show anything useful."""
     by_event = {}
     for row in rows:
-        # Stripped defensively -- this is matched below against
-        # EventServerDetails' own `event` value (see build_events()),
-        # which comes from a different Cargo table maintained somewhat
-        # independently on the wiki, so incidental leading/trailing
-        # whitespace on one side (but not the other) would otherwise be
-        # an easy way for an operator to silently fail to match up.
+        # Stripped: matched below against EventServerDetails' `event` (see
+        # build_events()), a separately maintained table where stray
+        # whitespace on one side would silently break the match.
         event = (row.get("event") or "").strip()
         name = row.get("operator")
         if not event or not name:
@@ -360,18 +280,10 @@ def group_operators_by_event(rows):
         icon = row.get("icon")
         if icon:
             icon = str(icon).strip()
-            # Operators.icon is a Cargo `File`-type field, unlike
-            # EventServerDetails.image (a plain `String` field, and
-            # already confirmed to come back as a bare filename with no
-            # prefix). Confirmed live via Special:CargoQuery: a File-type
-            # field comes back already carrying its namespace prefix
-            # (e.g. "File:Qiubai icon.png"), so stripping it here keeps
-            # `icon` on the same bare-filename convention the rest of
-            # this pipeline (local_image_name/resolve_image_urls/
-            # download_image) already assumes for `image` -- otherwise
-            # every icon would get requested as the doubly-prefixed,
-            # nonexistent title "File:File:Qiubai icon.png" and never
-            # resolve.
+            # Operators.icon is a Cargo `File` field, which comes back with
+            # its namespace ("File:Qiubai icon.png"). Strip it so `icon` is a
+            # bare filename like `image`, as local_image_name()/
+            # resolve_image_urls()/download_image() expect.
             if icon.lower().startswith("file:"):
                 icon = icon[len("file:") :].strip()
             if icon:
@@ -406,11 +318,11 @@ IMAGE_CONVERT_FAILURES = []
 
 
 def legacy_image_name(wiki_filename):
-    """The local name used before mirrored images were converted to WebP:
-    a filesystem/git/URL-safe version of the wiki filename (spaces and
+    """A filesystem/git/URL-safe version of the wiki filename (spaces and
     anything awkward replaced with an underscore), original extension
-    kept. Still used for the converted file's stem, and to find an
-    unconverted original to migrate (see download_image())."""
+    kept. The stem of the WebP mirror's name, and the name a file is kept
+    under when WebP conversion fails or an older unconverted copy exists
+    (see download_image())."""
     name = wiki_filename.strip().replace(" ", "_")
     return re.sub(r"[^A-Za-z0-9_.\-]", "_", name)
 
@@ -502,24 +414,12 @@ def resolve_image_urls(filenames):
     """Resolve a batch of bare wiki filenames to their real (CDN) upload
     URLs via MediaWiki's imageinfo API on api.php.
 
-    This replaced an earlier version that fetched Special:FilePath
-    directly: confirmed live in a workflow run, every single one of
-    those requests came back a 403 with an HTML body (a bot-protection
-    page, not the image), even though api.php's cargoquery calls from
-    the very same run succeeded normally. That lines up with
-    robots.txt also singling out the Special: namespace specifically
-    (see the module docstring) -- the block is scoped to Special:
-    pages, not to this project's requests in general, so routing
-    through api.php (proven to work) instead of Special:FilePath sides
-    steps it entirely.
+    (Special:FilePath would be simpler, but it returns a bot-protection
+    403 to GitHub Actions; api.php doesn't.)
 
-    Batches up to 50 titles per request (MediaWiki's default limit for
-    non-bot API access), with a short REQUEST_PACING pause between
-    batches -- confirmed live, a run resolving hundreds of batches back
-    to back (every operator icon's first-ever mirror, on top of any new
-    event banners) got an empty, non-JSON body back from every single
-    one, something a low-volume run never hit; the pause is cheap
-    insurance against whatever rate-limiting or bot-protection that was.
+    Batches up to 50 titles per request (MediaWiki's limit for non-bot
+    API access), pausing REQUEST_PACING between batches: hundreds of
+    back-to-back requests get empty, non-JSON responses.
     Returns {filename: info}, omitting any filename MediaWiki
     can't resolve (e.g. renamed/deleted/never existed) -- never raises,
     since one bad batch shouldn't take down the whole run. Each value is
@@ -549,11 +449,9 @@ def resolve_image_urls(filenames):
                 if imageinfo and imageinfo[0].get("url"):
                     resolved[filename] = {"url": imageinfo[0]["url"], "sha1": imageinfo[0].get("sha1")}
         except Exception as exc:
-            # r.text (not just the parse exception) is the useful part --
-            # "Expecting value: line 1 column 1" alone just means "the body
-            # wasn't JSON," not why; the status code and a body snippet is
-            # what actually says whether that was rate-limiting, a bot-
-            # protection page, or something else entirely.
+            # Include the status and a body snippet: they show whether this
+            # was rate limiting, a bot-protection page or something else,
+            # which the parse error alone doesn't.
             if r is not None:
                 detail = f"status={r.status_code} body={r.text[:200]!r}"
             else:
@@ -572,15 +470,15 @@ def download_image(wiki_filename, info, manifest=None):
 
     An image already mirrored is only downloaded again when the wiki's
     SHA-1 for it differs from the one recorded when it was mirrored -- the
-    wiki keeps the file name when new art is uploaded over it. One mirrored
-    before SHA-1s were recorded just has today's recorded, no download.
-    A failed re-download keeps the old copy.
+    wiki keeps the file name when new art is uploaded over it. An image
+    with no recorded SHA-1 gets today's recorded, without a download. A
+    failed re-download keeps the old copy.
 
     Returns the local filename on success, None on any failure for a not
     yet mirrored image (no resolved URL, bad status, wrong content type,
     network error) -- never raises, since one bad image shouldn't take down
     the whole run. Paces itself with REQUEST_PACING after every real
-    network request (see resolve_image_urls()'s docstring for why)."""
+    network request (see REQUEST_PACING)."""
     manifest = manifest if manifest is not None else {}
     sha1 = (info or {}).get("sha1")
     url = (info or {}).get("url")
@@ -600,9 +498,8 @@ def download_image(wiki_filename, info, manifest=None):
             return record(local_name)
         print(f"Image {wiki_filename!r} changed on the wiki -- downloading the new version")
     else:
-        # Mirrored before images were stored as WebP: convert the local copy
-        # (no download needed) and remove the original. This is how the
-        # existing images migrate -- each on the first run that sees it.
+        # An unconverted local copy (the legacy name): convert it to WebP
+        # without downloading and remove the original.
         legacy_name = legacy_image_name(wiki_filename)
         legacy_path = os.path.join(IMAGES_DIR, legacy_name)
         if legacy_name != local_name and os.path.exists(legacy_path):
@@ -775,25 +672,18 @@ def save_skin_outfit_cache(cache, path=SKIN_OUTFIT_CACHE_PATH):
         json.dump(cache, f, indent=2, sort_keys=True)
 
 
-# Matches one {{Outfit list ...}} template invocation and captures
-# everything up to its own closing "}}" -- confirmed live against
-# several real event pages (see the module docstring) that this
-# template is never itself nested inside another, so a plain non-greedy
-# scan to the first "}}" is enough even though an unrelated *inner*
-# template further down in the same invocation (e.g. an addendum's
-# "{{I|Outfit Voucher|gridview=0}}") can close before the outer one
-# does -- harmless here, since the "new=" parameter this is actually
-# after always appears earlier in the template than any such addendum.
+# Matches one {{Outfit list ...}} template and captures everything up to
+# the first "}}". The template is never nested, and the "new=" parameter
+# read from it always comes before any inner template (e.g.
+# "{{I|Outfit Voucher|gridview=0}}") whose "}}" could end the match early.
 _OUTFIT_LIST_RE = re.compile(r"\{\{Outfit list(.*?)\}\}", re.DOTALL)
 _OUTFIT_LIST_NEW_PARAM_RE = re.compile(r"\|\s*new\s*=\s*([^\n|]+)")
 
 
 def parse_outfit_skin_names(wikitext):
     """Every skin name an event page's own ==Outfits== section lists as
-    newly added to the Outfit Store, confirmed live against several
-    real pages (e.g. "Crossing": "Lorem Ipsum, The Next Side Quest, The
-    Bloodwing Rose" -- independently matching those same three skins'
-    own EN getTime in skin_table.json). Skips the *other* flavor of
+    newly added to the Outfit Store (e.g. "Crossing": "Lorem Ipsum, The
+    Next Side Quest, The Bloodwing Rose"). Skips the *other* flavor of
     this same template, the one used for the page's separate "Fashion
     Review" rotation (identified by its own "display=single" parameter)
     -- that one lists whichever outfits are newly featured in a site-
@@ -810,12 +700,10 @@ def parse_outfit_skin_names(wikitext):
         if not new_m:
             continue
         for name in new_m.group(1).split(","):
-            # A skin name that itself contains a comma (rare, but real --
-            # e.g. "Rainforest, Me, Rainbow") gets that comma HTML-entity-
-            # escaped by whoever edits this template, specifically so it
-            # isn't mistaken for another separator between names -- the
-            # split above only ever breaks on an *unescaped* comma, so
-            # decoding this back is safe to do after the fact, per piece.
+            # A comma inside a skin name ("Rainforest, Me, Rainbow") is
+            # HTML-entity-escaped on the wiki so it isn't read as a separator;
+            # the split above only breaks on unescaped commas, so decode each
+            # piece afterwards.
             name = name.strip().replace("&comma;", ",")
             if name:
                 names.append(name)
@@ -855,12 +743,10 @@ def fetch_skin_operator_names():
     Skins Cargo table (Skins.name/Skins.operator) -- one batched query
     covering every operator's every skin at once, cheap enough to just
     redo on every run (unlike the per-event wikitext scrape above,
-    which is what actually needs the cache). This -- not a direct id
-    lookup -- is how a scraped skin *name* gets back to charId: Skins.id
-    is confirmed empty on every row checked live, and Skins.skinGroup
-    too, so there's no event or id field on this table to join against
-    directly; operator *name* is the only usable link it has, and
-    fetch_operator_name_to_charid() below covers the rest of the way."""
+    which is what actually needs the cache). Skins.id and Skins.skinGroup
+    are empty on the wiki, so operator *name* is the only link from a
+    skin to its operator; fetch_operator_name_to_charid() maps that on to
+    a charId."""
     rows = []
     offset = 0
     limit = 500
@@ -900,8 +786,8 @@ def normalize_skin_name(name):
     non-alphanumeric characters (punctuation *and* whitespace alike)
     collapsed to nothing. Exists because the wiki's event-page text and
     its own Skins table aren't always typed identically by whoever last
-    edited each one -- confirmed live, one event page's own Outfits
-    list reads "Unstained Unshaken" while the Skins table (and the
+    edited each one -- e.g. an event page's Outfits list reads
+    "Unstained Unshaken" while the Skins table (and the
     actual in-game skin) has it as "Unstained, Unshaken". An exact
     lookup only ever misses on punctuation/spacing like this, never on
     two genuinely different names colliding, so this is tried only as a
@@ -911,12 +797,10 @@ def normalize_skin_name(name):
 
 
 # Two spellings of one operator's skin count as the same outfit above this
-# similarity (on normalize_skin_name() keys). Confirmed live: the wiki has
-# "Summer Flowers FA240" (Meteorite) on its brand page but "Summer Flower
-# FA240" on the event page -- one stray letter, which exact matching sees
-# as two different outfits and listed twice. Only ever compared between
-# skins of the *same* operator, so two genuinely different outfits would
-# have to be near-identical in name *and* belong to one operator to merge.
+# similarity (on normalize_skin_name() keys), e.g. "Summer Flowers FA240"
+# on a brand page vs "Summer Flower FA240" on the event page. Only skins
+# of the *same* operator are compared, so two different outfits would have
+# to be near-identical in name *and* share an operator to merge.
 SKIN_NAME_SIMILARITY = 0.9
 
 
@@ -934,10 +818,8 @@ def skin_keys_match(a, b):
 
 def fetch_operator_name_to_charid():
     """Operator display name -> charId, from the wiki's own
-    OperatorFiles table (F.name/F.id) -- the same fields/table
-    operator_online.py's own scrape_wiki() already trusts for this
-    exact mapping, fetched fresh here since these are two independent
-    scripts with no shared state between runs."""
+    OperatorFiles table (F.name/F.id), the same mapping
+    operator_online.py's scrape_wiki() uses."""
     rows = []
     offset = 0
     limit = 500
@@ -997,7 +879,7 @@ def parse_outfit_cells(wikitext):
     saying which event it came with. Parsed line by line rather than with
     one big regex: a value can run over several "*" bullet lines (the
     per-region releases of a collab outfit), and a plain regex lookahead
-    for "the next parameter" proved fragile against those."""
+    for "the next parameter" is fragile against those."""
     cells = []
     for chunk in _OUTFIT_CELL_SPLIT_RE.split(wikitext or "")[1:]:
         params = {}
@@ -1018,8 +900,7 @@ def parse_outfit_cells(wikitext):
 
 def parse_outfit_release_targets(release):
     """[{"title": event page title, "cnOnly": bool}, ...] -- the event(s)
-    an outfit's "release" field names. Every pattern seen live across all
-    brand pages: a plain "[[Event]]" (the overwhelming majority --
+    an outfit's "release" field names. Patterns used on the brand pages: a plain "[[Event]]" (the overwhelming majority --
     unmarked means Global/EN here); "[[Event]] (available from ... to
     ...)"; "Alongside ''[[Event]]''"; a CN-only "{{Color|[CN]}}
     [[Event]]"; several region lines like "*CN: [[A]]" / "*Global: [[B]]"
@@ -1063,16 +944,15 @@ def normalize_event_key(title):
     has the real page title "X/Rerun" / "X/Part 2". Lowercased, with
     every run of non-alphanumerics (slash and spacing included) dropped,
     both spellings land on the same key, while "X" and "X Rerun" still
-    stay distinct (confirmed live: no two tracked events collide)."""
+    stay distinct (no two tracked events share a key)."""
     return _NORMALIZE_NAME_RE.sub("", title.replace("_", " ").lower())
 
 
 def fetch_outfit_brand_wikitexts():
     """{page title: wikitext} for every "Outfit/<brand>" page, in one
     batched query (generator=allpages + prop=revisions) instead of one
-    request per brand -- about 25 pages / 340 KB at time of writing, well
-    inside a single response, but the continuation is still followed in
-    case that ever grows past one batch."""
+    request per brand. About 25 pages / 340 KB fit in one response; the
+    continuation is followed in case it grows."""
     wikitexts = {}
     params = {
         "action": "query",
@@ -1224,18 +1104,12 @@ def attach_event_skins(events, cache):
        load_skin_outfit_cache()) so a finalized event's page is scraped
        at most once ever -- see event_outfits_are_final().
 
-    An outfit neither source ties to an event is simply left off the
-    calendar entirely. An earlier version also had calendar.js guess at
-    those with a nearest-event date match -- but confirmed live, that
-    produced real wrong associations a date-only heuristic can't avoid
-    (an unrelated shop-skin rotation landing on the same calendar day as
-    a SideStory's release), so it was removed rather than tuned."""
+    An outfit neither source ties to an event is left off the calendar
+    (see the module docstring for why release dates alone aren't used)."""
     now = datetime.now(timezone.utc)
 
-    # Brand pages are one cheap batched request, so unlike the per-event
-    # page scrape below they're simply re-read on every run. If that
-    # request fails, fall back to the event pages alone (the behavior
-    # before brand pages were used) rather than losing skins outright.
+    # Brand pages are one cheap batched request, re-read every run. If it
+    # fails, fall back to the event pages alone rather than losing skins.
     try:
         brand_releases = fetch_outfit_brand_releases()
     except Exception as exc:
@@ -1320,18 +1194,12 @@ def attach_event_skins(events, cache):
                     skin["charId"] = charid
                 page_skins.append(skin)
 
-            # Drop any entry that never resolved as a skin in its own right,
-            # but whose raw text exactly matches some OTHER entry's already-
-            # resolved operator name -- a one-off editorial slip confirmed
-            # live on "The Masses' Travels/Rerun", where the page's own
-            # new= list reads "Caelum Aeternum, Sankta Miksaparato" for
-            # what is really just one skin ("Caelum Aeternum", tied to
-            # operator Sankta Miksaparato): whoever wrote that page comma-
-            # separated the skin from its own operator's name as if they
-            # were two different skins. The comma split has no way to know
-            # that ahead of time, so this is caught after the fact, by
-            # noticing the leftover fragment is identical to a sibling
-            # skin's own operator -- never flagged just for sharing a word.
+            # Drop an entry that never resolved as a skin and whose raw text
+            # exactly matches another entry's resolved operator name. Event
+            # pages sometimes comma-separate a skin from its own operator
+            # ("Caelum Aeternum, Sankta Miksaparato" on "The Masses'
+            # Travels/Rerun" is one skin), and the comma split can't know that
+            # in advance. Only exact operator-name matches are dropped.
             resolved_operator_names = {s["operatorName"] for s in page_skins if s.get("operatorName")}
             page_skins = [
                 s for s in page_skins
@@ -1374,12 +1242,11 @@ def attach_event_skins(events, cache):
 
 
 # Integrated Strategies and Reclamation Algorithm are game modes, not
-# SideStory events, so they have no EventServerDetails rows at all -- but
-# each mode's own page lists every "theme" (a content drop: e.g. "Sui's
-# Garden of Grotesqueries") with its CN and Global release date in a
-# {{Game mode themes cell}}, which is what's read here instead. Outfits
-# (and so skins on the calendar) are tied to these themes the same way as
-# to any event, so without them those outfits had nothing to attach to.
+# SideStory events, so they have no EventServerDetails rows. Each mode's
+# page lists every "theme" (a content drop, e.g. "Sui's Garden of
+# Grotesqueries") with its CN and Global release dates in a
+# {{Game mode themes cell}}, read here instead. Outfits are tied to
+# themes the same way as to events, so they need these to attach to.
 GAME_MODE_PAGES = ["Integrated Strategies", "Reclamation Algorithm"]
 
 # A theme is a release day, not a limited-time event (all but one are
@@ -1752,9 +1619,8 @@ def update_date_history(events, previous, previous_generated_at, now):
     run, so a slow drift of a day per run still shows up once it adds up
     past DATE_HISTORY_MIN_SHIFT_DAYS instead of being rounded away forever.
     A finished event's history is dropped (it only matters ahead of time).
-    The first entry for an event the previous run already knew, but with
-    no history yet, is that previous state, so the very first run after
-    this feature ships already reports moves since the run before it."""
+    For an event the previous run knew but that has no history yet, the
+    first entry is that previous state, so a move since then is reported."""
     for ev in events:
         ev.pop("dateHistory", None)
         end_dt = _event_global_end(ev)
@@ -1837,13 +1703,10 @@ if __name__ == "__main__":
     with_operators = sum(1 for e in events if e.get("operators"))
     print(f"{with_image}/{len(events)} events have art, {with_operators}/{len(events)} list new operators")
 
-    # New-skins-per-event -- see attach_event_skins()'s own docstring for
-    # why this needs a persistent cache rather than just another scraped
-    # table like operators_by_event above. Wrapped defensively so a wiki
-    # hiccup here (a bad Cargo query, a timeout on one page fetch) can't
-    # take down a run that otherwise successfully built every event's
-    # dates/operators -- worst case this run's events.json just carries
-    # whatever skins were already cached from a previous run, if any.
+    # New skins per event (see attach_event_skins() for why this needs a
+    # persistent cache). Wrapped so a wiki hiccup here can't take down a run
+    # that built every event's dates and operators; at worst this run keeps
+    # the skins cached by earlier runs.
     try:
         skin_outfit_cache = load_skin_outfit_cache()
         events = attach_event_skins(events, skin_outfit_cache)

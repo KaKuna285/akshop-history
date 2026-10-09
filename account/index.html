@@ -48,9 +48,9 @@
 
     <div id="accountPageStatus" class="accountPageStatus">Loading your account&hellip;</div>
 
-    <!-- Reachable with no sync at all (a direct link, or a bookmark from
-         before re-syncing a fresh browser profile) -- points back at the
-         home page rather than showing an empty dashboard. -->
+    <!-- Shown when this page is opened with no synced account (e.g. a
+         direct link or bookmark in a fresh browser profile) -- points back
+         at the home page rather than showing an empty dashboard. -->
     <div id="accountPageNotSynced" class="accountPageNotSynced hidden">
       <p>You haven't synced an Arknights account yet.</p>
       <p>
@@ -149,16 +149,15 @@
             Hide medals I can no longer obtain
           </label>
 
-          <!-- Opens on clicking any medal chip below, as a modal popup
-               (same overlay pattern as the shared operator edit modal --
-               see css/operator-edit-modal.css) -- the name, icon, flavor
-               text, "how to obtain" and any prerequisite medals all live
-               here instead of on the chip itself, so the grid stays
-               scannable. A hidden (isHidden), not-yet-obtained medal's
-               real name/description/getMethod ONLY ever show up in here,
-               after a deliberate click -- the chip itself always just
-               says "???" so browsing the grid doesn't spoil anything by
-               accident. See js/account-page.js's showMedalPreview(). -->
+          <!-- Modal popup opened by clicking any medal chip below (same
+               overlay pattern as the shared operator edit modal -- see
+               css/operator-edit-modal.css). The name, icon, flavor text,
+               "how to obtain" and prerequisite medals live here rather
+               than on the chip, so the grid stays scannable. A hidden
+               (isHidden), not-yet-obtained medal's real name/description/
+               getMethod only appear here, after a deliberate click -- its
+               chip always says "???" so browsing the grid spoils nothing.
+               See js/account-page.js's showMedalPreview(). -->
           <div id="medalPreviewOverlay" class="medalPreviewOverlay hidden">
             <div id="medalPreview" class="medalPreview" role="dialog" aria-modal="true" aria-labelledby="medalPreviewName">
               <button type="button" id="medalPreviewClose" class="medalPreviewClose" aria-label="Close"></button>
@@ -189,9 +188,9 @@
       >
     </div>
 
-    <!-- Only OperatorEditModal.loadCharTable() is actually used here (for
+    <!-- Only OperatorEditModal.loadCharTable() is used here (for
          icons/names/rarity/skills/modules) -- this page never opens the
-         modal itself, so its DOM is never even injected. -->
+         modal itself, so its DOM is never injected. -->
     <script type="text/javascript" src="/js/operator-edit-modal.js"></script>
     <script type="text/javascript" src="/js/account-page.js"></script>
   </body>

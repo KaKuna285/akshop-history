@@ -1,7 +1,6 @@
 /* Shared styling for js/account-sync.js -- the nav badge (every page),
    the full sync form (home page only, via AccountSync.mount()), and the
-   compact status line Planner's Depot tab shows instead of its own copy
-   of the form. Loaded on every page alongside account-sync.js itself so
+   compact status line on Planner's Depot tab that points to that form. Loaded on every page alongside account-sync.js itself so
    the nav badge is always styled, even on pages that never call
    mount(). */
 
@@ -97,8 +96,8 @@
    yellow CTA treatment as its sibling "Use a different account" button
    (.accountSyncLinkBtn below) and every other account-sync prompt
    (.accountSyncStatusLine a, .accountPageNotSynced a, etc.), rather than
-   style.css's sitewide muted default for an otherwise-unremarkable link.
-   This one's a primary action for this section, not an afterthought. */
+   style.css's sitewide muted default, since it's a primary action for
+   this section. */
 .accountSyncSynced a {
   color: #f8d511;
 }

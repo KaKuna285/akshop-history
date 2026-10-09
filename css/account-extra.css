@@ -1,10 +1,9 @@
 /* Styling for /account/ -- the read-only "My account" overview page.
    Follows the same dark translucent-card look as css/operator-extra.css
-   and friends so this feels like the same site, kept in its own file
-   since pages don't share a stylesheet (see css/calendar-extra.css's own
-   comment on this convention). .accountSyncLinkBtn/.accountNavBadge are
-   shared with the nav badge/home-page form and already come from
-   css/account-sync.css, already linked on this page -- not redefined
+   and friends so this feels like the same site, kept in its own file so
+   it only affects this page. .accountSyncLinkBtn/.accountNavBadge are
+   shared with the nav badge/home-page form and come from
+   css/account-sync.css, also linked on this page -- not redefined
    here. */
 
 #accountPageStatus,
@@ -100,10 +99,9 @@
 
 /* --- Tabs (Operators / Medals) ----------------------------------------
    Same look as Planner's own Roster/Your Depot tabs (css/planner-extra.
-   css's .plannerTab/.tabPanel) -- not reused directly, since pages don't
-   share a stylesheet here, but copied so the interaction reads the same
-   wherever it shows up on the site. Operators is the primary tab (shown
-   first, selected by default); Medals is secondary. */
+   css's .plannerTab/.tabPanel), copied rather than shared since each
+   page's -extra.css is loaded only on that page. Operators is the primary
+   tab (shown first, selected by default); Medals is secondary. */
 
 #accountPageTabs {
   display: flex;
@@ -179,10 +177,9 @@
   color: #888;
 }
 
-/* Small, dense pills -- just an icon and a name, no per-medal flavor
-   text or "how to get it" hint here anymore (that's what clicking a
-   chip opens #medalPreview for, below). The point is a grid you can
-   actually scan at a glance instead of a wall of paragraphs. */
+/* Small, dense pills -- just an icon and a name, so the grid scans at a
+   glance. Flavor text and "how to get it" live in #medalPreview (below),
+   opened by clicking a chip. */
 .accountPageMedalChips {
   display: flex;
   flex-wrap: wrap;
@@ -219,9 +216,8 @@
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
   /* Set per chip from the medal's own rarity (T1/T2/T3) -- the same
-     grey/blue/gold scale operator rarity already uses elsewhere on the
-     site (css/operator-extra.css's --rarity-color), reused here instead
-     of inventing a separate palette for a 3-tier scale. */
+     grey/blue/gold scale operator rarity uses elsewhere on the site
+     (css/operator-extra.css's --rarity-color). */
   color: var(--medal-rarity-color, #9f9f9f);
 }
 
@@ -280,11 +276,10 @@
 }
 
 /* --- Medal detail panel -------------------------------------------------
-   A true modal popup now (was an inline panel at the top of the page) --
-   same overlay pattern as the shared operator edit modal (see
-   css/operator-edit-modal.css's .modalOverlay/.modalPanel), reused here
-   as its own copy since pages don't share a stylesheet. Opens on clicking
-   any medal chip. */
+   A modal popup opened by clicking any medal chip -- same overlay
+   pattern as the shared operator edit modal (see
+   css/operator-edit-modal.css's .modalOverlay/.modalPanel), as its own
+   copy here. */
 
 .medalPreviewOverlay {
   position: fixed;
@@ -366,10 +361,9 @@
 
 /* fa-medal glyph fallback -- always rendered underneath; the real
    in-game icon (.medalPreviewIconImg below) sits on top of it and hides
-   it once/if that image actually loads. No third-party mirror of medal
-   art was confirmed reliable enough to chain as a *second* fallback the
-   way setIconWithFallback() in util.js does for operator art, so this
-   glyph is the only fallback -- see js/account-page.js's uri_medal(). */
+   it if that image loads. There's no reliable second mirror for medal
+   art (unlike setIconWithFallback() in util.js for operator art), so
+   this glyph is the only fallback -- see js/util.js's uri_medal(). */
 .medalPreviewIcon::before {
   font-family: "Font Awesome 5 Free";
   font-weight: 900;
@@ -384,7 +378,7 @@
 }
 
 .medalPreviewIconImg {
-  display: none; /* shown via JS only once it's actually loaded -- see
+  display: none; /* shown via JS only once it has loaded -- see
                      js/account-page.js's showMedalPreview() */
   position: absolute;
   inset: 0;
@@ -462,11 +456,9 @@
 }
 
 /* --- "Hide unobtainable" toggle ------------------------------------------
-   Only shown once the medals section actually has a known-unobtainable
-   entry to hide (see js/account-page.js's MANUALLY_UNOBTAINABLE_MEDAL_IDS
-   -- there's no reliable data field for this, so it's a manually
-   maintained list; this control is pointless clutter when that list has
-   nothing relevant to the current catalog). */
+   Only shown when the medals section has a known-unobtainable entry to
+   hide (see js/account-page.js's MANUALLY_UNOBTAINABLE_MEDAL_IDS -- no
+   data field marks these, so it's a manually maintained list). */
 .accountPageHideUnobtainableLabel {
   display: flex;
   align-items: center;

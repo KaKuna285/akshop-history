@@ -20,7 +20,6 @@ ALIAS = {
     '麒麟X夜刀':'麒麟R夜刀',
     }
 def extract_banners_cell_templates(wikitext):
-    # chatGPT function
     # Regex pattern to match {{Banners cell|...}} templates
     pattern = r'{{Banners[ _]cell\s*\|([\s\S]*?)}}'
 
@@ -41,7 +40,6 @@ def extract_banners_cell_templates(wikitext):
 
     return parsed_templates
 def extract_prts_banners_cell_templates(wikitext):
-    # Another chatGPT function
     # Regex to match each row
     row_pattern = re.compile(
     r'\|-\s*\n'                    # Match row start '|-' followed by optional spaces and a newline
@@ -102,7 +100,6 @@ def get_operator_lists_wiki():
     r = http_get(url, params=params)
     all_pages = r.json()["query"]["pages"]
     for page in all_pages:
-    # for page in pages:
         content = page['revisions'][0]['slots']['main']['content']
         banners = []
         banners.extend(extract_banners_cell_templates(content))  # for each year
@@ -177,7 +174,7 @@ def get_operator_lists_prts():
         banners = []
         banners.extend(extract_prts_banners_cell_templates(page['revisions'][0]['slots']['main']['content']))
         for banner in banners:
-            # skip kernal locating ??
+            # Unlike the EN side, Kernel Locating banners aren't filtered out here.
             date = banner['date'].split('~&lt;')[0].strip()
             for op in banner['avatars']:
                 l = CN_OPS.setdefault(ALIAS.get(op['name'],op['name']),{'shop':[],'banner':[]})
@@ -199,17 +196,14 @@ if __name__ == '__main__':
     get_operator_lists_wiki()
     if not NA_OPS or not CN_OPS:
         # Nothing parseable from one of the wikis (a changed template, an
-        # error page). Keep yesterday's banner_history.json untouched and
-        # fail this step, so the run goes red and health.py reports it --
-        # this used to open the file for writing *before* this check, which
-        # emptied it and still exited 0, so the empty file got committed.
+        # error page). Exit before banner_history.json is touched, so
+        # yesterday's file stays and this step fails (the run goes red and
+        # health.py reports it) instead of committing an empty file.
         print(f'No banner data scraped (EN: {len(NA_OPS)}, CN: {len(CN_OPS)}) -- leaving banner_history.json as it was')
         sys.exit(1)
     # generatedAt powers the "data updated" note on the shop history
-    # page (js/shoplist.js) -- a top-level key alongside NA/CN, same
-    # pattern events.py already uses for events.json. Consumers only
-    # ever read .NA/.CN off this object, so extra top-level keys are
-    # harmless to them.
+    # page (js/shoplist.js), like events.json's. Consumers only read
+    # .NA/.CN off this object, so extra top-level keys are harmless.
     output = {'NA': NA_OPS, 'CN': CN_OPS, 'generatedAt': datetime.now(timezone.utc).isoformat()}
     # Names the shop page won't be able to match to an operator (see
     # name_check.py) -- read by health.py. Optional: if the check itself

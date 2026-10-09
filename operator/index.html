@@ -22,6 +22,7 @@
     <link type="text/css" href="/css/style.css" rel="stylesheet" />
     <link type="text/css" href="/css/style2.css" rel="stylesheet" />
     <link type="text/css" rel="stylesheet" href="/css/all.min.css" />
+    <link type="text/css" href="/css/search-box.css" rel="stylesheet" />
     <link type="text/css" href="/css/operator-extra.css" rel="stylesheet" />
     <link type="text/css" href="/css/operator-edit-modal.css" rel="stylesheet" />
     <link type="text/css" href="/css/account-sync.css" rel="stylesheet" />
@@ -48,14 +49,15 @@
 
     <div id="operatorJumpBar">
       <label for="operatorJumpSearch">Jump to operator</label>
-      <div id="operatorJumpSearchWrap">
+      <div id="operatorJumpSearchWrap" class="searchBox">
         <input
           type="text"
           id="operatorJumpSearch"
+          class="searchBoxInput"
           placeholder="Type a name..."
           autocomplete="off"
         />
-        <div id="operatorJumpResults" class="hidden"></div>
+        <div id="operatorJumpResults" class="searchBoxResults hidden"></div>
       </div>
     </div>
 
@@ -117,8 +119,8 @@
             <span id="opFactionBadge" class="opBadge"></span>
             <span id="opPoolBadge" class="opBadge"></span>
           </div>
-          <!-- "Owned" alone, or "Owned · E1 · Lv55 · ..." once a sync
-               included this operator's actual progress -- a quick-glance
+          <!-- "Owned" alone, or "Owned · E1 · Lv55 · ..." when the sync
+               includes this operator's actual progress -- a quick-glance
                readout that doesn't need the Maxed/Your stats toggle
                below to be touched. See AccountSync.formatInvestmentSummary(). -->
           <div id="opOwnedSummary" class="opOwnedSummary hidden"></div>
@@ -181,9 +183,8 @@
            js/operator-page.js's showSkinPreview(). Same overlay/modal
            pattern as /account's medal preview (click outside or Escape
            to close). #skinPreviewImg shows the small avatar immediately
-           and is swapped to the full illustration in place once that's
-           finished loading in the background -- see showSkinPreview()
-           for why there's no separate "view full size" link. -->
+           and is swapped to the full illustration in place once that
+           finishes loading in the background. -->
       <div id="skinPreviewOverlay" class="skinPreviewOverlay hidden">
         <div id="skinPreview" class="skinPreview" role="dialog" aria-modal="true" aria-labelledby="skinPreviewName">
           <button type="button" id="skinPreviewClose" class="skinPreviewClose" aria-label="Close"></button>

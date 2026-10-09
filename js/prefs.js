@@ -1,29 +1,21 @@
-// Shared "remember your settings" utility, used by every page in this
-// fork to persist filter/view/sort choices across visits. Backed by
-// localStorage rather than real HTTP cookies -- cookies are sent with
-// every request (including static assets) for zero benefit here,
-// they're capped around 4KB with a fussier expiry/path API, and purely
-// functional client-side storage like this doesn't carry the
-// GDPR/ePrivacy cookie-consent-banner obligations that tracking cookies
-// do. Load this after config.js and before any page's own script --
-// calendar.js and shoplist.js both call getPref/setPref below.
+// Saved settings and data (filters, views, sort order, the planner roster
+// and depot, account sync) for every page. Backed by localStorage rather
+// than cookies: nothing here needs to go to the server, and cookies would
+// be sent with every request and are capped around 4KB. Load this after
+// config.js and before account-sync.js and any page's own script.
 //
-// Everything is namespaced under one single versioned localStorage key
-// holding one JSON object, subsectioned by page ("calendar", "store",
-// ...) -- e.g. { calendar: { view: "list" }, store: { server: "EN" } }
-// -- so a future page can claim its own section without ever touching
-// another page's stored data or this file itself. Bumping the version
-// suffix on PREFS_KEY (if the stored shape ever needs a breaking
-// change) naturally discards anything stored under the old key rather
-// than trying to migrate it.
+// Everything lives under one versioned localStorage key holding one JSON
+// object, with a section per page, e.g.
+// { calendar: { view: "list" }, store: { server: "EN" } }, so each page
+// only touches its own section. Bumping the version suffix on PREFS_KEY
+// (for a breaking change to the stored shape) discards the old data
+// rather than migrating it.
 //
 // Every read/write is defensive: localStorage can throw (private
-// browsing in some browsers, site data disabled, storage full or
-// blocked by policy) or hold something unexpected (a hand-edited
-// devtools value, an option that's since been renamed or removed), and
-// none of that should ever break the page -- callers always get back a
-// usable value, at worst the same default they'd have used if nothing
-// were stored at all.
+// browsing in some browsers, site data disabled, storage full or blocked
+// by policy) or hold something unexpected (a hand-edited value, an option
+// that's since been renamed or removed). Callers always get back a usable
+// value, at worst the default they'd use if nothing were stored.
 const PREFS_KEY = "akshop.prefs.v1";
 
 function akPrefsLoadBlob() {

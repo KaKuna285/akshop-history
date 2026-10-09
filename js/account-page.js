@@ -1,16 +1,14 @@
 (function () {
   // "My account" overview: profile summary, sync freshness, medal
   // progress, and every owned operator's synced progress as a sortable
-  // table. A read-only dashboard for the sync feature -- the actual
-  // email/code/fetch form still only lives on the home page
-  // (js/account-sync.js's mount()), and this page's own "Re-sync" action
-  // just links back there.
+  // table. Read-only: the email/code/fetch sync form lives only on the
+  // home page (js/account-sync.js's mount()), and this page's "Re-sync"
+  // action links back there.
   //
   // Reached from any page's nav badge once an account is synced (see
-  // AccountSync.renderNavBadge()) -- there's nothing to show here before
-  // a first sync, so this isn't in the main site nav; visiting it
-  // without one just points back at the home page (see
-  // #accountPageNotSynced below) rather than showing an empty dashboard.
+  // AccountSync.renderNavBadge()), so it isn't in the main site nav.
+  // Visiting it before a first sync shows #accountPageNotSynced, which
+  // points back at the home page.
 
   const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -49,12 +47,10 @@
   let roster = []; // [{ op, progress }], built once charTable + account are both ready
 
   // --- sync freshness --------------------------------------------------
-  // Three bands rather than a bare day count, since "is this still worth
-  // trusting" is the actual question -- the owned/not-owned filter and
-  // the operator page's "Your stats" toggle are both only as good as how
-  // recently this was synced. Thresholds are a judgment call (a day of
-  // play rarely changes your roster meaningfully; a month very well
-  // might), not read from anywhere authoritative.
+  // Three bands (fresh/aging/stale) rather than a bare day count, since
+  // the real question is whether the synced data is still trustworthy --
+  // the owned-operator filter and the operator page's "Your stats" toggle
+  // are only as good as the last sync. The thresholds are a judgment call.
   function syncFreshness(syncedAt) {
     const t = syncedAt ? new Date(syncedAt).getTime() : NaN;
     if (isNaN(t)) return { text: "Sync date unknown.", level: "stale" };
@@ -87,10 +83,9 @@
       );
     }
 
-    // Depot is Planner's data, not AccountSync's own -- read straight
-    // from its prefs key the same way Planner itself does, rather than
-    // AccountSync needing to know about it. Purely informational here
-    // (no edit/replace controls -- that's still Planner's job).
+    // The depot is Planner's data, not AccountSync's, so it's read
+    // straight from Planner's prefs key. Informational only; editing
+    // happens in the Planner.
     const depot = getPref("planner", "depot", {}, (v) => v && typeof v === "object");
     const itemCount = Object.keys(depot).length;
     if (itemCount) {
@@ -102,10 +97,9 @@
   }
 
   // --- tabs (Operators / Medals) ------------------------------------------
-  // Operators is the primary tab -- shown first and selected by default,
-  // same convention as Planner's Roster/Your Depot tabs (js/planner.js's
-  // switchTab()) -- copied here rather than shared, since this page and
-  // Planner don't share any JS either.
+  // Operators is the primary tab, shown first and selected by default --
+  // the same convention as Planner's Roster/Your Depot tabs (js/planner.js's
+  // switchTab()). The two pages don't share tab code.
 
   function loadActiveTabPref() {
     return getPref("account", "overviewTab", "roster", (v) => v === "roster" || v === "medals");
@@ -130,34 +124,20 @@
   tabBtnMedals.addEventListener("click", () => switchTab("medals"));
 
   // --- medals section ----------------------------------------------------
-  // "Account progress" beyond the roster table: how many of the game's
-  // medals (achievements) this account has obtained, grouped the way the
-  // catalog itself groups them (medalType). The catalog side of this is
-  // solid -- medal_table.json was fetched and inspected directly while
-  // building this feature. The account side (which medals a sync actually
-  // reports as obtained) is the least-confirmed data this whole site
-  // reads (see cloudflare/depot-import/index.js's extractObtainedMedals()), so
-  // this gates the entire section on AccountSync.getObtainedMedals() not
-  // being null rather than ever showing a confidently-wrong 0%.
+  // How many of the game's medals (achievements) this account has
+  // obtained, grouped by the catalog's medalType. Which medals a sync
+  // reports as obtained is the least-confirmed data the site reads (see
+  // cloudflare/depot-import/index.js's extractObtainedMedals()), so the
+  // whole section is gated on AccountSync.getObtainedMedals() not being
+  // null rather than ever showing a confidently-wrong 0%.
 
-  // Label map matching the real in-game "Path to Glory" menu names, named
-  // per medalType. A previous pass through this file concluded (via a
-  // large-file fetch of medal_table.json) that the catalog only ever had
-  // 3 medalType values -- that conclusion was WRONG, caught and corrected
-  // after a follow-up report, by re-reading the live catalog through an
-  // actual browser fetch instead (the earlier read is now understood to
-  // have silently truncated, the same large-JSON-file failure mode
-  // documented elsewhere in this project for character_table.json). The
-  // real catalog has all ten: playerMedal, stageMedal, campMedal,
-  // towerMedal, growthMedal, storyMedal, rogueMedal, buildMedal,
-  // activityMedal, hiddenMedal -- confirmed live, with real per-type
-  // counts (e.g. storyMedal alone has 366 entries). "hiddenMedal" is
-  // deliberately NOT listed here -- confirmed live it's a perfect 1:1
-  // match with the existing isHidden flag (every hiddenMedal-type medal
-  // has isHidden:true and vice versa, zero exceptions), so it's handled
-  // by the existing isHidden-based "Secret Medal" pull-out in
-  // renderMedalsSection() instead of as a normal type group, same as the
-  // real menu's own separate Secret tab.
+  // Group labels per medalType, matching the in-game "Path to Glory" menu.
+  // The catalog has ten medalType values: these nine plus hiddenMedal.
+  // hiddenMedal is deliberately left out -- it matches the isHidden flag
+  // exactly (every hiddenMedal-type medal has isHidden:true and vice
+  // versa), so renderMedalsSection() puts those in a separate "Secret
+  // Medal" group, like the in-game menu's own Secret tab. (medal_table.json
+  // is large; a truncated fetch of it can look like it has fewer types.)
   const MEDAL_TYPE_NAMES = {
     playerMedal: "Records Medal",
     stageMedal: "Episodes Medal",
@@ -169,10 +149,10 @@
     buildMedal: "Base Medal",
     activityMedal: "Event Medal",
   };
-  // Render order for the known types (matching the real in-game tab
-  // order); anything else (a brand new medalType the game adds later)
-  // falls back to humanizeMedalType() below and is appended after these,
-  // in first-seen order -- see renderMedalsSection().
+  // Render order for the known types (the in-game tab order). Any other
+  // medalType (e.g. one the game adds later) is labelled by
+  // humanizeMedalType() and appended after these in first-seen order --
+  // see renderMedalsSection().
   const MEDAL_TYPE_ORDER = [
     "playerMedal",
     "stageMedal",
@@ -195,37 +175,32 @@
     return words.charAt(0).toUpperCase() + words.slice(1);
   }
 
-  // There's no reliable data field marking a medal as permanently missed
-  // (expireTimes exists but wasn't confirmed to mean that, and plenty of
-  // non-expired medals have odd values there too) -- no trustworthy signal,
-  // so this is maintained by hand. Add a medalId below (see a medal's own
-  // id in the catalog) for anything you've confirmed is gone for good, and the
-  // "hide medals I can no longer obtain" toggle (only shown once this list
-  // actually has something in it) will filter it out of both the grid and
-  // the overall/group counts.
+  // No data field reliably marks a medal as permanently missed
+  // (expireTimes isn't confirmed to mean that, and many current medals
+  // have odd values there), so this list is maintained by hand. Add the
+  // medalId of any medal confirmed gone for good; the "hide medals I can
+  // no longer obtain" toggle (shown only when this list is non-empty)
+  // then drops it from both the grid and the overall/group counts.
   const MANUALLY_UNOBTAINABLE_MEDAL_IDS = new Set([
     // "medal_camp_rotate_05",
   ]);
 
-  // Same 3-tier grey/blue/gold scale operator rarity already uses
-  // elsewhere on the site (css/operator-extra.css's --rarity-color for
-  // 1-2★/4★/6★), reused here rather than inventing a separate palette
-  // for medals' own T1/T2/T3 rarity field.
+  // Medal rarity T1/T2/T3 reuses the grey/blue/gold of operator rarity
+  // (css/operator-extra.css's --rarity-color for 1-2★/4★/6★).
   const MEDAL_RARITY_COLORS = { T1: "#9f9f9f", T2: "#00b2f6", T3: "#ffae00" };
 
-  // EN-only, same as the rest of the account-sync feature (the Worker
-  // only ever logs into an EN/Yostar account) -- no CN-merge fallback
-  // here the way OperatorEditModal.loadCharTable() has one, since a
-  // medal obtained on an EN account is always in EN's own catalog.
+  // EN-only, like the rest of the account-sync feature (the Worker only
+  // logs into EN/Yostar accounts). Unlike OperatorEditModal.loadCharTable()
+  // there's no CN-merge fallback: a medal obtained on an EN account is
+  // always in EN's own catalog.
   async function loadMedalTable() {
     const res = await gameDataFetch(SERVERS.EN, "medal_table");
     const json = await fixedJson(res);
     return Array.isArray(json.medalList) ? json.medalList : [];
   }
 
-  // The last-rendered sync's obtained-medals map, kept at module scope so
-  // renderMedalChip()'s click handler (closed over a specific medal
-  // already) can still look up that medal's obtained entry.
+  // The last-rendered sync's obtained-medals map (medalId -> entry), read
+  // by renderMedalChip().
   let obtainedMedals = null;
 
   // The last-loaded catalog, medalId -> medal, kept at module scope so
@@ -234,32 +209,26 @@
   let medalById = new Map();
 
   // --- medal detail panel --------------------------------------------
-  // Opens on clicking any medal chip -- see #medalPreview in account/
-  // index.html and its own comment there. A hidden (isHidden), not-yet-
-  // obtained medal's real name/description/getMethod only ever show up
-  // here, after a deliberate click; the chip itself keeps showing "???"
-  // regardless (see renderMedalChip() below), so this is the one place
-  // that's allowed to spoil it.
+  // Opens on clicking any medal chip -- see #medalPreview in
+  // account/index.html. A hidden (isHidden), not-yet-obtained medal's
+  // real name/description/getMethod appear only here, after a deliberate
+  // click; its chip always shows "???" (see renderMedalChip()).
 
   function formatObtainedDate(ts) {
     if (typeof ts !== "number" || ts <= 0) return null;
-    // Every other timestamp this site reads from game data (medal_table.
-    // json's own displayTime, event dates, etc.) is Unix seconds, not
-    // milliseconds -- and so is the obtained timestamp itself (the account
-    // sync's `fts` field, see cloudflare/depot-import/index.js). Still defensive
-    // about producing a garbage date rather than trusting it blindly.
+    // The obtained timestamp (the sync's `fts` field, see
+    // cloudflare/depot-import/index.js) is Unix seconds, like other game
+    // data timestamps. Implausible years are rejected rather than shown.
     const d = new Date(ts * 1000);
     if (isNaN(d.getTime()) || d.getFullYear() < 2017 || d.getFullYear() > 2100) return null;
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
   // preMedalIdList (a "meta" medal's prerequisites, e.g. a Talent
-  // Recognition Medal II that requires I first) is an array of medalId
-  // strings when populated -- confirmed via real chained examples while
-  // building this. When a medal has none, the raw JSON can come back as
-  // an empty `{}` object rather than `[]` (a known datamining quirk of
-  // this game's empty List fields), so this treats anything that isn't a
-  // real array as "no prerequisites" rather than erroring on it.
+  // Recognition Medal II that requires I first) is an array of medalIds
+  // when populated. An empty one can come through as `{}` rather than
+  // `[]` (a quirk of this game's empty List fields in the datamined
+  // JSON), so anything that isn't an array means "no prerequisites".
   function requiredMedalNames(medal) {
     const ids = Array.isArray(medal.preMedalIdList) ? medal.preMedalIdList : [];
     return ids.map((id) => {
@@ -272,10 +241,9 @@
     const rarityColor = MEDAL_RARITY_COLORS[medal.rarity] || "#f8d511";
     medalPreviewEl.style.setProperty("--medal-rarity-color", rarityColor);
 
-    // The real in-game icon -- shown only once (if) it actually loads;
-    // the fa-medal glyph underneath (.medalPreviewIcon::before, in css/
-    // account-extra.css) stays the permanent fallback, since no second
-    // mirror is known to carry these the way operator art has one (see
+    // The in-game icon is shown only once it loads; the fa-medal glyph
+    // underneath (.medalPreviewIcon::before, in css/account-extra.css) is
+    // the fallback, since there's no second mirror for medal icons (see
     // js/util.js's uri_medal()).
     medalPreviewIconImgEl.onload = () => {
       medalPreviewIconImgEl.style.display = "block";
@@ -326,10 +294,9 @@
     if (e.key === "Escape" && !medalPreviewOverlayEl.classList.contains("hidden")) hideMedalPreview();
   });
 
-  // A popup modal now (was an inline panel at the top of the page) --
-  // same overlay-click-to-close pattern as the shared operator edit
-  // modal (see js/operator-edit-modal.js's ensureDom()): only closes when
-  // the click lands on the backdrop itself, not anything inside the panel.
+  // Same overlay-click-to-close pattern as the shared operator edit modal
+  // (see js/operator-edit-modal.js's ensureDom()): only a click on the
+  // backdrop itself closes it, not one inside the panel.
   medalPreviewOverlayEl.addEventListener("click", (e) => {
     if (e.target === medalPreviewOverlayEl) hideMedalPreview();
   });
@@ -355,18 +322,15 @@
     chip.appendChild(nameEl);
 
     chip.addEventListener("click", () => {
-      // Always the real medal, even when still hidden+unobtained -- "the
-      // chip says ???" and "clicking it reveals what it actually is" are
-      // two different, deliberate states; only the chip itself stays
-      // spoiler-protected.
+      // Always opens the real medal, even when hidden and unobtained --
+      // only the chip itself is spoiler-protected.
       showMedalPreview(medal, obtainedEntry);
     });
 
     return chip;
   }
 
-  // Builds one "(obtained / total)" heading element -- shared by both the
-  // main medalType groups and each Annihilation event sub-group below.
+  // Builds one "Label (obtained / total)" group heading.
   function buildGroupHeading(label, obtainedCount, total, headingClass, countClass) {
     const headingEl = document.createElement("div");
     headingEl.className = headingClass;
@@ -403,17 +367,14 @@
         medalList.filter((m) => m && typeof m.medalId === "string").map((m) => [m.medalId, m]),
       );
 
-      // Only worth showing the toggle at all once the manually-maintained
-      // override list (see its own comment above) actually has something
-      // in it -- otherwise it's a control that visibly does nothing.
+      // The toggle is only shown when MANUALLY_UNOBTAINABLE_MEDAL_IDS has
+      // entries; otherwise it would visibly do nothing.
       hideUnobtainableLabelEl.classList.toggle("hidden", MANUALLY_UNOBTAINABLE_MEDAL_IDS.size === 0);
       const hideUnobtainable = hideUnobtainableEl.checked;
 
-      // "Of what's still obtainable" when the toggle is on -- a medal
-      // that's gone for good shouldn't count against you, so it's
-      // dropped from both the grid AND the overall/group totals below,
-      // not just hidden visually. A medal you already obtained before it
-      // went away is never dropped by this, regardless of the toggle.
+      // With the toggle on, a medal that's gone for good shouldn't count
+      // against you, so it's dropped from both the grid and the totals,
+      // not just hidden. A medal already obtained is never dropped.
       const visibleMedals = medalList.filter((medal) => {
         if (!medal || typeof medal.medalId !== "string") return false;
         if (!hideUnobtainable) return true;
@@ -421,16 +382,11 @@
         return obtained || !MANUALLY_UNOBTAINABLE_MEDAL_IDS.has(medal.medalId);
       });
 
-      // Pull out "Secret Medal" first -- every hiddenMedal-type medal
-      // (confirmed live: a perfect 1:1 match with isHidden -- see
-      // MEDAL_TYPE_NAMES' own comment above), obtained or not, PLUS a
-      // defensive catch-all for any other medal that's still hidden and
-      // not yet obtained (in case a future medal sets isHidden without
-      // being catalogued as hiddenMedal). Unlike the real type groups
-      // below, a medal here stays here once obtained rather than moving
-      // to a different group -- matches the real "Path to Glory" menu,
-      // whose own Secret tab keeps a revealed secret medal listed there
-      // rather than relocating it.
+      // Pull out the "Secret Medal" group first: every hiddenMedal-type
+      // medal (see MEDAL_TYPE_NAMES), obtained or not, plus any other medal
+      // that's still hidden and unobtained (in case a future medal sets
+      // isHidden without being typed hiddenMedal). An obtained secret medal
+      // stays in this group, as in the in-game menu's Secret tab.
       const secretMedals = [];
       const typedGroups = new Map();
       const typeOrder = [];
@@ -469,21 +425,13 @@
           buildGroupHeading(label, obtainedInGroup, medals.length, "accountPageMedalGroupHeading", "accountPageMedalGroupCount"),
         );
 
-        // Flat chip grid, same as every other category -- Annihilation
-        // used to nest a mini-heading per real-world Operation here, but
-        // that read as a long, inconsistent list of mostly single-medal
-        // groups with heading text no other category showed (see the
-        // bug report this removed it for); unlockParam/displayTime are
-        // no longer read anywhere in this file as a result.
         groupEl.appendChild(buildChipsRow(medals));
 
         medalsGroupsEl.appendChild(groupEl);
       });
 
       if (secretMedals.length) {
-        // Unlike the old isHidden-only version of this group, an obtained
-        // hiddenMedal-type medal can land here now (see the comment
-        // above), so this can no longer assume 0 obtained by construction.
+        // Obtained hiddenMedal-type medals stay in this group, so count them.
         const obtainedInSecret = secretMedals.filter((m) => obtainedMedals[m.medalId]).length;
         totalKnown += secretMedals.length;
         totalObtained += obtainedInSecret;
@@ -611,19 +559,18 @@
 
     hideUnobtainableEl.checked = getPref("account", "hideUnobtainableMedals", false, (v) => typeof v === "boolean");
 
-    // Runs independently of the roster load below -- a failed medal
-    // catalog fetch (or no medal data in this sync) shouldn't block the
-    // roster table from showing, and vice versa.
+    // Runs independently of the roster load below, so a failed medal
+    // catalog fetch (or no medal data in this sync) doesn't block the
+    // roster table, and vice versa.
     renderMedalsSection().catch((err) => {
       console.error("Unexpected error rendering the medals section:", err);
     });
 
     const ownedIds = AccountSync.getOwnedOperators() || [];
     if (!ownedIds.length) {
-      // Synced, but either the roster read failed or the account
-      // genuinely has nothing yet (new account) -- show the profile
-      // card either way, just with an empty-roster note instead of a
-      // table with nothing in it.
+      // Synced, but the roster read failed or the account is new and
+      // has no operators: show the profile card with an empty-roster
+      // note instead of an empty table.
       statusEl.classList.add("hidden");
       contentEl.classList.remove("hidden");
       rosterCountEl.textContent = "0";
