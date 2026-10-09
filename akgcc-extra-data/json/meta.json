@@ -1,27 +1,27 @@
 {
- "generatedAt": "2026-10-09T15:32:04.679453+00:00",
- "ok": false,
- "problemRuns": 1,
+ "generatedAt": "2026-10-09T21:25:36.973843+00:00",
+ "ok": true,
+ "problemRuns": 0,
  "steps": {
   "shop": {
    "label": "Shop history",
    "outcome": "success",
-   "lastSuccess": "2026-10-09T15:32:04.679453+00:00"
+   "lastSuccess": "2026-10-09T21:25:36.973843+00:00"
   },
   "operators": {
    "label": "Operator release dates",
    "outcome": "success",
-   "lastSuccess": "2026-10-09T15:32:04.679453+00:00"
+   "lastSuccess": "2026-10-09T21:25:36.973843+00:00"
   },
   "events": {
    "label": "Event calendar",
    "outcome": "success",
-   "lastSuccess": "2026-10-09T15:32:04.679453+00:00"
+   "lastSuccess": "2026-10-09T21:25:36.973843+00:00"
   },
   "gamedata": {
    "label": "Game data",
    "outcome": "success",
-   "lastSuccess": "2026-10-09T15:32:04.679453+00:00"
+   "lastSuccess": "2026-10-09T21:25:36.973843+00:00"
   }
  },
  "counts": {
@@ -34,10 +34,5 @@
   "gameDataOperatorsEN": 410,
   "gameDataOperatorsCN": 432
  },
- "warnings": [
-  {
-   "step": "names",
-   "message": "1 EN shop-history name(s) don't match any operator and are left off the shop chart: Kal'tsit - Esperanta (needs an alias)"
-  }
- ]
+ "warnings": []
 }
