@@ -1,0 +1,4 @@
+# The daily workflow's Python dependencies, pinned so a new release can't
+# break the run without a commit (.github/workflows/banner_history_update.yml).
+requests==2.34.2
+pillow==12.3.0  # events.py stores mirrored event art as resized WebP

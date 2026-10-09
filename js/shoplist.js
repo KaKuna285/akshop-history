@@ -243,7 +243,7 @@ Promise.all([
 						]?.blue;
 
 					// if NaN this is the "first" index
-					shop_idx = parseInt(args.meta._dataset.parsing.xAxisKey);
+					const shop_idx = parseInt(args.meta._dataset.parsing.xAxisKey);
 					let first_apperance = isNaN(shop_idx);
 					// if this op appears in the shop later, don't draw the first appearance bubble.
 					if (
@@ -467,7 +467,7 @@ Promise.all([
 		let subset = filterOperators(SHOP_DATA[selectedServer]);
 		var labels = subset.sort(labelSort).map((x) => x.op);
 		var datasets = getDatasets(SHOP_DATA[selectedServer]);
-		for (i = 0; i < datasets.length; i++)
+		for (let i = 0; i < datasets.length; i++)
 			// remove elements not in labels
 			datasets[i].data = subset;
 		adjustChartHeight(subset.length);
@@ -675,7 +675,7 @@ Promise.all([
 					});
 					predictionHtml =
 						`<span style="opacity:0.8">Predicted shop debut: ~${predictedStr}</span>` +
-						`<span style="opacity:0.55;font-size:0.82em;">#${prediction.position} in line · anchored to ${prediction.anchorOp}'s shop debut (${anchorStr})</span>`;
+						`<span style="opacity:0.55;font-size:0.82em;">#${prediction.position} in line · anchored to ${escapeHtml(prediction.anchorOp)}'s shop debut (${anchorStr})</span>`;
 				}
 			}
 
@@ -698,7 +698,7 @@ Promise.all([
 				'<div style="display:flex;align-items:center;gap:8px;">' +
 				`<img src="${uri_avatar(hb.charId)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` +
 				'<div style="display:flex;flex-direction:column;line-height:1.35;white-space:nowrap;">' +
-				`<span><b>${hb.op}</b></span>` +
+				`<span><b>${escapeHtml(hb.op)}</b></span>` +
 				kindHtml +
 				`<span style="opacity:0.8">${dateStr}</span>` +
 				predictionHtml +
@@ -707,6 +707,11 @@ Promise.all([
 			iconTooltipEl.style.left = pageX + "px";
 			iconTooltipEl.style.top = pageY + "px";
 			iconTooltipEl.style.transform = "translate(-50%, calc(-100% - 14px))";
+		}
+		// Operator names come from the wikis (via the daily scrape), so
+		// they're escaped before going into the tooltips' HTML.
+		function escapeHtml(text) {
+			return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 		}
 		function hideIconTooltip() {
 			iconTooltipEl.classList.add("hidden");
@@ -732,7 +737,7 @@ Promise.all([
 			iconTooltipEl.classList.add("xcenter", "ybottom");
 			iconTooltipEl.innerHTML =
 				'<div style="display:flex;flex-direction:column;line-height:1.35;white-space:nowrap;">' +
-				`<span><b>${seg.op}</b></span>` +
+				`<span><b>${escapeHtml(seg.op)}</b></span>` +
 				`<span>${label}</span>` +
 				`<span style="opacity:0.8">${fmt(seg.startDate)} → ${fmt(seg.endDate)}</span>` +
 				`<span style="opacity:0.8"><b>${days}</b> day${days === 1 ? "" : "s"}</span>` +
@@ -815,6 +820,7 @@ Promise.all([
 		});
 		// -----------------------------------------------------------------------
 
+		let label, spacer; // reused for each button panel below
 		const btns = document.createElement("div");
 		btns.id = "barSort";
 		btns.classList.add("sortdiv");
@@ -991,13 +997,37 @@ Promise.all([
 				// from this server's now-current data, so setting it here
 				// too would just get immediately overwritten.
 				if (selectedPeriod !== "Dynamic") {
-					barGraph.options.scales.x.min = SERVER_STARTS[selectedServer];
-					barGraph.options.scales.x1.min = SERVER_STARTS[selectedServer];
+					// The selected fixed period (2y/4y/6y/ALL), measured on
+					// this server -- not always the full range.
+					const min = computeFixedPeriodMin(selectedPeriod, selectedServer);
+					barGraph.options.scales.x.min = min;
+					barGraph.options.scales.x1.min = min;
 				}
 
 				redrawCharts();
 			};
 		});
+		// The server/filter/sort/period buttons are <div>s with click
+		// handlers -- make them reachable and usable from the keyboard
+		// (Tab, then Enter/Space), and tell screen readers which are on.
+		const syncPressed = () => {
+			for (const el of document.querySelectorAll(".btnPanel .button")) {
+				el.setAttribute("role", "button");
+				el.tabIndex = 0;
+				el.setAttribute("aria-pressed", String(el.classList.contains("checked")));
+			}
+		};
+		syncPressed();
+		for (const panel of document.querySelectorAll(".btnPanel")) {
+			panel.addEventListener("keydown", (e) => {
+				if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("button")) {
+					e.preventDefault();
+					e.target.click();
+				}
+			});
+			// Runs after the button's own onclick (which updates "checked").
+			panel.addEventListener("click", syncPressed);
+		}
 		function redrawCharts() {
 			// the rows/positions a pinned gap or portrait tooltip refers to
 			// may no longer exist (or mean something different) after a
@@ -1008,7 +1038,7 @@ Promise.all([
 			let subset = filterOperators(SHOP_DATA[selectedServer]);
 			barGraph.data.labels = subset.sort(labelSort).map((x) => x.op);
 
-			for (i = 0; i < barGraph.data.datasets.length; i++)
+			for (let i = 0; i < barGraph.data.datasets.length; i++)
 				// remove elements not in labels
 				barGraph.data.datasets[i].data = subset;
 

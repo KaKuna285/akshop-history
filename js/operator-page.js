@@ -53,7 +53,6 @@
   // roster entry from a fresh E0/Lv1, same as adding one from the
   // planner's own search box would.
 
-  const DAY_MS = 24 * 60 * 60 * 1000;
   const SERVER = SERVERS.EN;
 
   const jumpInput = document.getElementById("operatorJumpSearch");
@@ -733,9 +732,15 @@
   // The animated chibi under the art -- see js/chibi-viewer.js.
   const skinChibi = ChibiViewer.create(document.getElementById("skinPreviewChibi"));
 
+  let releaseSkinPreviewFocus = null;
+
   function hideSkinPreview() {
     skinPreviewOverlayEl.classList.add("hidden");
     skinChibi.clear();
+    if (releaseSkinPreviewFocus) {
+      releaseSkinPreviewFocus();
+      releaseSkinPreviewFocus = null;
+    }
   }
 
   function showSkinPreview(skin) {
@@ -785,6 +790,7 @@
     skinPreviewOverlayEl.classList.remove("hidden");
     skinPreviewOverlayEl.scrollTop = 0;
     skinChibi.show(skin);
+    if (!releaseSkinPreviewFocus) releaseSkinPreviewFocus = holdFocusIn(document.getElementById("skinPreview"));
   }
 
   skinPreviewCloseBtn.addEventListener("click", hideSkinPreview);
@@ -899,8 +905,7 @@
 
   // The default (and, before the "Your stats" toggle existed, only) view
   // on this page assumes max Potential (Potential 6 -- all 5 upgrade
-  // ranks applied, same assumption OperatorEditModal's own maxState()
-  // makes for the planner/calendar pages). "Your stats" instead caps this
+  // ranks applied). "Your stats" instead caps this
   // at however many ranks the synced account actually has (capRank --
   // potentialRank from the sync, 0-5): passing it in limits how many of
   // potentialRanks' entries get summed, since potentialRanks[i] is
@@ -1845,15 +1850,13 @@
   // date" sort option and as the rarity sort's tie-break, so both read
   // the same way once release date enters the picture.
   function compareByReleaseDate(a, b) {
-    // onlineTime arrives as a "YYYY-MM-DD HH:MM:SS"-style string (see
-    // fmtDate() above, which parses it the same way) rather than an
-    // already-numeric timestamp, so it needs `new Date(...)` before it's
-    // comparable at all -- a bare `a.onlineTime - b.onlineTime` would
-    // just be NaN - NaN for every pair. An unparseable or missing value
+    // onlineTime arrives as a "YYYY-MM-DD HH:MM:SS"-style string, parsed
+    // with timestampMs() (util.js) -- a bare `a.onlineTime - b.onlineTime`
+    // would just be NaN - NaN for every pair. An unparseable or missing value
     // sorts to the end, same as a release-date-less operator being
     // excluded from "Not yet released on EN" elsewhere on this page.
-    const at = a.onlineTime ? new Date(a.onlineTime).getTime() : NaN;
-    const bt = b.onlineTime ? new Date(b.onlineTime).getTime() : NaN;
+    const at = timestampMs(a.onlineTime);
+    const bt = timestampMs(b.onlineTime);
     const aVal = isNaN(at) ? Infinity : at;
     const bVal = isNaN(bt) ? Infinity : bt;
     if (aVal !== bVal) return aVal - bVal;
@@ -1868,8 +1871,8 @@
     // gives this trailing group a real chronological order instead of
     // none at all -- an operator with at least a known CN date sorts
     // ahead of one with no known date whatsoever.
-    const acn = a.cnOnlineTime ? new Date(a.cnOnlineTime).getTime() : NaN;
-    const bcn = b.cnOnlineTime ? new Date(b.cnOnlineTime).getTime() : NaN;
+    const acn = timestampMs(a.cnOnlineTime);
+    const bcn = timestampMs(b.cnOnlineTime);
     const acnVal = isNaN(acn) ? Infinity : acn;
     const bcnVal = isNaN(bcn) ? Infinity : bcn;
     return acnVal - bcnVal || a.name.localeCompare(b.name);

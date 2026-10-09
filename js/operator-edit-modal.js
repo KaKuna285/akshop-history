@@ -136,30 +136,6 @@ const OperatorEditModal = (function () {
       modules: {},
     };
   }
-  // The fully-maxed state for an operator: max Elite phase at its own max
-  // level, skill level 7 (if the operator has skills at all), every skill
-  // at its own mastery cap (M3, or fewer if a skill's levelUpCostCond is
-  // shorter), and every module at stage 3. Used as the "target" state for
-  // an E0/Lv1 -> everything-maxed cost total (see calcOperatorCost() in
-  // util.js), e.g. for the operator page's "cost to fully max" table.
-  function maxState(op) {
-    const phase = maxPhase(op);
-    const mastery = {};
-    (op.skills || []).forEach((skill, idx) => {
-      mastery[idx] = maxMastery(op, idx);
-    });
-    const modules = {};
-    (op.modules || []).forEach((mod) => {
-      modules[mod.uniEquipId] = 3;
-    });
-    return {
-      phase,
-      level: maxLevelFor(op, phase),
-      skillLevel: hasSkills(op) ? 7 : 1,
-      mastery,
-      modules,
-    };
-  }
 
   // --- field builders ------------------------------------------------------
 
@@ -175,7 +151,9 @@ const OperatorEditModal = (function () {
     const fields = document.createElement("div");
     fields.className = "rosterRowStateFields";
 
+    const who = which === "current" ? "Current" : "Target";
     const phaseSelect = document.createElement("select");
+    phaseSelect.setAttribute("aria-label", `${who} Elite phase`);
     for (let p = 0; p <= maxPhase(op); p++) {
       const opt = document.createElement("option");
       opt.value = String(p);
@@ -192,6 +170,7 @@ const OperatorEditModal = (function () {
 
     const levelInput = document.createElement("input");
     levelInput.type = "number";
+    levelInput.setAttribute("aria-label", `${who} level`);
     levelInput.min = "1";
     levelInput.max = String(maxLevelFor(op, state.phase));
     levelInput.value = String(state.level);
@@ -205,6 +184,7 @@ const OperatorEditModal = (function () {
 
     if (hasSkills(op)) {
       const skillSelect = document.createElement("select");
+      skillSelect.setAttribute("aria-label", `${who} skill level`);
       for (let s = 1; s <= 7; s++) {
         const opt = document.createElement("option");
         opt.value = String(s);
@@ -234,6 +214,7 @@ const OperatorEditModal = (function () {
     const buildSelect = (which) => {
       const state = entry[which];
       const sel = document.createElement("select");
+      sel.setAttribute("aria-label", `${label}, ${which}`);
       for (let n = 0; n <= max; n++) {
         const opt = document.createElement("option");
         opt.value = String(n);
@@ -308,6 +289,12 @@ const OperatorEditModal = (function () {
     nameEl.parentNode.querySelectorAll(".cnBadge").forEach((el) => el.remove());
     if (currentOp.cnOnly) nameEl.insertAdjacentElement("afterend", buildCnBadge(currentOp));
 
+    // Rebuilding replaces every control, including the one being edited
+    // from the keyboard -- remember which one had focus (by position) and
+    // put focus back on its replacement.
+    const controls = () => [...statesEl.querySelectorAll("select, input"), ...extraEl.querySelectorAll("select, input")];
+    const focusedIndex = controls().indexOf(document.activeElement);
+
     statesEl.innerHTML = "";
     statesEl.appendChild(buildStateFields(currentOp, currentEntry, "current"));
     statesEl.appendChild(buildStateFields(currentOp, currentEntry, "target"));
@@ -315,7 +302,14 @@ const OperatorEditModal = (function () {
     extraEl.innerHTML = "";
     const extra = buildExtraFields(currentOp, currentEntry);
     if (extra) extraEl.appendChild(extra);
+
+    if (focusedIndex >= 0) {
+      const replacement = controls()[focusedIndex];
+      if (replacement) replacement.focus({ preventScroll: true });
+    }
   }
+
+  let releaseFocus = null;
 
   // op: that charId's character-table record (phases/skills/modules --
   //     see loadCharTable() below for a ready-made source of these).
@@ -338,10 +332,15 @@ const OperatorEditModal = (function () {
     currentCallbacks = callbacks || {};
     refresh();
     overlayEl.classList.remove("hidden");
+    if (!releaseFocus) releaseFocus = holdFocusIn(overlayEl.querySelector(".modalPanel"));
   }
 
   function close() {
     if (overlayEl) overlayEl.classList.add("hidden");
+    if (releaseFocus) {
+      releaseFocus();
+      releaseFocus = null;
+    }
     const callbacks = currentCallbacks;
     currentOp = null;
     currentEntry = null;
@@ -422,7 +421,6 @@ const OperatorEditModal = (function () {
     loadCharTable,
     defaultState,
     defaultTargetState,
-    maxState,
     maxPhase,
     maxLevelFor,
     maxMastery,

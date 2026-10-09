@@ -122,6 +122,7 @@ extra events -- see fetch_game_mode_theme_rows(). They're tagged with
 `mode`, given a fixed-length window when the wiki has no end date, and
 kept out of the lag model; see GAME_MODE_THEME_DAYS and build_events().
 """
+import hashlib
 import re
 from difflib import SequenceMatcher
 import os
@@ -417,8 +418,41 @@ def legacy_image_name(wiki_filename):
 def local_image_name(wiki_filename):
     """The mirrored file's local name: the legacy name with its extension
     swapped for .webp ("CN_Yet_Another_Wave_banner.png" ->
-    "CN_Yet_Another_Wave_banner.webp")."""
-    return os.path.splitext(legacy_image_name(wiki_filename))[0] + ".webp"
+    "CN_Yet_Another_Wave_banner.webp"). A wiki name with characters the
+    safe name had to replace (anything outside A-Z, 0-9, space, _ . -)
+    also gets a short hash of the full wiki name, so two names that differ
+    only in those characters ("Młynar icon.png" / "Mlynar icon.png", or a
+    Chinese title) can't end up sharing one file."""
+    stem = os.path.splitext(legacy_image_name(wiki_filename))[0]
+    if re.search(r"[^A-Za-z0-9 _.\-]", wiki_filename.strip()):
+        stem += "_" + hashlib.sha1(wiki_filename.strip().encode("utf8")).hexdigest()[:8]
+    return stem + ".webp"
+
+
+# Which wiki file (and which version of it, by the SHA-1 the wiki reports)
+# each mirrored image came from: {wiki filename: {"file": local name,
+# "sha1": ...}}. The wiki keeps a file's name when someone uploads new art
+# over it, so the name alone can't tell an updated image from an
+# unchanged one -- the SHA-1 can (see download_image()).
+def image_manifest_path():
+    return os.path.join(IMAGES_DIR, "manifest.json")
+
+
+def load_image_manifest():
+    try:
+        with open(image_manifest_path(), encoding="utf8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_image_manifest(manifest):
+    os.makedirs(IMAGES_DIR, exist_ok=True)
+    tmp = image_manifest_path() + ".tmp"
+    with open(tmp, "w", encoding="utf8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=0, sort_keys=True)
+    os.replace(tmp, image_manifest_path())
 
 
 def to_webp(data):
@@ -464,14 +498,6 @@ def write_mirrored_image(wiki_filename, data):
     return name
 
 
-def mirrored_image_exists(wiki_filename):
-    """Already mirrored, as WebP or as a not-yet-converted original."""
-    return any(
-        os.path.exists(os.path.join(IMAGES_DIR, n))
-        for n in (local_image_name(wiki_filename), legacy_image_name(wiki_filename))
-    )
-
-
 def resolve_image_urls(filenames):
     """Resolve a batch of bare wiki filenames to their real (CDN) upload
     URLs via MediaWiki's imageinfo API on api.php.
@@ -494,9 +520,11 @@ def resolve_image_urls(filenames):
     event banners) got an empty, non-JSON body back from every single
     one, something a low-volume run never hit; the pause is cheap
     insurance against whatever rate-limiting or bot-protection that was.
-    Returns {filename: resolved URL}, omitting any filename MediaWiki
+    Returns {filename: info}, omitting any filename MediaWiki
     can't resolve (e.g. renamed/deleted/never existed) -- never raises,
-    since one bad batch shouldn't take down the whole run."""
+    since one bad batch shouldn't take down the whole run. Each value is
+    {"url": ..., "sha1": ...} -- the SHA-1 of the wiki's current version
+    of the file, which is how a re-uploaded image is noticed."""
     resolved = {}
     filenames = list(filenames)
     batch_size = 50
@@ -508,7 +536,7 @@ def resolve_image_urls(filenames):
                 "action": "query",
                 "titles": "|".join(f"File:{f}" for f in batch),
                 "prop": "imageinfo",
-                "iiprop": "url",
+                "iiprop": "url|sha1",
                 "format": "json",
             }
             r = http_get(WIKI_API, params=params, headers=HEADERS)
@@ -519,7 +547,7 @@ def resolve_image_urls(filenames):
                 filename = title[len("File:") :] if title.startswith("File:") else title
                 imageinfo = page.get("imageinfo")
                 if imageinfo and imageinfo[0].get("url"):
-                    resolved[filename] = imageinfo[0]["url"]
+                    resolved[filename] = {"url": imageinfo[0]["url"], "sha1": imageinfo[0].get("sha1")}
         except Exception as exc:
             # r.text (not just the parse exception) is the useful part --
             # "Expecting value: line 1 column 1" alone just means "the body
@@ -536,54 +564,73 @@ def resolve_image_urls(filenames):
     return resolved
 
 
-def download_image(wiki_filename, resolved_url):
-    """Mirror one wiki banner into IMAGES_DIR from its already-resolved
-    URL (see resolve_image_urls()). Skips the download entirely if a
-    file with this name already exists locally -- the wiki filename
-    itself changes whenever the actual art changes (a rerun gets
-    " Rerun" appended to the filename, for example), so an unchanged
-    filename means an unchanged image, and only a new or changed banner
-    costs a request on any given run.
+def download_image(wiki_filename, info, manifest=None):
+    """Mirror one wiki image into IMAGES_DIR. `info` is its entry from
+    resolve_image_urls() ({"url", "sha1"}, or None if it couldn't be
+    resolved this run); `manifest` is the image manifest (see
+    load_image_manifest()), updated in place.
 
-    Returns the local filename on success, None on any failure (no
-    resolved URL, bad status, wrong content type, network error) --
-    never raises, since one bad image shouldn't take down the whole
-    run. Paces itself with REQUEST_PACING after every real network
-    request (see resolve_image_urls()'s docstring for why) -- but only
-    when it actually made one; the early returns above (already
-    mirrored, or no resolved URL to try) don't touch the network at
-    all, so there's nothing to pace there."""
+    An image already mirrored is only downloaded again when the wiki's
+    SHA-1 for it differs from the one recorded when it was mirrored -- the
+    wiki keeps the file name when new art is uploaded over it. One mirrored
+    before SHA-1s were recorded just has today's recorded, no download.
+    A failed re-download keeps the old copy.
+
+    Returns the local filename on success, None on any failure for a not
+    yet mirrored image (no resolved URL, bad status, wrong content type,
+    network error) -- never raises, since one bad image shouldn't take down
+    the whole run. Paces itself with REQUEST_PACING after every real
+    network request (see resolve_image_urls()'s docstring for why)."""
+    manifest = manifest if manifest is not None else {}
+    sha1 = (info or {}).get("sha1")
+    url = (info or {}).get("url")
     local_name = local_image_name(wiki_filename)
+    recorded = manifest.get(wiki_filename) or {}
+
+    def record(name):
+        entry = {"file": name}
+        if sha1 or recorded.get("sha1"):
+            entry["sha1"] = sha1 or recorded.get("sha1")
+        manifest[wiki_filename] = entry
+        return name
+
     if os.path.exists(os.path.join(IMAGES_DIR, local_name)):
-        return local_name
-    # Mirrored before images were stored as WebP: convert the local copy
-    # (no download needed) and remove the original. This is how the
-    # existing images migrate -- each on the first run that sees it.
-    legacy_name = legacy_image_name(wiki_filename)
-    legacy_path = os.path.join(IMAGES_DIR, legacy_name)
-    if legacy_name != local_name and os.path.exists(legacy_path):
-        with open(legacy_path, "rb") as f:
-            data = f.read()
-        written = write_mirrored_image(wiki_filename, data)
-        if written == local_name:
-            os.remove(legacy_path)
-        return written
-    if not resolved_url:
+        changed = sha1 and recorded.get("sha1") and recorded["sha1"] != sha1
+        if not changed:
+            return record(local_name)
+        print(f"Image {wiki_filename!r} changed on the wiki -- downloading the new version")
+    else:
+        # Mirrored before images were stored as WebP: convert the local copy
+        # (no download needed) and remove the original. This is how the
+        # existing images migrate -- each on the first run that sees it.
+        legacy_name = legacy_image_name(wiki_filename)
+        legacy_path = os.path.join(IMAGES_DIR, legacy_name)
+        if legacy_name != local_name and os.path.exists(legacy_path):
+            with open(legacy_path, "rb") as f:
+                data = f.read()
+            written = write_mirrored_image(wiki_filename, data)
+            if written == local_name:
+                os.remove(legacy_path)
+            return record(written)
+    have_copy = os.path.exists(os.path.join(IMAGES_DIR, local_name))
+    if not url:
+        if have_copy:
+            return local_name
         print(f"Skipping image {wiki_filename!r}: could not resolve a real URL for it")
         return None
     try:
-        r = http_get(resolved_url, headers=HEADERS)
+        r = http_get(url, headers=HEADERS)
         content_type = r.headers.get("Content-Type", "")
         if r.status_code != 200 or not content_type.startswith("image/"):
             print(
                 f"Skipping image {wiki_filename!r}: "
                 f"status={r.status_code} content-type={content_type!r}"
             )
-            return None
-        return write_mirrored_image(wiki_filename, r.content)
+            return local_name if have_copy else None
+        return record(write_mirrored_image(wiki_filename, r.content))
     except Exception as exc:
         print(f"Could not download image {wiki_filename!r}: {exc}")
-        return None
+        return local_name if have_copy else None
     finally:
         time.sleep(REQUEST_PACING)
 
@@ -598,29 +645,28 @@ def localize_images(events, operators_by_event=None):
     fails loses just its icon (the name/rarity/class stay), rather than
     linking to something broken or (as with the wiki directly) blocked.
 
-    Only filenames not already mirrored locally are resolved at all --
-    a single batched imageinfo call covering both event banners and
-    operator icons together, rather than one API round-trip per image
-    (or a second call just for icons), on top of the same skip-if-
-    already-downloaded caching download_image() does."""
+    Every image is resolved each run -- batched imageinfo calls covering
+    event banners and operator icons together, 50 per request -- because
+    the SHA-1 that comes back is how download_image() notices art that was
+    replaced on the wiki under the same name. Only new or changed images
+    are actually downloaded."""
     operators_by_event = operators_by_event or {}
     needed = set()
     for entry in events:
-        filename = entry.get("image")
-        if filename and not mirrored_image_exists(filename):
-            needed.add(filename)
+        if entry.get("image"):
+            needed.add(entry["image"])
     for op_list in operators_by_event.values():
         for op in op_list:
-            filename = op.get("icon")
-            if filename and not mirrored_image_exists(filename):
-                needed.add(filename)
-    resolved_urls = resolve_image_urls(needed) if needed else {}
+            if op.get("icon"):
+                needed.add(op["icon"])
+    resolved = resolve_image_urls(sorted(needed)) if needed else {}
+    manifest = load_image_manifest()
 
     cache = {}
 
     def mirror(filename):
         if filename not in cache:
-            cache[filename] = download_image(filename, resolved_urls.get(filename))
+            cache[filename] = download_image(filename, resolved.get(filename), manifest)
         return cache[filename]
 
     for entry in events:
@@ -648,6 +694,7 @@ def localize_images(events, operators_by_event=None):
     # routine and would just nag on every run, so only a pattern counts:
     # at least two failures making up half or more of what was attempted
     # is what a blocked/rate-limited image host looks like.
+    save_image_manifest(manifest)
     failed = sum(1 for v in cache.values() if v is None)
     if failed >= 2 and failed * 2 >= len(cache):
         note_degraded("images", f"{failed} of {len(cache)} image downloads failed this run")

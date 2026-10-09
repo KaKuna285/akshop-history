@@ -468,12 +468,12 @@ span.eventPreviewSkinChip {
   margin: 16px auto 24px;
   padding: 0 20px;
   font-size: 0.75rem;
-  color: #777;
+  color: #999;
   text-align: center;
 }
 
 #pageCredit a {
-  color: #999;
+  color: #bbb;
 }
 
 #pageCredit a:hover {
@@ -481,7 +481,7 @@ span.eventPreviewSkinChip {
 }
 
 .dataFreshness {
-  color: #666;
+  color: #999;
 }
 
 /* ---- Nav icon buttons (info / back), matching #homeButton's pattern of

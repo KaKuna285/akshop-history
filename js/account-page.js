@@ -308,10 +308,16 @@
 
     medalPreviewOverlayEl.classList.remove("hidden");
     medalPreviewOverlayEl.scrollTop = 0;
+    if (!releaseMedalPreviewFocus) releaseMedalPreviewFocus = holdFocusIn(medalPreviewEl);
   }
 
+  let releaseMedalPreviewFocus = null;
   function hideMedalPreview() {
     medalPreviewOverlayEl.classList.add("hidden");
+    if (releaseMedalPreviewFocus) {
+      releaseMedalPreviewFocus();
+      releaseMedalPreviewFocus = null;
+    }
   }
 
   medalPreviewCloseBtn.addEventListener("click", hideMedalPreview);

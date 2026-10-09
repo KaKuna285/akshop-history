@@ -41,10 +41,7 @@
   // the planner's edit card already is -- one copy, so the roster logic
   // here and the card can't disagree on what a valid state is.
   const {
-    maxPhase,
-    maxLevelFor,
     hasSkills,
-    maxMastery,
     clampState,
     defaultState,
     defaultTargetState,
@@ -297,10 +294,8 @@
   }
 
   // --- cost calculation ---------------------------------------------------
-  // addCosts()/calcOperatorCost() now live in util.js -- shared with the
-  // operator page's own "cost to fully max" table -- so calcOperatorCost()
-  // here takes gameConst explicitly rather than closing over this page's
-  // own module-level variable.
+  // addCosts()/calcOperatorCost() live in util.js and take gameConst
+  // explicitly.
 
   function calcRosterTotals() {
     const totals = { lmd: 0, exp: 0, materials: {} };
@@ -339,9 +334,15 @@
       });
   }
 
+  // charTable is a plain object, so "constructor" or "__proto__" (from a
+  // crafted ?add= link) would otherwise look like an operator.
+  function knownOperator(charId) {
+    return Object.prototype.hasOwnProperty.call(charTable, charId) ? charTable[charId] : null;
+  }
+
   function addOperator(charId) {
     if (roster.some((e) => e.charId === charId)) return;
-    const op = charTable[charId];
+    const op = knownOperator(charId);
     if (!op) return;
     const current = defaultState(op);
     const target = defaultTargetState(op);
@@ -364,7 +365,7 @@
       const added = [];
       const alreadyHad = [];
       for (const charId of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
-        const op = charTable[charId];
+        const op = knownOperator(charId);
         if (!op) continue; // unknown/stale charId in the URL -- ignore silently
         if (roster.some((e) => e.charId === charId)) {
           alreadyHad.push(op.name);
@@ -469,6 +470,7 @@
       if (!op) return;
       const card = document.createElement("div");
       card.className = "operatorCard";
+      card.dataset.focusKey = `roster:${entry.charId}`; // see holdFocusIn() in util.js
       card.setAttribute("role", "button");
       card.setAttribute("tabindex", "0");
 
@@ -1057,6 +1059,24 @@
   // since both read the exact same shared prefs section) -----------
 
   AccountSync.renderStatusLine(accountSyncPlannerStatusEl);
+
+  // Another tab changed the saved roster or depot (adding from an operator
+  // page or the calendar, an account sync, or this page open twice): load
+  // it again, so this tab's next save doesn't write its stale copy over
+  // that change. An open edit card is closed, since the entry it was
+  // editing may have moved or gone.
+  window.addEventListener("storage", (e) => {
+    if (e.key !== PREFS_KEY && e.key !== null) return; // null: storage cleared
+    if (!dataReady) return; // the boot sequence reads the saved data itself
+    if (OperatorEditModal.isOpen()) OperatorEditModal.close();
+    roster = loadRosterPref();
+    depot = loadDepotPref();
+    sanitizeRoster();
+    sanitizeDepot();
+    renderRoster();
+    renderDepot();
+    renderSummary();
+  });
 
   // --- boot -----------------------------------------------------------
 

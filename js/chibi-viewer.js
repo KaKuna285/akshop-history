@@ -128,7 +128,7 @@ const ChibiViewer = (() => {
     if (!pages.length) throw new Error("atlas has no pages");
     const parent = atlasUrl.slice(0, atlasUrl.lastIndexOf("/"));
     const raw = {};
-    await Promise.all(
+    await Promise.allSettled(
       pages.map(async (page) => {
         const url = myrtleAssetUrl(`${file.dir}/${page.name}`);
         const img = await loadImage(url);
@@ -144,7 +144,15 @@ const ChibiViewer = (() => {
         }
         raw[`${parent}/${page.name}`] = src;
       })
-    );
+    ).then((results) => {
+      // Waits for every page either way, so a failure can't leave a page
+      // still being converted -- then frees what was made and fails.
+      const failed = results.find((r) => r.status === "rejected");
+      if (failed) {
+        objectUrls.splice(0).forEach((u) => URL.revokeObjectURL(u));
+        throw failed.reason;
+      }
+    });
     return raw;
   }
 

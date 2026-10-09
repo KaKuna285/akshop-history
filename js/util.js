@@ -238,13 +238,86 @@ const DATA_BASE = {
 };
 // --- small helpers shared by the calendar and operator pages ----------
 
-// "Oct 8, 2026" (in the browser's locale) for a Date or anything Date can
-// parse; null for a missing or unparseable value.
+// The site's data writes timestamps without a timezone, in a few shapes:
+// "2020-12-10", "2020-12-10 16:00:00" (release dates), "2026-10-08T17:00:00"
+// (events), "2025/11/13 08:00" (shop history). This reads all of them the
+// same way in every browser: as that date and time on the viewer's own
+// clock, so a date shows as the day it says. (new Date()/Date.parse() on
+// anything but strict ISO is browser-specific -- Safari rejects
+// "2020-12-10 16:00:00" -- and treats a bare "2020-12-10" as UTC midnight,
+// which is the previous day anywhere west of UTC.) A string with an
+// explicit offset or "Z", a Date or a number goes through new Date().
+// Returns a Date, or null if there's nothing usable.
+function parseTimestamp(v) {
+  if (v == null || v === "") return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  if (typeof v === "number") return new Date(v);
+  const s = String(v).trim();
+  const m = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?)?$/.exec(s);
+  const d = m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) : new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// parseTimestamp() as epoch milliseconds, NaN if unusable.
+function timestampMs(v) {
+  const d = parseTimestamp(v);
+  return d ? d.getTime() : NaN;
+}
+
+// "Oct 8, 2026" (in the browser's locale) for a Date or a data timestamp
+// (see parseTimestamp()); null for a missing or unparseable value.
 function fmtDate(d) {
-  if (d == null) return null;
-  const date = d instanceof Date ? d : new Date(d);
-  if (isNaN(date.getTime())) return null;
+  const date = parseTimestamp(d);
+  if (!date) return null;
   return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+// Keyboard focus for the site's pop-up dialogs: moves focus into
+// `dialogEl` as it opens, keeps Tab / Shift+Tab cycling inside it while
+// it's open, and returns a release() to call when it closes, which puts
+// focus back on whatever had it before (usually the button that opened it).
+// If that element was re-rendered meanwhile (the planner redraws its cards
+// on every edit), its replacement is found by the same data-focus-key.
+function holdFocusIn(dialogEl) {
+  const previous = document.activeElement;
+  const focusables = () =>
+    Array.from(
+      dialogEl.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((el) => el.getClientRects().length);
+  const onKeyDown = (e) => {
+    if (e.key !== "Tab") return;
+    const items = focusables();
+    if (!items.length) {
+      e.preventDefault();
+      return;
+    }
+    const first = items[0];
+    const last = items[items.length - 1];
+    const inside = dialogEl.contains(document.activeElement);
+    if (e.shiftKey && (document.activeElement === first || !inside)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+  document.addEventListener("keydown", onKeyDown, true);
+  if (!dialogEl.hasAttribute("tabindex")) dialogEl.tabIndex = -1;
+  (focusables()[0] || dialogEl).focus({ preventScroll: true });
+  const focusKey = previous && previous.dataset ? previous.dataset.focusKey : null;
+  return function release() {
+    document.removeEventListener("keydown", onKeyDown, true);
+    let target = previous;
+    if (target && !document.contains(target) && focusKey) {
+      target = document.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
+    }
+    if (target && typeof target.focus === "function" && document.contains(target)) {
+      target.focus({ preventScroll: true });
+    }
+  };
 }
 
 // A whole-day number for comparing dates by day. events.json's
@@ -464,10 +537,8 @@ async function fixedJson(res) {
 }
 
 // The per-rarity/phase/level EXP+LMD curve and the per-rarity/phase Elite
-// promotion LMD cost -- used alongside calcOperatorCost() below. Used by
-// both the planner page (its own roster) and the operator page (a single
-// operator's "cost to fully max" table), so it lives here rather than
-// being fetched twice with two copies of this same normalization.
+// promotion LMD cost -- used alongside calcOperatorCost() below, by the
+// planner page.
 async function loadGameConst(server) {
   const res = await gameDataFetch(server, "gamedata_const");
   const json = await fixedJson(res);
@@ -505,10 +576,8 @@ function addCosts(cost, list) {
 // The LMD/EXP/materials needed to take one operator from `current` to
 // `target` (both { phase, level, skillLevel, mastery: {skillIdx: rank},
 // modules: {uniEquipId: stage} }, see the shared edit modal's
-// defaultState()/defaultTargetState()/maxState()). gameConst is a
-// loadGameConst() result. Shared by the planner page (summed across its
-// whole roster) and the operator page (a single E0/Lv1 -> everything-maxed
-// total).
+// defaultState()/defaultTargetState()). gameConst is a loadGameConst()
+// result. Used by the planner page, summed across its whole roster.
 function calcOperatorCost(op, current, target, gameConst) {
   const cost = { lmd: 0, exp: 0, materials: {} };
   const rarity = op.rarity; // already remapped to a 0-5 int by get_char_table()
@@ -611,7 +680,7 @@ function normalizeShopHistory(servdata, charTableForServer) {
       delete servdata[op];
       continue;
     }
-    data.banner.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+    data.banner.sort((a, b) => timestampMs(a.date) - timestampMs(b.date));
     data.isKernel = charTableForServer[data.charId]?.classicPotentialItemId != null;
     // The default avatar mirror is missing some icons, so a failed load
     // retries once from Aceship (same as setIconWithFallback()). imgReady
@@ -635,9 +704,9 @@ function normalizeShopHistory(servdata, charTableForServer) {
     // anywhere in the array makes Array.sort's comparisons with NaN
     // unreliable, which can silently leave a later (e.g. rerun) date in
     // slot 0.
-    data.first = Math.min(...data.banner.map((b) => Date.parse(b.date)));
+    data.first = Math.min(...data.banner.map((b) => timestampMs(b.date)));
     data.shop = data.shop
-      .map((entry) => ({ ...entry, date: Date.parse(entry.date) }))
+      .map((entry) => ({ ...entry, date: timestampMs(entry.date) }))
       .sort((a, b) => a.date - b.date);
     byCharId[data.charId] = data;
   }
@@ -804,76 +873,6 @@ if (typeof Chart !== "undefined") {
   ) {
     return tick.toLocaleString();
   };
-
-  Chart.register({
-    id: "imgsplit",
-    beforeDatasetDraw: function (chart, args, options) {
-      if (chart.config.options.split_images) {
-        let conflicts = {};
-        for (let i = 0; i < chart.data.datasets[0].data.length; i++) {
-          let pt = chart.data.datasets[0].data[i];
-          conflicts[pt.x] || (conflicts[pt.x] = {});
-          chart.data.datasets[0].pointStyle[i].conflict = 0;
-          if (pt.y in conflicts[pt.x]) {
-            conflicts[pt.x][pt.y] += 1;
-            chart.data.datasets[0].pointStyle[i].conflict =
-              conflicts[pt.x][pt.y];
-          } else {
-            conflicts[pt.x][pt.y] = 0;
-          }
-        }
-        for (let i = 0; i < chart.data.datasets[0].data.length; i++) {
-          let pt = chart.data.datasets[0].data[i];
-          chart.data.datasets[0].pointStyle[i].conflictCount =
-            conflicts[pt.x][pt.y] + 1;
-        }
-      }
-    },
-  });
-}
-
-function beforeDatasetDraw(chart, args) {
-  if (chart.animating || chart.$deferred.loaded) {
-    const { index: dataIndex, meta } = args;
-    const points = meta.data.map((el) => ({ x: el._model.x, y: el._model.y }));
-    const { length: dsLength } = chart.data.datasets;
-    const adjustedMap = []; // keeps track of adjustments to prevent double offsets
-
-    for (let datasetIndex = 0; datasetIndex < dsLength; datasetIndex += 1) {
-      if (dataIndex !== datasetIndex) {
-        const datasetMeta = chart.getDatasetMeta(datasetIndex);
-        datasetMeta.data.forEach((el) => {
-          const overlap = points.find(
-            (point) => point.x === el._model.x && point.y === el._model.y,
-          );
-          if (overlap) {
-            const adjusted = adjustedMap.find(
-              (item) =>
-                item.datasetIndex === datasetIndex &&
-                item.dataIndex === dataIndex,
-            );
-            if (!adjusted && datasetIndex % 2) {
-              el._model.x += 7;
-            } else {
-              el._model.x -= 7;
-            }
-            adjustedMap.push({ datasetIndex, dataIndex });
-          }
-        });
-      }
-    }
-  }
-}
-
-function getTextWidth(text, font) {
-  // re-use canvas object for better performance
-  const canvas =
-    getTextWidth.canvas ||
-    (getTextWidth.canvas = document.createElement("canvas"));
-  const context = canvas.getContext("2d");
-  context.font = font;
-  const metrics = context.measureText(text);
-  return metrics.width;
 }
 
 function htmlDecode(input) {
@@ -884,37 +883,8 @@ function selectColor(number, saturation = 15, lightness = 60) {
   const hue = number * 137.508; // use golden angle approximation
   return `hsl(${hue},${saturation}%,${lightness}%)`;
 }
-window.onload = () => {
+// The page title links back to the page itself (without its query).
+window.addEventListener("load", () => {
   const title = document.getElementById("pageTitle");
   if (title) title.href = location.origin + location.pathname;
-
-  const serverSelect = document.getElementById("serverSelect");
-  if (serverSelect) {
-    const dd_content = serverSelect.querySelector(".dropdown-content");
-    const dd_btn = serverSelect.querySelector(".dropbtn");
-    Object.keys(SERVERS).forEach((k) => {
-      let opt = document.createElement("div");
-      opt.dataset.value = SERVERS[k];
-      opt.innerHTML = k;
-      opt.onclick = () => {
-        localStorage.setItem("server", SERVERS[k]);
-        sessionStorage.setItem("userChange", true);
-        location.reload();
-      };
-      dd_content.appendChild(opt);
-      if ((localStorage.getItem("server") || "en_US") == SERVERS[k])
-        dd_btn.firstChild.nodeValue = k;
-    });
-    // click handlers for mobile
-    dd_btn.onclick = () => {
-      dd_content.classList.toggle("show");
-      dd_btn.classList.toggle("checked");
-    };
-    window.addEventListener("click", (e) => {
-      if (e.target != dd_btn) {
-        dd_content.classList.remove("show");
-        dd_btn.classList.remove("checked");
-      }
-    });
-  }
-};
+});

@@ -111,7 +111,7 @@ To regenerate any of the data yourself, run the scripts from inside
 `akgcc-extra-data/` (they import `common.py` from there and write to
 `json/`), in the same order as the workflow: `shop_operators.py`,
 `operator_online.py`, `events.py`, `game_data.py`, then `health.py`. They
-need `requests` and `pillow` (`pip install requests pillow`).
+need `requests` and `pillow` (`pip install -r requirements.txt` in that folder, pinned versions).
 
 ## Game data (slim copies)
 
@@ -302,11 +302,15 @@ that same run succeeded normally (`robots.txt` singles out the `Special:`
 namespace specifically). CORP only restricts a *browser* embedding a
 cross-origin resource in the first place, not a plain server-side
 request, so none of this is affected by it - `localize_images()` then
-rewrites the event's `image` field to point at this repo's own copy. A
-file is only downloaded the first time its exact wiki filename is seen (a
-changed banner gets a new filename upstream, e.g. " Rerun" appended), so
-`images/` only grows by what's new or changed on any given run, and the
-workflow's commit step picks it up alongside `json/*.json`.
+rewrites the event's `image` field to point at this repo's own copy.
+Every run asks the wiki for each image's current SHA-1 (in the same
+batched `imageinfo` calls), and `images/manifest.json` records which wiki
+file and SHA-1 each local copy came from - so an image is only downloaded
+when it's new, or when someone uploaded new art over the same wiki file
+name. A wiki name with characters the local name can't keep (non-ASCII
+letters, say) gets a short hash added, so two such names can't share a
+file. `images/` only grows by what's new or changed on any given run, and
+the workflow's commit step picks it up alongside `json/*.json`.
 
 Mirrored images are stored as **WebP, scaled down to at most 1280 px
 wide** (`to_webp()` / `write_mirrored_image()`, using Pillow). The wiki's

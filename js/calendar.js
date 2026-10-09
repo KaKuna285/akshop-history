@@ -120,8 +120,13 @@
     return `${startMonth} ${startYear} – ${endMonth} ${endYear}`;
   }
 
+  // A whole-day number in the viewer's own calendar, for a Date or a data
+  // timestamp (parsed by parseTimestamp() in util.js -- the date the data
+  // says, whatever the viewer's timezone). NaN if unusable.
   function toDayNum(d) {
-    const c = new Date(d);
+    const p = parseTimestamp(d);
+    if (!p) return NaN;
+    const c = new Date(p.getTime());
     c.setHours(0, 0, 0, 0);
     return Math.floor(c.getTime() / DAY_MS);
   }
@@ -133,21 +138,17 @@
   // than trust it, every place that needs "the end of this window" goes
   // through this helper instead of reading globalEnd/cnEnd directly.
   function effectiveEnd(startIso, endIso) {
-    const start = new Date(startIso);
-    if (!endIso) return start;
-    const end = new Date(endIso);
+    const start = parseTimestamp(startIso);
+    const end = parseTimestamp(endIso);
+    if (!end || !start) return start || end;
     return end < start ? start : end;
   }
 
   function fmtRange(startIso, endIso) {
     if (!startIso) return "Unknown";
     if (!endIso) return fmtDate(startIso);
-    if (new Date(endIso) < new Date(startIso)) return fmtDate(startIso);
+    if (timestampMs(endIso) < timestampMs(startIso)) return fmtDate(startIso);
     return `${fmtDate(startIso)} – ${fmtDate(endIso)}`;
-  }
-
-  function daysBetween(a, b) {
-    return Math.round((b - a) / DAY_MS);
   }
 
   // Best-effort "this event looks tied to these new operators" match, used
@@ -206,11 +207,19 @@
     }
   }
 
-  function countdownLabel(globalStartIso, now) {
-    const d = daysBetween(now, new Date(globalStartIso));
-    if (d === 0) return "today";
-    if (d > 0) return `in ${d} day${d === 1 ? "" : "s"}`;
-    return `${-d} day${d === -1 ? "" : "s"} ago`;
+  // Whole calendar days, not hours: an event starting later today is
+  // "today", not "in 1 day" or "0 days ago" depending on the clock. An
+  // event that has started but not ended yet is running, not "N days ago".
+  function countdownLabel(ev, now) {
+    const today = toDayNum(now);
+    const start = toDayNum(ev.globalStart);
+    const end = toDayNum(effectiveEnd(ev.globalStart, ev.globalEnd));
+    if (isNaN(start)) return "";
+    const plural = (n) => `${n} day${n === 1 ? "" : "s"}`;
+    if (start > today) return start - today === 1 ? "tomorrow" : `in ${plural(start - today)}`;
+    if (start === today) return "starts today";
+    if (today <= end) return end === today ? "running \u2013 ends today" : `running \u2013 ${plural(end - today)} left`;
+    return `ended ${plural(today - end)} ago`;
   }
 
   // Confirmed events are exactly what Yostar has set. An event that's
@@ -242,8 +251,8 @@
     if (!Array.isArray(h) || h.length < 2) return null;
     const last = h[h.length - 1];
     const prev = h[h.length - 2];
-    const at = new Date(last.at);
-    if (isNaN(at) || now.getTime() - at.getTime() > RECENT_CHANGE_DAYS * DAY_MS) return null;
+    const at = parseTimestamp(last.at);
+    if (!at || now.getTime() - at.getTime() > RECENT_CHANGE_DAYS * DAY_MS) return null;
     const days = toDayNum(last.start) - toDayNum(prev.start);
     const by = Math.abs(days);
     const shift = `${by} day${by === 1 ? "" : "s"} ${days > 0 ? "later" : "earlier"}`;
@@ -380,7 +389,7 @@
     dates.appendChild(globalLine);
     const countdown = document.createElement("div");
     countdown.className = "countdown";
-    countdown.textContent = countdownLabel(ev.globalStart, new Date());
+    countdown.textContent = countdownLabel(ev, new Date());
     dates.appendChild(countdown);
     eventPreviewBodyEl.appendChild(dates);
 
@@ -684,7 +693,7 @@
 
     const countdown = document.createElement("span");
     countdown.className = "countdown";
-    countdown.textContent = countdownLabel(ev.globalStart, now);
+    countdown.textContent = countdownLabel(ev, now);
     dates.appendChild(countdown);
 
     card.appendChild(name);
@@ -715,7 +724,7 @@
   function computeFilteredRanges() {
     return applyFilter(allEvents).map((ev) => ({
       ev,
-      startDay: toDayNum(new Date(ev.globalStart)),
+      startDay: toDayNum(ev.globalStart),
       endDay: toDayNum(effectiveEnd(ev.globalStart, ev.globalEnd)),
     }));
   }
@@ -724,22 +733,26 @@
     const now = new Date();
     const filtered = applyFilter(allEvents);
 
-    const upcoming = filtered.filter((e) => new Date(e.globalStart) >= now);
-    const past = filtered.filter((e) => new Date(e.globalStart) < now);
+    // By calendar day: anything that hasn't ended yet -- including events
+    // running right now -- is under "Now and upcoming".
+    const today = toDayNum(now);
+    const isPast = (e) => toDayNum(effectiveEnd(e.globalStart, e.globalEnd)) < today;
+    const upcoming = filtered.filter((e) => !isPast(e));
+    const past = filtered.filter(isPast);
 
     if (sortMode === "name") {
       upcoming.sort((a, b) => a.event.localeCompare(b.event));
       past.sort((a, b) => a.event.localeCompare(b.event));
     } else {
-      upcoming.sort((a, b) => new Date(a.globalStart) - new Date(b.globalStart));
-      past.sort((a, b) => new Date(b.globalStart) - new Date(a.globalStart));
+      upcoming.sort((a, b) => timestampMs(a.globalStart) - timestampMs(b.globalStart));
+      past.sort((a, b) => timestampMs(b.globalStart) - timestampMs(a.globalStart));
     }
 
     upcomingEl.innerHTML = "";
     if (upcoming.length === 0) {
       const empty = document.createElement("div");
       empty.className = "eventListEmpty";
-      empty.textContent = "Nothing upcoming matches the current filters.";
+      empty.textContent = "Nothing running or upcoming matches the current filters.";
       upcomingEl.appendChild(empty);
     } else {
       for (const ev of upcoming) upcomingEl.appendChild(buildCard(ev, now));
