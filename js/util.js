@@ -436,6 +436,8 @@ const GAMEPRESS_NAME_MAP = {
   "Reed the Flame Shadow": "Reed The Flame Shadow",
   "Fang the Fire-Sharpened": "Fang the Fire-sharpened",
   "Eyjafjalla the Hvit Aska": "Eyjafjalla the Hvít Aska",
+  // Not in the EN game data yet; the wiki's EN name -> her CN appellation.
+  "Kal'tsit - Esperanta": "Kal'tsit·Esperanta",
 };
 const charIdMap = {};
 // maps some en names to their appellations
