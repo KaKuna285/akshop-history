@@ -63,6 +63,11 @@
     return { text, level, days };
   }
 
+  // Headhunting costs 600 Orundum per pull; Originite Prime converts to
+  // 180 Orundum each.
+  const ORUNDUM_PER_PULL = 600;
+  const ORUNDUM_PER_PRIME = 180;
+
   function renderProfile(account) {
     const label = account.level != null ? `${account.nickname} (Lv ${account.level})` : account.nickname;
     nameEl.textContent = label;
@@ -94,6 +99,51 @@
       depotLine.textContent = `Depot: ${itemCount.toLocaleString()} item${itemCount === 1 ? "" : "s"} tracked in the Operator Planner.`;
       metaEl.appendChild(depotLine);
     }
+
+    const pulls = pullCounts(depot);
+    if (pulls.standard || pulls.withPrime || pulls.kernel) {
+      const pullsEl = document.createElement("div");
+      pullsEl.className = "accountPagePulls";
+      const line = (label, text, title) => {
+        const row = document.createElement("div");
+        const strong = document.createElement("strong");
+        strong.textContent = label + ": ";
+        row.appendChild(strong);
+        row.appendChild(document.createTextNode(text));
+        row.title = title;
+        pullsEl.appendChild(row);
+      };
+      line(
+        "Pulls",
+        pulls.withPrime > pulls.standard
+          ? `${pulls.standard.toLocaleString()} (${pulls.withPrime.toLocaleString()} with Originite Prime)`
+          : pulls.standard.toLocaleString(),
+        `Headhunting Permits + Ten-roll Permits x10 + Orundum / ${ORUNDUM_PER_PULL}. ` +
+          `In parentheses: also converting Originite Prime at ${ORUNDUM_PER_PRIME} Orundum each.`,
+      );
+      if (pulls.kernel) {
+        line("Kernel pulls", pulls.kernel.toLocaleString(), "Kernel Headhunting Permits + Ten-roll Kernel Permits x10 (Kernel banners only).");
+      }
+      metaEl.appendChild(pullsEl);
+    }
+  }
+
+  // Headhunting pulls the depot can pay for. Standard pulls come from
+  // permits and Orundum; withPrime also converts Originite Prime into
+  // Orundum. Kernel permits only work on Kernel banners, so they're
+  // counted separately. Banner-specific limited permits aren't counted.
+  function pullCounts(depot) {
+    const n = (id) => {
+      const v = depot[id];
+      return typeof v === "number" && v > 0 ? Math.floor(v) : 0;
+    };
+    const permits = n("7003") + 10 * n("7004");
+    const orundum = n("4003");
+    return {
+      standard: permits + Math.floor(orundum / ORUNDUM_PER_PULL),
+      withPrime: permits + Math.floor((orundum + n("4002") * ORUNDUM_PER_PRIME) / ORUNDUM_PER_PULL),
+      kernel: n("classic_gacha") + 10 * n("classic_gacha_10"),
+    };
   }
 
   // --- tabs (Operators / Medals) ------------------------------------------

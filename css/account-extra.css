@@ -72,6 +72,14 @@
   line-height: 1.6;
 }
 
+.accountPagePulls {
+  margin-top: 4px;
+}
+
+.accountPagePulls strong {
+  color: #eee;
+}
+
 .accountPageFreshness {
   font-weight: bold;
 }

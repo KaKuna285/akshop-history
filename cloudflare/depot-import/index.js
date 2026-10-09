@@ -717,18 +717,44 @@ function extractOwnedSkins(user) {
 // The depot the planner stores: itemId -> count, from the account's
 // inventory plus the currencies and the EXP total described below.
 export function buildDepot(user) {
-  // LMD, Orundum and Originite Prime aren't part of "inventory": they're
-  // currency fields on status, merged in under their item ids. Originite
-  // Prime is tracked per platform; this logs in as an Android device, so
-  // androidDiamond is what that client shows (iosDiamond as a fallback).
+  // Currencies and headhunting permits aren't part of "inventory": they're
+  // counters on status, merged in under their item ids (the same mapping
+  // as arkprts' Status.basic_item_inventory). Originite Prime is bought +
+  // earned; androidDiamond/iosDiamond are an older per-platform shape.
+  // Kernel permits aren't in that mapping, and where the game keeps them
+  // hasn't been checked against a real response: they're read from
+  // inventory when listed there, else from status.classicGachaTicket /
+  // classicTenGachaTicket, else from unexpired `consumable` entries.
   const depot = { ...(user?.inventory || {}) };
   const status = user?.status || {};
-  const currencies = {
+  const num = (v) => (typeof v === "number" ? v : null);
+  const prime =
+    num(status.payDiamond) !== null || num(status.freeDiamond) !== null
+      ? (num(status.payDiamond) || 0) + (num(status.freeDiamond) || 0)
+      : num(status.androidDiamond) ?? num(status.iosDiamond);
+  const counters = {
     4001: status.gold, // LMD
     4003: status.diamondShard, // Orundum
-    4002: typeof status.androidDiamond === "number" ? status.androidDiamond : status.iosDiamond, // Originite Prime
+    4002: prime, // Originite Prime
+    7003: status.gachaTicket, // Headhunting Permit
+    7004: status.tenGachaTicket, // Ten-roll Headhunting Permit
   };
-  for (const [itemId, count] of Object.entries(currencies)) {
+  const consumableCount = (itemId) => {
+    const entries = user?.consumable?.[itemId];
+    if (!entries || typeof entries !== "object") return null;
+    const now = Date.now() / 1000;
+    let total = 0;
+    for (const e of Object.values(entries)) {
+      if (!e || typeof e.count !== "number") continue;
+      if (typeof e.ts === "number" && e.ts > 0 && e.ts < now) continue; // expired
+      total += e.count;
+    }
+    return total;
+  };
+  for (const [itemId, statusField] of [["classic_gacha", "classicGachaTicket"], ["classic_gacha_10", "classicTenGachaTicket"]]) {
+    if (depot[itemId] === undefined) counters[itemId] = num(status[statusField]) ?? consumableCount(itemId);
+  }
+  for (const [itemId, count] of Object.entries(counters)) {
     if (typeof count === "number" && count > 0) depot[itemId] = count;
   }
 

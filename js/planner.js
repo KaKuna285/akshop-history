@@ -63,6 +63,8 @@
   // Orundum and Originite Prime aren't upgrade costs; they're listed for
   // reference only.
   const CURRENCY_ITEM_IDS = [LMD_ITEM_ID, EXP_ITEM_ID, "4003", "4002"];
+  // Standard and Kernel headhunting permits, listed after the currencies.
+  const PERMIT_ITEM_IDS = ["7003", "7004", "classic_gacha", "classic_gacha_10"];
 
   const planLinkStatusEl = document.getElementById("planLinkStatus");
   const tabBtnRoster = document.getElementById("tabBtnRoster");
@@ -784,10 +786,12 @@
     // Same grouping as the Roster tab's "materials needed" list (see
     // renderSummary()/categorizeMaterial()), with the currencies in their
     // own section at the top.
-    const currencyIds = CURRENCY_ITEM_IDS.filter((id) => Object.prototype.hasOwnProperty.call(depot, id));
+    const inDepot = (id) => Object.prototype.hasOwnProperty.call(depot, id);
+    const currencyIds = CURRENCY_ITEM_IDS.filter(inDepot);
+    const permitIds = PERMIT_ITEM_IDS.filter(inDepot);
     const buckets = { chip: [], skill: [], module: [], farm: [] };
     for (const id of ids) {
-      if (CURRENCY_ITEM_IDS.includes(id)) continue;
+      if (CURRENCY_ITEM_IDS.includes(id) || PERMIT_ITEM_IDS.includes(id)) continue;
       buckets[categorizeMaterial(id)].push(id);
     }
     for (const key of Object.keys(buckets)) buckets[key].sort(byRarityThenName);
@@ -805,6 +809,10 @@
     if (currencyIds.length) {
       appendHeading("summaryCategoryHeading", "Currencies & EXP");
       appendRows(currencyIds);
+    }
+    if (permitIds.length) {
+      appendHeading("summaryCategoryHeading", "Headhunting Permits");
+      appendRows(permitIds);
     }
     if (buckets.chip.length) {
       appendHeading("summaryCategoryHeading", "Chips");
