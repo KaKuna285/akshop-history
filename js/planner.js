@@ -234,7 +234,7 @@
 
     // Includes LMD and EXP, so they can be added to the depot.
     itemList = Object.values(itemTable)
-      .filter((it) => it && it.name)
+      .filter((it) => it && it.name && !hiddenInGame(it.itemId))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -678,11 +678,21 @@
   // Cleans up a saved depot (possibly stale or hand-edited): drops
   // non-positive counts and unknown items (held instead while the CN data
   // is missing, like sanitizeRoster()), and floors counts to integers.
+  // Items the game itself keeps out of its depot screen (classifyType
+  // "NONE": event progress keys, faction prestige, ...). Account sync
+  // imports the whole inventory, so these are dropped here. EXP is also
+  // "NONE" in the game data, but the planner uses it as the EXP total.
+  function hiddenInGame(id) {
+    const it = itemTable[id];
+    return !!it && it.classifyType === "NONE" && id !== EXP_ITEM_ID;
+  }
+
   function sanitizeDepot() {
     const clean = {};
     heldDepot = {};
     for (const [id, count] of Object.entries(depot)) {
       if (!Number.isFinite(count) || count <= 0) continue;
+      if (hiddenInGame(id)) continue;
       if (Object.prototype.hasOwnProperty.call(itemTable, id)) clean[id] = Math.floor(count);
       else if (!cnDataLoaded) heldDepot[id] = Math.floor(count); // see heldRoster
     }

@@ -110,7 +110,9 @@ UNIEQUIP = {
 }
 UNIEQUIP["itemCost"] = True  # dict keyed "1"/"2"/"3" -> cost lists; kept whole
 
-ITEM = {"itemId": True, "name": True, "iconId": True, "rarity": True}
+# classifyType "NONE" marks items the game keeps out of its depot screen
+# (event progress keys, faction prestige, ...); the planner hides them too.
+ITEM = {"itemId": True, "name": True, "iconId": True, "rarity": True, "classifyType": True}
 
 SKILL = {
     "iconId": True,
