@@ -59,6 +59,10 @@
   // the LMD/EXP totals rather than appearing as material rows.
   const LMD_ITEM_ID = "4001";
   const EXP_ITEM_ID = "5001";
+  // Shown first in the depot, in this order, under their own heading.
+  // Orundum and Originite Prime aren't upgrade costs; they're listed for
+  // reference only.
+  const CURRENCY_ITEM_IDS = [LMD_ITEM_ID, EXP_ITEM_ID, "4003", "4002"];
 
   const planLinkStatusEl = document.getElementById("planLinkStatus");
   const tabBtnRoster = document.getElementById("tabBtnRoster");
@@ -778,13 +782,12 @@
     };
 
     // Same grouping as the Roster tab's "materials needed" list (see
-    // renderSummary()/categorizeMaterial()), with LMD and EXP in their own
-    // section at the top.
-    const currencyIds = ids.filter((id) => id === LMD_ITEM_ID || id === EXP_ITEM_ID);
-    currencyIds.sort((a) => (a === LMD_ITEM_ID ? -1 : 1));
+    // renderSummary()/categorizeMaterial()), with the currencies in their
+    // own section at the top.
+    const currencyIds = CURRENCY_ITEM_IDS.filter((id) => Object.prototype.hasOwnProperty.call(depot, id));
     const buckets = { chip: [], skill: [], module: [], farm: [] };
     for (const id of ids) {
-      if (id === LMD_ITEM_ID || id === EXP_ITEM_ID) continue;
+      if (CURRENCY_ITEM_IDS.includes(id)) continue;
       buckets[categorizeMaterial(id)].push(id);
     }
     for (const key of Object.keys(buckets)) buckets[key].sort(byRarityThenName);
@@ -800,7 +803,7 @@
     };
 
     if (currencyIds.length) {
-      appendHeading("summaryCategoryHeading", "LMD & EXP");
+      appendHeading("summaryCategoryHeading", "Currencies & EXP");
       appendRows(currencyIds);
     }
     if (buckets.chip.length) {

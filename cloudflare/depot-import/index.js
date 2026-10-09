@@ -714,6 +714,37 @@ function extractOwnedSkins(user) {
   return Object.keys(out).length ? out : null;
 }
 
+// The depot the planner stores: itemId -> count, from the account's
+// inventory plus the currencies and the EXP total described below.
+export function buildDepot(user) {
+  // LMD, Orundum and Originite Prime aren't part of "inventory": they're
+  // currency fields on status, merged in under their item ids. Originite
+  // Prime is tracked per platform; this logs in as an Android device, so
+  // androidDiamond is what that client shows (iosDiamond as a fallback).
+  const depot = { ...(user?.inventory || {}) };
+  const status = user?.status || {};
+  const currencies = {
+    4001: status.gold, // LMD
+    4003: status.diamondShard, // Orundum
+    4002: typeof status.androidDiamond === "number" ? status.androidDiamond : status.iosDiamond, // Originite Prime
+  };
+  for (const [itemId, count] of Object.entries(currencies)) {
+    if (typeof count === "number" && count > 0) depot[itemId] = count;
+  }
+
+  // Combine the four Battle Record card counts into the single "EXP
+  // owned" total under EXP_ITEM_ID ("5001"), same convention as LMD
+  // above. The individual cards are left in the depot too (under their
+  // own real ids), so they still show up as their own rows.
+  let expTotal = 0;
+  for (const [itemId, expPerUnit] of Object.entries(BATTLE_RECORD_EXP_VALUES)) {
+    const count = depot[itemId];
+    if (typeof count === "number" && count > 0) expTotal += count * expPerUnit;
+  }
+  if (expTotal > 0) depot["5001"] = expTotal;
+  return depot;
+}
+
 async function fetchDepot(email, code) {
   const emailToken = await submitEmailCode(email, code);
   const { channelUid, accessToken } = await getYostarToken(email, emailToken);
@@ -725,24 +756,7 @@ async function fetchDepot(email, code) {
   const secret = await getGameSecret(network.gs, uid, u8Token, versions, deviceIds);
   const user = await getInventory(network.gs, uid, secret);
 
-  // LMD isn't part of "inventory" -- it's its own currency field,
-  // status.gold -- so merge it in under the itemId the planner uses for
-  // LMD ("4001").
-  const depot = { ...user.inventory };
-  if (typeof user?.status?.gold === "number" && user.status.gold > 0) {
-    depot["4001"] = user.status.gold;
-  }
-
-  // Combine the four Battle Record card counts into the single "EXP
-  // owned" total under EXP_ITEM_ID ("5001"), same convention as LMD
-  // above. The individual cards are left in the depot too (under their
-  // own real ids), so they still show up as their own rows.
-  let expTotal = 0;
-  for (const [itemId, expPerUnit] of Object.entries(BATTLE_RECORD_EXP_VALUES)) {
-    const count = user.inventory[itemId];
-    if (typeof count === "number" && count > 0) expTotal += count * expPerUnit;
-  }
-  if (expTotal > 0) depot["5001"] = expTotal;
+  const depot = buildDepot(user);
 
   return {
     depot,
