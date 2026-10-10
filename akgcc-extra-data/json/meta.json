@@ -1,27 +1,27 @@
 {
- "generatedAt": "2026-10-10T07:05:22.900368+00:00",
+ "generatedAt": "2026-10-10T10:46:26.499180+00:00",
  "ok": false,
- "problemRuns": 1,
+ "problemRuns": 2,
  "steps": {
   "shop": {
    "label": "Shop history",
    "outcome": "success",
-   "lastSuccess": "2026-10-10T07:05:22.900368+00:00"
+   "lastSuccess": "2026-10-10T10:46:26.499180+00:00"
   },
   "operators": {
    "label": "Operator release dates",
    "outcome": "success",
-   "lastSuccess": "2026-10-10T07:05:22.900368+00:00"
+   "lastSuccess": "2026-10-10T10:46:26.499180+00:00"
   },
   "events": {
    "label": "Event calendar",
    "outcome": "success",
-   "lastSuccess": "2026-10-10T07:05:22.900368+00:00"
+   "lastSuccess": "2026-10-10T10:46:26.499180+00:00"
   },
   "gamedata": {
    "label": "Game data",
    "outcome": "success",
-   "lastSuccess": "2026-10-10T07:05:22.900368+00:00"
+   "lastSuccess": "2026-10-10T10:46:26.499180+00:00"
   }
  },
  "counts": {
