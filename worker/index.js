@@ -14,7 +14,10 @@
 // ever, instead of once per visitor:
 //
 //   1. Cloudflare's edge cache, if this data centre has it.
-//   2. R2. Kept indefinitely: these files don't change after release.
+//   2. R2. Kept indefinitely. Sources with recheckDays (the CN dump, which
+//      gets corrected after patches) are asked "has this changed?" when a
+//      stored copy is that old, in the background, and the copy is
+//      replaced if it has (see recheck()).
 //   3. The source. A 200 that really is the file type asked for (see
 //      looksValid()) is copied into R2 and served. A 404 is only
 //      remembered in the edge cache, for a day -- not in R2, so requests
@@ -40,6 +43,10 @@ const SOURCES = {
     // characters/<charId>/<portraitId>[b].png -- default and skin art alike
     upstream: "https://raw.githubusercontent.com/ArknightsAssets/ArknightsAssets2/cn/assets/dyn/arts/",
     allowed: [{ prefix: "characters/", ext: ["png"] }],
+    // The dump's files can be corrected later, so stored copies are
+    // re-checked weekly and cached for a day instead of a year.
+    recheckDays: 7,
+    cacheControl: "public, max-age=86400",
   },
 };
 const CONTENT_TYPES = {
@@ -127,11 +134,16 @@ async function handleMirror(request, env, ctx) {
   };
 
   const key = `${source}/${path}`;
+  const src = SOURCES[source];
+  const foundCache = src.cacheControl || FOUND_CACHE;
   const stored = await env.MIRROR.get(key);
   // Objects with missingSince metadata are leftover 404 markers: treat them
   // as missing (they get overwritten if the file turns up).
   if (stored && !(stored.customMetadata && stored.customMetadata.missingSince)) {
-    return finish(respond(200, stored.body, path, FOUND_CACHE, { "x-mirror": "r2" }));
+    if (src.recheckDays && recheckDue(stored, src.recheckDays)) {
+      ctx.waitUntil(recheck(env, request, source, path, key, stored));
+    }
+    return finish(respond(200, stored.body, path, foundCache, { "x-mirror": "r2" }));
   }
 
   if (env.UPSTREAM_LIMITER) {
@@ -147,7 +159,7 @@ async function handleMirror(request, env, ctx) {
 
   let upstream;
   try {
-    upstream = await fetch(SOURCES[source].upstream + encodePath(path), { headers: { "user-agent": "ak.athansson.com mirror (one fetch per file)" } });
+    upstream = await fetch(src.upstream + encodePath(path), { headers: { "user-agent": USER_AGENT } });
   } catch (err) {
     return respond(502, "Upstream fetch failed", null, "no-store");
   }
@@ -165,8 +177,67 @@ async function handleMirror(request, env, ctx) {
     console.log(`not storing ${path}: upstream 200 doesn't look like a .${ext} (${body.byteLength} bytes)`);
     return respond(502, "Upstream returned an invalid file", null, "no-store");
   }
-  ctx.waitUntil(env.MIRROR.put(key, body, { httpMetadata: { contentType: CONTENT_TYPES[path.slice(path.lastIndexOf(".") + 1)] } }));
-  return finish(respond(200, body, path, FOUND_CACHE, { "x-mirror": "upstream" }));
+  ctx.waitUntil(env.MIRROR.put(key, body, storeOptions(path, upstream)));
+  return finish(respond(200, body, path, foundCache, { "x-mirror": "upstream" }));
+}
+
+const USER_AGENT = "ak.athansson.com mirror (one fetch per file)";
+
+// R2 put options: the content type, plus when the source was last checked
+// and its ETag, for recheck().
+function storeOptions(path, upstream) {
+  const customMetadata = { checkedAt: String(Date.now()) };
+  const etag = upstream && upstream.headers.get("etag");
+  if (etag) customMetadata.etag = etag;
+  return { httpMetadata: { contentType: CONTENT_TYPES[path.slice(path.lastIndexOf(".") + 1)] }, customMetadata };
+}
+
+// Whether a stored copy was last checked against its source more than
+// `days` ago (copies stored before checks existed count from upload).
+export function recheckDue(stored, days, now = Date.now()) {
+  const meta = stored.customMetadata || {};
+  const last = Number(meta.checkedAt) || (stored.uploaded ? new Date(stored.uploaded).getTime() : 0);
+  return now - last > days * 86400000;
+}
+
+// Asks the source whether a stored file changed (If-None-Match with the
+// ETag saved when it was stored) and replaces the R2 copy if it did.
+// Runs after the stored copy has been served; anything that goes wrong
+// just leaves the copy as it is, to be checked again on a later request.
+// The edge cache keeps serving the old copy until it expires (a day), then
+// picks up the new one from R2.
+async function recheck(env, request, source, path, key, stored) {
+  try {
+    if (env.UPSTREAM_LIMITER) {
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const { success } = await env.UPSTREAM_LIMITER.limit({ key: ip });
+      if (!success) return;
+    }
+    const headers = { "user-agent": USER_AGENT };
+    const etag = stored.customMetadata && stored.customMetadata.etag;
+    if (etag) headers["if-none-match"] = etag;
+    const upstream = await fetch(SOURCES[source].upstream + encodePath(path), { headers });
+    let body;
+    if (upstream.status === 304) {
+      // Unchanged. R2 metadata can only be changed by writing the object
+      // again, so rewrite the same bytes with a new checkedAt.
+      const current = await env.MIRROR.get(key);
+      if (!current) return;
+      body = await current.arrayBuffer();
+    } else if (upstream.ok) {
+      body = await upstream.arrayBuffer();
+      const ext = path.slice(path.lastIndexOf(".") + 1);
+      if (!looksValid(ext, body)) return;
+      console.log(`mirror: refreshed ${key} from the source`);
+    } else {
+      return; // gone or failing upstream: keep serving the stored copy
+    }
+    const options = storeOptions(path, upstream.status === 304 ? null : upstream);
+    if (upstream.status === 304 && etag) options.customMetadata.etag = etag;
+    await env.MIRROR.put(key, body, options);
+  } catch (err) {
+    console.log(`mirror: recheck of ${key} failed: ${err}`);
+  }
 }
 
 export default {

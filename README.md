@@ -37,7 +37,10 @@ Everything is a static site (no build step) plus a daily data pipeline:
   shows - from myrtle.moe (`/mirror/myrtle/`), and for CN-only operators
   and skins, which myrtle.moe doesn't have, the CN client's assets in the
   ArknightsAssets2 dump on GitHub (`/mirror/aa2/`) - so each source gets
-  one request per file ever rather than one per visitor.
+  one request per file rather than one per visitor. The CN dump's files
+  can be corrected after a patch, so those copies are re-checked against
+  GitHub weekly (a small "has it changed?" request) and replaced if they
+  changed; they're cached for a day rather than a year.
 
 `js/`, `css/`, `webfonts/`, `images/`, `LICENSE` and `UPSTREAM_README.md`
 originally came from
