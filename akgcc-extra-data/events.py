@@ -410,6 +410,12 @@ def write_mirrored_image(wiki_filename, data):
     return name
 
 
+# Waits before retrying a failed resolve batch. wiki.gg sometimes answers
+# with its bot-check page ("Just a second...", HTTP 403) for a while;
+# waiting usually gets a normal answer again.
+RESOLVE_RETRY_WAITS = [30, 90]
+
+
 def resolve_image_urls(filenames):
     """Resolve a batch of bare wiki filenames to their real (CDN) upload
     URLs via MediaWiki's imageinfo API on api.php.
@@ -419,7 +425,9 @@ def resolve_image_urls(filenames):
 
     Batches up to 50 titles per request (MediaWiki's limit for non-bot
     API access), pausing REQUEST_PACING between batches: hundreds of
-    back-to-back requests get empty, non-JSON responses.
+    back-to-back requests get empty, non-JSON responses. A failed batch is
+    retried after each of RESOLVE_RETRY_WAITS (until one batch has failed
+    all its retries).
     Returns {filename: info}, omitting any filename MediaWiki
     can't resolve (e.g. renamed/deleted/never existed) -- never raises,
     since one bad batch shouldn't take down the whole run. Each value is
@@ -428,38 +436,56 @@ def resolve_image_urls(filenames):
     resolved = {}
     filenames = list(filenames)
     batch_size = 50
+    gave_up = False
     for i in range(0, len(filenames), batch_size):
         batch = filenames[i : i + batch_size]
-        r = None
-        try:
-            params = {
-                "action": "query",
-                "titles": "|".join(f"File:{f}" for f in batch),
-                "prop": "imageinfo",
-                "iiprop": "url|sha1",
-                "format": "json",
-            }
-            r = http_get(WIKI_API, params=params, headers=HEADERS)
-            data = r.json()
-            pages = data.get("query", {}).get("pages", {})
-            for page in pages.values():
-                title = page.get("title", "")
-                filename = title[len("File:") :] if title.startswith("File:") else title
-                imageinfo = page.get("imageinfo")
-                if imageinfo and imageinfo[0].get("url"):
-                    resolved[filename] = {"url": imageinfo[0]["url"], "sha1": imageinfo[0].get("sha1")}
-        except Exception as exc:
-            # Include the status and a body snippet: they show whether this
-            # was rate limiting, a bot-protection page or something else,
-            # which the parse error alone doesn't.
-            if r is not None:
-                detail = f"status={r.status_code} body={r.text[:200]!r}"
-            else:
-                detail = str(exc)
-            print(f"Could not resolve image batch starting at {batch[0]!r}: {detail}")
+        # Once a batch has failed every retry the wiki is likely blocking
+        # this run, so later batches get one try each (keeps the run short).
+        for wait in ([] if gave_up else RESOLVE_RETRY_WAITS) + [None]:
+            if _resolve_batch(batch, resolved):
+                break
+            if wait is None:
+                gave_up = True
+                break
+            print(f"  retrying in {wait}s")
+            time.sleep(wait)
         if i + batch_size < len(filenames):
             time.sleep(REQUEST_PACING)
     return resolved
+
+
+def _resolve_batch(batch, resolved):
+    """One imageinfo request for `batch`, adding what it resolves to
+    `resolved`. Returns False if the request failed."""
+    r = None
+    try:
+        params = {
+            "action": "query",
+            "titles": "|".join(f"File:{f}" for f in batch),
+            "prop": "imageinfo",
+            "iiprop": "url|sha1",
+            "format": "json",
+        }
+        r = http_get(WIKI_API, params=params, headers=HEADERS)
+        data = r.json()
+        pages = data.get("query", {}).get("pages", {})
+        for page in pages.values():
+            title = page.get("title", "")
+            filename = title[len("File:") :] if title.startswith("File:") else title
+            imageinfo = page.get("imageinfo")
+            if imageinfo and imageinfo[0].get("url"):
+                resolved[filename] = {"url": imageinfo[0]["url"], "sha1": imageinfo[0].get("sha1")}
+        return True
+    except Exception as exc:
+        # Include the status and a body snippet: they show whether this
+        # was rate limiting, a bot-protection page or something else,
+        # which the parse error alone doesn't.
+        if r is not None:
+            detail = f"status={r.status_code} body={r.text[:200]!r}"
+        else:
+            detail = str(exc)
+        print(f"Could not resolve image batch starting at {batch[0]!r}: {detail}")
+        return False
 
 
 def download_image(wiki_filename, info, manifest=None):
@@ -509,6 +535,16 @@ def download_image(wiki_filename, info, manifest=None):
             if written == local_name:
                 os.remove(legacy_path)
             return record(written)
+        # Mirrored earlier under a different local name (the naming rules
+        # changed): the manifest says which file holds this exact image, so
+        # rename it instead of downloading it again.
+        old_name = recorded.get("file")
+        old_path = os.path.join(IMAGES_DIR, old_name) if old_name else None
+        if old_name and old_name != local_name and os.path.exists(old_path) and old_name.endswith(".webp"):
+            os.replace(old_path, os.path.join(IMAGES_DIR, local_name))
+            print(f"Renamed mirrored image {old_name!r} -> {local_name!r}")
+            if not (sha1 and recorded.get("sha1") and recorded["sha1"] != sha1):
+                return record(local_name)
     have_copy = os.path.exists(os.path.join(IMAGES_DIR, local_name))
     if not url:
         if have_copy:

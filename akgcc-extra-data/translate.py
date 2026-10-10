@@ -219,13 +219,17 @@ def restore(xml, spec):
     two (the marker is then repeated), drops one, or leaves the tags
     crossed; repeats and drops are kept as they are, and if the markers
     no longer nest, the text is kept without them. Line breaks may move or
-    disappear. A result still containing Chinese is rejected."""
+    disappear. A result still containing Chinese (outside quotes) is
+    rejected."""
     text = _restore(xml, spec, keep_markers=True)
     if text is None:
         text = _restore(xml, spec, keep_markers=False)
     if not text:
         return None
-    if CJK.search(re.sub(r"\{[^{}]+\}|<[@$][^<>]+>", "", text)):
+    # Chinese left inside quotes is a name DeepL chose to keep ("奇象"
+    # Fashion Retrospective); anywhere else it's an untranslated part.
+    unquoted = re.sub(r'"[^"]*"|“[^”]*”|「[^」]*」|『[^』]*』', "", text)
+    if CJK.search(re.sub(r"\{[^{}]+\}|<[@$][^<>]+>", "", unquoted)):
         return None
     return text
 
@@ -412,6 +416,19 @@ def apply_translations(cn, en_char_ids, client=None, cache=None, max_chars=MAX_C
     wanted = {obj[f] for obj, f in targets}
     stats = {"strings": len(wanted), "translated": 0, "cached": 0, "rejected": 0, "pending": 0, "error": None}
 
+    # Re-check earlier rejections against the current rules: DeepL's reply is
+    # kept with them, so a loosened check needs no new request.
+    for src in wanted:
+        entry = cache.get(src)
+        reply = entry and not entry.get("en") and (entry.get("xml") or entry.get("raw"))
+        if reply:
+            protected = protect(src)
+            en = restore(reply, protected[1]) if protected else None
+            if en:
+                entry["en"] = en
+                entry.pop("xml", None)
+                entry.pop("raw", None)
+
     todo = [s for s in wanted if not (s in cache and cache[s].get("g") == ghash)]
     todo.sort(key=len)
     if client and todo:
@@ -432,7 +449,7 @@ def apply_translations(cn, en_char_ids, client=None, cache=None, max_chars=MAX_C
                 en = restore(xml, spec)
                 cache[src] = {"en": en, "g": ghash}
                 if en is None:
-                    cache[src]["raw"] = xml[:1000]
+                    cache[src]["xml"] = xml
                     stats["rejected"] += 1
                     print(f"Rejected translation of {src!r}\n  DeepL returned: {xml!r}")
                 else:
