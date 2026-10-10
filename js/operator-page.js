@@ -373,8 +373,8 @@
   // CN-only text in the slim game data is machine-translated by the daily
   // build (akgcc-extra-data/translate.py), which keeps the Chinese original
   // under obj._zh[field]. tr() picks the version to show ("Show original
-  // Chinese" switches the whole page); markMt() gives the element a dotted
-  // underline and puts the other version in its tooltip.
+  // Chinese" switches the whole page); markMt() gives translated text a
+  // dotted underline.
   let showOriginalZh = false;
 
   function zhOriginal(obj, field) {
@@ -387,17 +387,8 @@
     return showOriginalZh && zh ? zh : obj[field];
   }
 
-  // format turns the raw text into what's displayed (e.g. formatDescription
-  // with the blackboard); markup tags are stripped either way.
-  function markMt(el, obj, field, format) {
-    const zh = zhOriginal(obj, field);
-    if (!zh) return el;
-    const other = showOriginalZh ? obj[field] : zh;
-    const shown = (format ? format(other) : other || "").replace(/<\/?[^>]+>/g, "");
-    el.classList.add("mtText");
-    el.title = showOriginalZh
-      ? `Machine translation: ${shown}`
-      : `Machine-translated from the CN client (DeepL). Original: ${shown}`;
+  function markMt(el, obj, field) {
+    if (zhOriginal(obj, field)) el.classList.add("mtText");
     return el;
   }
 
@@ -913,11 +904,9 @@
 
     skinPreviewNameEl.textContent = skinDisplayName(skin);
     skinPreviewNameEl.classList.remove("mtText");
-    skinPreviewNameEl.removeAttribute("title");
     markMt(skinPreviewNameEl, d, "skinName");
     skinPreviewMetaEl.textContent = tr(d, "skinGroupName") || "";
     skinPreviewMetaEl.classList.remove("mtText");
-    skinPreviewMetaEl.removeAttribute("title");
     markMt(skinPreviewMetaEl, d, "skinGroupName");
     // Default outfit entries have no flavor text. content (sale/epoque
     // copy) or, failing that, usage (a shorter blurb) is shown as one
@@ -1341,7 +1330,7 @@
         const desc = document.createElement("div");
         desc.className = "opTalentDescription";
         desc.textContent = formatDescription(tr(cand, "description"), cand.blackboard);
-        markMt(desc, cand, "description", (t) => formatDescription(t, cand.blackboard));
+        markMt(desc, cand, "description");
         row.appendChild(desc);
         block.appendChild(row);
       });
@@ -1628,8 +1617,7 @@
         spEl.textContent = spParts.join(", ");
         descEl.textContent = lvl ? formatDescription(tr(lvl, "description"), lvl.blackboard) : "";
         descEl.classList.remove("mtText");
-        descEl.removeAttribute("title");
-        if (lvl) markMt(descEl, lvl, "description", (t) => formatDescription(t, lvl.blackboard));
+        if (lvl) markMt(descEl, lvl, "description");
       }
 
       slider.addEventListener("input", () => update(parseInt(slider.value, 10)));
@@ -1697,7 +1685,7 @@
           const effect = document.createElement("div");
           effect.className = "opModuleStageEffect";
           effect.textContent = formatDescription(tr(cand, field), cand.blackboard);
-          markMt(effect, cand, field, (t) => formatDescription(t, cand.blackboard));
+          markMt(effect, cand, field);
           stage.appendChild(effect);
         });
       });

@@ -354,7 +354,6 @@
 .mtText {
   text-decoration: underline dotted rgba(255, 159, 67, 0.7);
   text-underline-offset: 3px;
-  cursor: help;
 }
 
 .opStatsViewToggle {

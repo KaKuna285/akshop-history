@@ -174,7 +174,7 @@ have yet come from the CN data, in Chinese. `akgcc-extra-data/translate.py`
 potentials, skill/module/base-skill names and descriptions, skin and item
 names - into English with DeepL, and keeps each original next to it
 (`_zh`). The operator page marks translated text with a dotted underline
-(hover for the original) and offers a "Show original Chinese" switch.
+and offers a "Show original Chinese" switch.
 Operator names and lore texts (skin descriptions, module stories) are
 not translated.
 
