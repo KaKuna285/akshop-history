@@ -312,6 +312,51 @@
 
 /* --- "Maxed" / "Your stats" toggle (owned operators only) -------------- */
 
+/* --- Machine-translated CN text (js/operator-page.js's tr()/markMt()) --- */
+
+.opMtNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 159, 67, 0.08);
+  border: 1px solid rgba(255, 159, 67, 0.25);
+  font-size: 0.8rem;
+  color: #ccc;
+}
+
+.opMtNotice.hidden {
+  display: none;
+}
+
+.opMtNotice span {
+  flex: 1 1 280px;
+}
+
+.opMtToggle {
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #eee;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.opMtToggle:hover {
+  border-color: #ff9f43;
+}
+
+.mtText {
+  text-decoration: underline dotted rgba(255, 159, 67, 0.7);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
 .opStatsViewToggle {
   display: flex;
   align-items: center;

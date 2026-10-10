@@ -130,6 +130,16 @@
         </button>
       </div>
 
+      <!-- Shown when this operator's page includes text machine-translated
+           from the CN client (see akgcc-extra-data/translate.py). -->
+      <div id="opMtNotice" class="opMtNotice hidden">
+        <span>
+          Text marked with a dotted underline is machine-translated from the CN
+          client (DeepL) and may differ from the official English wording.
+        </span>
+        <button type="button" id="opMtToggle" class="opMtToggle">Show original Chinese</button>
+      </div>
+
       <!-- Only shown for an operator your synced account owns -- lets
            Stats/Potentials/Skills/Modules below show your actual synced
            progress instead of the default maxed-out view. See

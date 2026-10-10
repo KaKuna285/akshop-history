@@ -67,6 +67,9 @@ jobs:
         # (it also falls back to the full tables if a file is missing).
         id: gamedata
         continue-on-error: true
+        env:
+          # Optional: translates CN-only text to English (see translate.py).
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
         run: python game_data.py
       - name: Record data health
         # Writes json/meta.json (see health.py): which steps worked, how

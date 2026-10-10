@@ -23,6 +23,9 @@ skill levels, ...) are kept at full length; only their entries are
 slimmed. Blackboards are kept whole because descriptions can reference
 any key.
 
+CN-only gameplay text in the CN copies is machine-translated to English
+by translate.py (see there) when a DeepL key is configured.
+
 Run with no arguments in the workflow (fetches from the mirror), or
 `python game_data.py --from <dir>` to slim a local checkout of the mirror
 (<dir>/<server>/gamedata/excel/<table>.json) for testing.
@@ -442,6 +445,23 @@ def main(argv):
         built[server] = build(raw)
         manifest["servers"][server] = sanity_check(server, built[server])
     outputs = {"en": built["en"], "cn": build_cn(built["cn"], built["en"])}
+
+    # English for the CN-only gameplay text (see translate.py). Optional:
+    # without a DeepL key, or if DeepL fails, the text stays in Chinese.
+    try:
+        import translate
+
+        en_char_ids = set(built["en"]["character_table"]) | set(built["en"]["char_patch_table"]["patchChars"])
+        cache = translate.load_cache()
+        manifest["translation"] = translate.apply_translations(
+            outputs["cn"], en_char_ids, translate.client_from_env(), cache
+        )
+        if translate.save_cache(cache):
+            changed.append("translation_cache")
+        print(f"Translation: {manifest['translation']}")
+    except Exception as exc:
+        print(f"Translation skipped: {exc}")
+        manifest["translation"] = {"error": str(exc)[:300]}
     for server, slim_tables in outputs.items():
         for name, data in slim_tables.items():
             if write_if_changed(os.path.join(OUT_DIR, server, f"{name}.json"), data):

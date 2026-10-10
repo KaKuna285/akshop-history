@@ -78,6 +78,8 @@
   const skillsInfoEl = document.getElementById("opSkillsInfo");
   const modulesInfoEl = document.getElementById("opModulesInfo");
   const baseSkillsInfoEl = document.getElementById("opBaseSkillsInfo");
+  const mtNoticeEl = document.getElementById("opMtNotice");
+  const mtToggleEl = document.getElementById("opMtToggle");
   const skinsInfoEl = document.getElementById("opSkinsInfo");
   const skinPreviewOverlayEl = document.getElementById("skinPreviewOverlay");
   const skinPreviewEl = document.getElementById("skinPreview");
@@ -367,6 +369,56 @@
     return out;
   }
 
+  // --- machine-translated CN text ---------------------------------------------
+  // CN-only text in the slim game data is machine-translated by the daily
+  // build (akgcc-extra-data/translate.py), which keeps the Chinese original
+  // under obj._zh[field]. tr() picks the version to show ("Show original
+  // Chinese" switches the whole page); markMt() gives the element a dotted
+  // underline and puts the other version in its tooltip.
+  let showOriginalZh = false;
+
+  function zhOriginal(obj, field) {
+    return obj && obj._zh && typeof obj._zh[field] === "string" ? obj._zh[field] : null;
+  }
+
+  function tr(obj, field) {
+    if (!obj) return undefined;
+    const zh = zhOriginal(obj, field);
+    return showOriginalZh && zh ? zh : obj[field];
+  }
+
+  // format turns the raw text into what's displayed (e.g. formatDescription
+  // with the blackboard); markup tags are stripped either way.
+  function markMt(el, obj, field, format) {
+    const zh = zhOriginal(obj, field);
+    if (!zh) return el;
+    const other = showOriginalZh ? obj[field] : zh;
+    const shown = (format ? format(other) : other || "").replace(/<\/?[^>]+>/g, "");
+    el.classList.add("mtText");
+    el.title = showOriginalZh
+      ? `Machine translation: ${shown}`
+      : `Machine-translated from the CN client (DeepL). Original: ${shown}`;
+    return el;
+  }
+
+  // Whether anything shown for this operator is machine-translated: its own
+  // talents/potentials, or its skills, modules or skins.
+  function usesMachineTranslation(op) {
+    const related = [
+      op,
+      // Array.isArray: the upstream data can have {} for an empty list.
+      ...(Array.isArray(op.skills) ? op.skills : []).map((s) => s && skillTable[s.skillId]),
+      ...(Array.isArray(op.modules) ? op.modules : []).map((m) => m && battleEquipTable[m.uniEquipId]),
+      skinsByCharId[op.charId] || [],
+    ];
+    return JSON.stringify(related).includes('"_zh"');
+  }
+
+  mtToggleEl.addEventListener("click", () => {
+    showOriginalZh = !showOriginalZh;
+    renderOperator(currentCharId);
+  });
+
   // "PHASE_0" / "PHASE_1" / "PHASE_2" -> 0 / 1 / 2.
   function phaseNumber(phaseStr) {
     const m = /PHASE_(\d+)/.exec(phaseStr || "");
@@ -586,7 +638,7 @@
   // operator has all three -- one without Elite 2 has no ILLUST_2 entry.
   function skinDisplayName(skin) {
     const d = (skin && skin.displaySkin) || {};
-    if (d.skinName) return d.skinName;
+    if (d.skinName) return tr(d, "skinName");
     const m = /^ILLUST_(\d+)$/.exec(d.skinGroupId || "");
     if (m) return m[1] === "0" ? "Default outfit" : `Elite ${m[1]} art`;
     return "Outfit";
@@ -860,7 +912,13 @@
     });
 
     skinPreviewNameEl.textContent = skinDisplayName(skin);
-    skinPreviewMetaEl.textContent = d.skinGroupName || "";
+    skinPreviewNameEl.classList.remove("mtText");
+    skinPreviewNameEl.removeAttribute("title");
+    markMt(skinPreviewNameEl, d, "skinName");
+    skinPreviewMetaEl.textContent = tr(d, "skinGroupName") || "";
+    skinPreviewMetaEl.classList.remove("mtText");
+    skinPreviewMetaEl.removeAttribute("title");
+    markMt(skinPreviewMetaEl, d, "skinGroupName");
     // Default outfit entries have no flavor text. content (sale/epoque
     // copy) or, failing that, usage (a shorter blurb) is shown as one
     // paragraph. It uses the same "<color name=#xxxxxx>...</color>"-style
@@ -909,6 +967,7 @@
       const label = document.createElement("span");
       label.className = "opSkinCardName";
       label.textContent = skinDisplayName(skin);
+      markMt(label, skin.displaySkin, "skinName");
       card.appendChild(label);
       card.addEventListener("click", () => showSkinPreview(skin));
       // Start downloading the full art as soon as a click looks likely:
@@ -1125,7 +1184,8 @@
       modules.forEach((mod) => {
         const opt = document.createElement("option");
         opt.value = mod.uniEquipId || "";
-        opt.textContent = mod.typeName2 ? `${mod.typeName2} — ${mod.uniEquipName || ""}` : mod.uniEquipName || mod.uniEquipId || "Module";
+        const modName = tr(mod, "uniEquipName");
+        opt.textContent = mod.typeName2 ? `${mod.typeName2} — ${modName || ""}` : modName || mod.uniEquipId || "Module";
         moduleSelect.appendChild(opt);
       });
       moduleRow.appendChild(moduleSelect);
@@ -1262,7 +1322,9 @@
       block.className = "opTalentBlock";
       const heading = document.createElement("div");
       heading.className = "opTalentHeading";
-      heading.textContent = candidates[candidates.length - 1].name || `Talent ${i + 1}`;
+      const named = candidates[candidates.length - 1];
+      heading.textContent = tr(named, "name") || `Talent ${i + 1}`;
+      markMt(heading, named, "name");
       block.appendChild(heading);
       candidates.forEach((cand) => {
         const row = document.createElement("div");
@@ -1278,7 +1340,8 @@
         row.appendChild(unlock);
         const desc = document.createElement("div");
         desc.className = "opTalentDescription";
-        desc.textContent = formatDescription(cand.description, cand.blackboard);
+        desc.textContent = formatDescription(tr(cand, "description"), cand.blackboard);
+        markMt(desc, cand, "description", (t) => formatDescription(t, cand.blackboard));
         row.appendChild(desc);
         block.appendChild(row);
       });
@@ -1402,7 +1465,8 @@
           head.className = "opBaseSkillHead";
           const name = document.createElement("span");
           name.className = "opTalentHeading opBaseSkillName";
-          name.textContent = buff.buffName || tier.buffId;
+          name.textContent = tr(buff, "buffName") || tier.buffId;
+          markMt(name, buff, "buffName");
           head.appendChild(name);
           const room = document.createElement("span");
           room.className = "opBaseSkillRoom";
@@ -1421,7 +1485,8 @@
 
           const desc = document.createElement("div");
           desc.className = "opTalentDescription";
-          appendBaseSkillText(desc, buff.description);
+          appendBaseSkillText(desc, tr(buff, "description"));
+          markMt(desc, buff, "description");
           body.appendChild(desc);
 
           row.appendChild(body);
@@ -1453,7 +1518,8 @@
       label.textContent = `Potential ${i + 2}`;
       const desc = document.createElement("span");
       desc.className = "opPotentialDescription";
-      desc.textContent = rank.description || "";
+      desc.textContent = tr(rank, "description") || "";
+      markMt(desc, rank, "description");
       row.appendChild(label);
       row.appendChild(desc);
       potentialsInfoEl.appendChild(row);
@@ -1511,7 +1577,8 @@
       setSkillIcon(icon, (data && data.iconId) || ref.skillId);
       heading.appendChild(icon);
       const nameEl = document.createElement("span");
-      nameEl.textContent = (levels && levels[0] && levels[0].name) || `Skill ${idx + 1}`;
+      nameEl.textContent = (levels && levels[0] && tr(levels[0], "name")) || `Skill ${idx + 1}`;
+      if (levels && levels[0]) markMt(nameEl, levels[0], "name");
       heading.appendChild(nameEl);
       block.appendChild(heading);
 
@@ -1559,7 +1626,10 @@
         if (sp.spCost != null) spParts.push(`${sp.spCost} SP`);
         if (sp.initSp) spParts.push(`${sp.initSp} initial`);
         spEl.textContent = spParts.join(", ");
-        descEl.textContent = lvl ? formatDescription(lvl.description, lvl.blackboard) : "";
+        descEl.textContent = lvl ? formatDescription(tr(lvl, "description"), lvl.blackboard) : "";
+        descEl.classList.remove("mtText");
+        descEl.removeAttribute("title");
+        if (lvl) markMt(descEl, lvl, "description", (t) => formatDescription(t, lvl.blackboard));
       }
 
       slider.addEventListener("input", () => update(parseInt(slider.value, 10)));
@@ -1622,11 +1692,12 @@
           // replace the base trait, or "additionalDescription" when they add to
           // it. Both keys exist with one of them null, so all four fields are
           // checked (e.g. Mountain's modules use overrideDescripton for Stage 1).
-          const text = cand.description || cand.upgradeDescription || cand.additionalDescription || cand.overrideDescripton;
-          if (!text) return;
+          const field = ["description", "upgradeDescription", "additionalDescription", "overrideDescripton"].find((f) => cand[f]);
+          if (!field) return;
           const effect = document.createElement("div");
           effect.className = "opModuleStageEffect";
-          effect.textContent = formatDescription(text, cand.blackboard);
+          effect.textContent = formatDescription(tr(cand, field), cand.blackboard);
+          markMt(effect, cand, field, (t) => formatDescription(t, cand.blackboard));
           stage.appendChild(effect);
         });
       });
@@ -1684,7 +1755,8 @@
         }
         const name = document.createElement("span");
         name.className = "opModuleName";
-        name.textContent = mod.uniEquipName || "";
+        name.textContent = tr(mod, "uniEquipName") || "";
+        markMt(name, mod, "uniEquipName");
         heading.appendChild(name);
 
         // "Your stats": only one module's effect applies at a time (see the
@@ -1916,6 +1988,10 @@
     currentProgress = currentIsOwned ? getAccountProgress(op.charId) : null;
     updateStatsViewToggle();
     renderOwnedSummary(op);
+
+    const mt = usesMachineTranslation(op);
+    mtNoticeEl.classList.toggle("hidden", !mt);
+    mtToggleEl.textContent = showOriginalZh ? "Show English" : "Show original Chinese";
 
     renderReleaseInfo(op);
     renderTalents(op);

@@ -118,7 +118,8 @@ need `requests` and `pillow` (`pip install -r requirements.txt` in that folder, 
 ## Game data (slim copies)
 
 Every page that shows operators reads the game's own data tables
-(characters, skills, modules, skins, items, medals), for both EN and CN.
+(characters, skills, modules, skins, items, medals, base skills), for both
+EN and CN.
 The full tables from the mirror are huge - loading them directly cost the
 operator page ~100 MB of JSON per visit and the calendar ~49 MB, almost
 all of it fields no page reads. So `akgcc-extra-data/game_data.py` (a step
@@ -164,6 +165,35 @@ as `{}`: a few operators (Lancet-2, Castle-3 and the other robots) have
 your roster (`.forEach` on an object). A step that produces suspiciously
 few rows fails instead of writing, leaving yesterday's files in place, and
 `health.py` tracks the operator counts like the other data.
+
+### Machine translation of CN-only text
+
+Operators, skills, modules, skins, base skills and items that EN doesn't
+have yet come from the CN data, in Chinese. `akgcc-extra-data/translate.py`
+(run by `game_data.py`) translates their gameplay text - talents,
+potentials, skill/module/base-skill names and descriptions, skin and item
+names - into English with DeepL, and keeps each original next to it
+(`_zh`). The operator page marks translated text with a dotted underline
+(hover for the original) and offers a "Show original Chinese" switch.
+Operator names and lore texts (skin descriptions, module stories) are
+not translated.
+
+- Placeholders like `{atk_scale:0%}` and the colour markers are swapped for
+  XML tags DeepL leaves alone, then swapped back; a translation that lost
+  one, or still contains Chinese, is thrown away and the text stays in
+  Chinese.
+- `GLOSSARY` in `translate.py` pins game terms to the official EN wording
+  (Arts damage, SP, Block, DP Cost, ...). Add to it when a term comes out
+  wrong; the next run re-translates everything with the new glossary.
+- Each string is translated once and kept in
+  `akgcc-extra-data/json/translation_cache.json`, so a normal day sends
+  nothing. A run sends at most 150,000 characters (DeepL Free allows
+  500,000 a month); the first run needs about 30,000.
+- **Setup:** create a free DeepL API account (deepl.com/pro-api, "DeepL API
+  Free"), copy its authentication key, and add it to this repo under
+  Settings -> Secrets and variables -> Actions -> New repository secret,
+  named `DEEPL_API_KEY`. Without it the run still works and the text just
+  stays in Chinese.
 
 ## The EN event calendar (`/calendar/`)
 
