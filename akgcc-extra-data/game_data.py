@@ -453,8 +453,9 @@ def main(argv):
 
         en_char_ids = set(built["en"]["character_table"]) | set(built["en"]["char_patch_table"]["patchChars"])
         cache = translate.load_cache()
+        names = translate.operator_names(built["en"]["character_table"], built["cn"]["character_table"])
         manifest["translation"] = translate.apply_translations(
-            outputs["cn"], en_char_ids, translate.client_from_env(), cache
+            outputs["cn"], en_char_ids, translate.client_from_env(), cache, names=names
         )
         if translate.save_cache(cache):
             changed.append("translation_cache")

@@ -144,8 +144,24 @@ GLOSSARY = {
 }
 
 
+# Bumped when the way strings are protected/checked changes, so every
+# string is translated again once.
+TRANSLATION_VERSION = 2
+
+
 def glossary_hash():
-    return hashlib.sha1(json.dumps(GLOSSARY, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:10]
+    """Cache key for translations: GLOSSARY plus TRANSLATION_VERSION. The
+    operator names added at run time (see glossary_entries()) aren't part
+    of it, so a new operator doesn't re-translate everything."""
+    data = json.dumps([GLOSSARY, TRANSLATION_VERSION], sort_keys=True, ensure_ascii=False)
+    return hashlib.sha1(data.encode()).hexdigest()[:10]
+
+
+def glossary_entries(names=None):
+    """GLOSSARY plus operator names (CN name -> EN name), GLOSSARY winning."""
+    entries = dict(names or {})
+    entries.update(GLOSSARY)
+    return entries
 
 
 # --- protecting placeholders and markers ------------------------------------
@@ -196,11 +212,28 @@ RESULT_TOKEN = re.compile(
 
 def restore(xml, spec):
     """DeepL's XML -> the translated string with the original placeholders
-    and markers, or None when anything is missing, duplicated, unbalanced
-    or left in Chinese."""
+    and markers put back, or None when it can't be used.
+
+    Placeholders carry the numbers, so each must come back exactly once.
+    Markers only color text: DeepL sometimes splits one marked phrase into
+    two (the marker is then repeated), drops one, or leaves the tags
+    crossed; repeats and drops are kept as they are, and if the markers
+    no longer nest, the text is kept without them. Line breaks may move or
+    disappear. A result still containing Chinese is rejected."""
+    text = _restore(xml, spec, keep_markers=True)
+    if text is None:
+        text = _restore(xml, spec, keep_markers=False)
+    if not text:
+        return None
+    if CJK.search(re.sub(r"\{[^{}]+\}|<[@$][^<>]+>", "", text)):
+        return None
+    return text
+
+
+def _restore(xml, spec, keep_markers):
     out = []
     pos = 0
-    seen_ph, seen_open, seen_nl = [], [], []
+    seen_ph = []
     stack = []
     for m in RESULT_TOKEN.finditer(xml):
         out.append(saxutils.unescape(xml[pos : m.start()]))
@@ -215,34 +248,23 @@ def restore(xml, spec):
             i = int(m.group(2))
             if i >= len(spec["open"]):
                 return None
-            seen_open.append(i)
-            stack.append(i)
-            out.append(spec["open"][i])
+            if keep_markers:
+                stack.append(i)
+                out.append(spec["open"][i])
         elif m.group(3) is not None:
-            if not stack or stack.pop() != int(m.group(3)):
-                return None
-            out.append("</>")
+            if keep_markers:
+                if not stack or stack.pop() != int(m.group(3)):
+                    return None
+                out.append("</>")
         else:
             i = int(m.group(4))
             if i >= len(spec["nl"]):
                 return None
-            seen_nl.append(i)
             out.append(spec["nl"][i])
     out.append(saxutils.unescape(xml[pos:]))
-    if stack:
+    if stack or sorted(seen_ph) != list(range(len(spec["ph"]))):
         return None
-    if sorted(seen_ph) != list(range(len(spec["ph"]))):
-        return None
-    if sorted(seen_open) != list(range(len(spec["open"]))):
-        return None
-    if sorted(seen_nl) != list(range(len(spec["nl"]))):
-        return None
-    text = "".join(out).strip()
-    if not text:
-        return None
-    if CJK.search(re.sub(r"\{[^{}]+\}|<[@$][^<>]+>", "", text)):
-        return None
-    return text
+    return "".join(out).strip()
 
 
 # --- DeepL --------------------------------------------------------------------
@@ -261,10 +283,12 @@ class DeepL:
             raise RuntimeError(f"DeepL {method} {path}: HTTP {r.status_code} {r.text[:200]}")
         return r.json() if r.content else None
 
-    def ensure_glossary(self):
-        """The glossary for the current GLOSSARY entries (created if needed);
-        older ones made by this script are deleted."""
-        name = f"akshop-{glossary_hash()}"
+    def ensure_glossary(self, entries):
+        """A DeepL glossary with these entries (created if needed); older
+        ones made by this script are deleted. Named after a hash of the
+        entries, so an unchanged list reuses the existing glossary."""
+        data = json.dumps(entries, sort_keys=True, ensure_ascii=False)
+        name = f"akshop-{hashlib.sha1(data.encode()).hexdigest()[:10]}"
         found = None
         for g in self._call("GET", "/v2/glossaries").get("glossaries", []):
             if g.get("name") == name and g.get("ready", True):
@@ -273,11 +297,11 @@ class DeepL:
                 self._call("DELETE", f"/v2/glossaries/{g['glossary_id']}")
         if found:
             return found
-        entries = "\n".join(f"{zh}\t{en}" for zh, en in GLOSSARY.items())
+        tsv = "\n".join(f"{zh}\t{en}" for zh, en in entries.items())
         g = self._call(
             "POST",
             "/v2/glossaries",
-            json={"name": name, "source_lang": "zh", "target_lang": "en", "entries": entries, "entries_format": "tsv"},
+            json={"name": name, "source_lang": "zh", "target_lang": "en", "entries": tsv, "entries_format": "tsv"},
         )
         return g["glossary_id"]
 
@@ -341,6 +365,32 @@ def _fields(cn, en_char_ids):
             yield item, "name"
 
 
+def operator_names(en_chars, cn_chars):
+    """{CN name: EN name} for the glossary, so names inside descriptions
+    come out as the operators' actual EN names: the EN name for released
+    operators, the romanized appellation for CN-only ones. Only names of
+    3+ characters (2+ for CN-only operators), since a short name is often
+    also a common word (年 "year", 流星 "meteor")."""
+    names = {}
+    for char_id, cn in cn_chars.items():
+        zh = (cn or {}).get("name") or ""
+        if not zh or not all(CJK.match(ch) or ch in "·" for ch in zh):
+            continue
+        en = (en_chars.get(char_id) or {}).get("name")
+        cn_only = not en
+        if cn_only:
+            en = (cn or {}).get("appellation") or ""
+            if not re.search(r"[A-Za-z]", en):
+                continue
+        if not en or len(zh) < (2 if cn_only else 3):
+            continue
+        if names.get(zh, en) != en:  # same CN name, different EN names
+            names[zh] = None
+            continue
+        names[zh] = en
+    return {k: v for k, v in names.items() if v}
+
+
 def load_cache(path=CACHE_PATH):
     try:
         with open(path, encoding="utf8") as f:
@@ -350,10 +400,11 @@ def load_cache(path=CACHE_PATH):
         return {}
 
 
-def apply_translations(cn, en_char_ids, client=None, cache=None, max_chars=MAX_CHARS_PER_RUN):
+def apply_translations(cn, en_char_ids, client=None, cache=None, max_chars=MAX_CHARS_PER_RUN, names=None):
     """Translate the CN gap tables in place. `client` is a DeepL (None: no
     API calls, cached translations only); `cache` is the entries dict from
-    load_cache(), updated in place and pruned to the strings still in use.
+    load_cache(), updated in place and pruned to the strings still in use;
+    `names` adds operator names to the glossary (see operator_names()).
     Returns stats for the run."""
     cache = load_cache() if cache is None else cache
     ghash = glossary_hash()
@@ -365,7 +416,7 @@ def apply_translations(cn, en_char_ids, client=None, cache=None, max_chars=MAX_C
     todo.sort(key=len)
     if client and todo:
         try:
-            glossary_id = client.ensure_glossary()
+            glossary_id = client.ensure_glossary(glossary_entries(names))
         except Exception as exc:  # glossary trouble shouldn't stop translation
             print(f"DeepL glossary unavailable, translating without it: {exc}")
             glossary_id = None
@@ -381,9 +432,9 @@ def apply_translations(cn, en_char_ids, client=None, cache=None, max_chars=MAX_C
                 en = restore(xml, spec)
                 cache[src] = {"en": en, "g": ghash}
                 if en is None:
-                    cache[src]["raw"] = xml[:500]
+                    cache[src]["raw"] = xml[:1000]
                     stats["rejected"] += 1
-                    print(f"Rejected translation of {src[:60]!r}: {xml[:120]!r}")
+                    print(f"Rejected translation of {src!r}\n  DeepL returned: {xml!r}")
                 else:
                     stats["translated"] += 1
             batch = []
