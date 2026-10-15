@@ -1,37 +1,37 @@
 {
- "generatedAt": "2026-10-14T07:04:01.015279+00:00",
+ "generatedAt": "2026-10-15T07:04:51.852945+00:00",
  "ok": true,
  "problemRuns": 0,
  "steps": {
   "shop": {
    "label": "Shop history",
    "outcome": "success",
-   "lastSuccess": "2026-10-14T07:04:01.015279+00:00"
+   "lastSuccess": "2026-10-15T07:04:51.852945+00:00"
   },
   "operators": {
    "label": "Operator release dates",
    "outcome": "success",
-   "lastSuccess": "2026-10-14T07:04:01.015279+00:00"
+   "lastSuccess": "2026-10-15T07:04:51.852945+00:00"
   },
   "events": {
    "label": "Event calendar",
    "outcome": "success",
-   "lastSuccess": "2026-10-14T07:04:01.015279+00:00"
+   "lastSuccess": "2026-10-15T07:04:51.852945+00:00"
   },
   "gamedata": {
    "label": "Game data",
    "outcome": "success",
-   "lastSuccess": "2026-10-14T07:04:01.015279+00:00"
+   "lastSuccess": "2026-10-15T07:04:51.852945+00:00"
   }
  },
  "counts": {
   "shopOperatorsEN": 268,
   "shopOperatorsCN": 280,
   "operatorDates": 463,
-  "operatorENDates": 417,
+  "operatorENDates": 420,
   "events": 231,
   "eventsWithSkins": 197,
-  "gameDataOperatorsEN": 410,
+  "gameDataOperatorsEN": 415,
   "gameDataOperatorsCN": 432
  },
  "warnings": []

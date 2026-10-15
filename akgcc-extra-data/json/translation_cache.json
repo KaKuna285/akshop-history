@@ -25,28 +25,12 @@
 "en": "1102 Birthday Cakes",
 "g": "4ff463f2d7"
 },
-"<替身>使周围敌人移动速度-40%且每秒造成相当于40%攻击力的法术伤害；\\n在<@ba.kw>集成战略</>中，<替身>每秒额外造成一次100%攻击力的法术伤害": {
-"en": "<DECOY> reduces the movement speed of surrounding enemies by 40% and deals Arts damage equal to 40% of ATK per second; \\nin <@ba.kw>Integrated Strategy</>, <DECOY> deals an additional 100% of ATK in Arts damage once per second.",
-"g": "4ff463f2d7"
-},
-"<替身>使周围敌人移动速度-40%且每秒造成相当于40%攻击力的法术伤害；\\n在<@ba.kw>集成战略</>中，<替身>每秒额外造成一次160%攻击力的法术伤害；周围8格地面上的其他干员被击倒时，若归溟幽灵鲨未处于<替身>状态则仅一次使该干员在8秒内生命值不会低于1，期间其周围敌人也受到与<替身>周围相同的效果，随后归溟幽灵鲨切换成<替身>作战，并在自身再次替换<替身>后刷新以上效果": {
-"en": "<DECOY> reduces the movement speed of nearby enemies by 40% and deals Arts damage equal to 40% of ATK per second; \\nin <@ba.kw>Integrated Strategy</>, <DECOY> deals an additional 160% of ATK in Arts damage once per second;When other Operators on the ground within 8 tiles are knocked down, if Specter the Unchained is not in the <DECOY> state, it will prevent that Operator’s HP from dropping below 1 for 8 seconds—this effect occurs only once. During this time, enemies around them also suffer the same effects as those around <DECOY>.Afterward, Specter the Unchained switches to <DECOY> mode, and the above effects are refreshed when it switches back to <DECOY> again.",
-"g": "4ff463f2d7"
-},
 "<替身>状态下结城理召唤人格面具作战，攻击间隔增大，攻击力+40%，生命值+35%，作战能力随技能选择而改变": {
 "en": "In <STUNT Double> mode, Makoto Yuki summons a persona to fight; Attack Interval increases, ATK rises by 40%, and HP increases by 35%. Combat capabilities vary depending on the selected skill.",
 "g": "4ff463f2d7"
 },
 "<替身>状态下结城理召唤人格面具作战，攻击间隔增大，攻击力+45%<@ba.talpu>（+5%）</>，生命值+35%，作战能力随技能选择而改变": {
 "en": "In <STUNT Double> mode, Makoto Yuki summons a persona to fight; Attack Interval increases, ATK +45% <@ba.talpu>(+5%)</>, HP +35%, and combat capabilities vary depending on the selected skill.",
-"g": "4ff463f2d7"
-},
-"GALLUS²的信物": {
-"en": "The Token of GALLUS²",
-"g": "4ff463f2d7"
-},
-"ID信息更新卡": {
-"en": "ID Information Update Card",
 "g": "4ff463f2d7"
 },
 "KFC积分": {
@@ -57,40 +41,12 @@
 "en": "S.E.E.S. Captain",
 "g": "4ff463f2d7"
 },
-"α类新人寻访凭证": {
-"en": "Class α Newcomer Visit Pass",
-"g": "4ff463f2d7"
-},
-"α类迎新寻访凭证": {
-"en": "Class α Orientation Visit Pass",
-"g": "4ff463f2d7"
-},
-"β类新人寻访凭证": {
-"en": "Class β Newcomer Visit Pass",
-"g": "4ff463f2d7"
-},
-"β类迎新寻访凭证": {
-"en": "Type β Orientation Visit Pass",
-"g": "4ff463f2d7"
-},
-"γ类新人寻访凭证": {
-"en": "Class γ Newcomer Interview Certificate",
-"g": "4ff463f2d7"
-},
-"γ类迎新寻访凭证": {
-"en": "Category γ Orientation Visit Pass",
-"g": "4ff463f2d7"
-},
 "“不准走！”": {
 "en": "\"Don't go!\"",
 "g": "4ff463f2d7"
 },
 "“举清辉”": {
 "en": "“Raising the Clear Radiance”",
-"g": "4ff463f2d7"
-},
-"“以鲜血洗去”": {
-"en": "“Wash away with blood”",
 "g": "4ff463f2d7"
 },
 "“共光华”": {
@@ -105,14 +61,6 @@
 "en": "“The Road Ahead”",
 "g": "4ff463f2d7"
 },
-"“厂券”": {
-"en": "\"Factory Voucher\"",
-"g": "4ff463f2d7"
-},
-"“在挥刀之前”": {
-"en": "“Before Drawing the Sword”",
-"g": "4ff463f2d7"
-},
 "“小心地滑”": {
 "en": "“Caution: Slippery Floor”",
 "g": "4ff463f2d7"
@@ -125,10 +73,6 @@
 "en": "\"Take your time~\"",
 "g": "4ff463f2d7"
 },
-"“我不懂啊”": {
-"en": "\"I don't get it.\"",
-"g": "4ff463f2d7"
-},
 "“我睡过了”": {
 "en": "\"I overslept.\"",
 "g": "4ff463f2d7"
@@ -137,76 +81,24 @@
 "en": "“Gathering Autumn’s Bounty”",
 "g": "4ff463f2d7"
 },
-"“新车和新生活”": {
-"en": "“A New Car, a New Life”",
-"g": "4ff463f2d7"
-},
 "“未来瞻望镜”": {
 "en": "\"A Glimpse into the Future\"",
-"g": "4ff463f2d7"
-},
-"“来抓我啊”·I": {
-"en": "“Come and catch me” · I",
-"g": "4ff463f2d7"
-},
-"“来抓我啊”·II": {
-"en": "“Come and Get Me” · II",
-"g": "4ff463f2d7"
-},
-"“来抓我啊”·III": {
-"en": "“Come and Get Me” · III",
-"g": "4ff463f2d7"
-},
-"“来抓我啊”·IV": {
-"en": "“Come and Get Me” · IV",
-"g": "4ff463f2d7"
-},
-"“来抓我啊”·V": {
-"en": "“Come and catch me”·V",
-"g": "4ff463f2d7"
-},
-"“来抓我啊”·VI": {
-"en": "“Come and Get Me” · VI",
-"g": "4ff463f2d7"
-},
-"“泰拉的方舟”": {
-"en": "\"Terra's Ark\"",
 "g": "4ff463f2d7"
 },
 "“流金影”": {
 "en": "“Flowing Gold Shadow”",
 "g": "4ff463f2d7"
 },
-"“漂洗”": {
-"en": "“Rinsing”",
-"g": "4ff463f2d7"
-},
 "“独属自己的一隅”": {
 "en": "“A Corner All to Myself”",
-"g": "4ff463f2d7"
-},
-"“用赤铁铭记”": {
-"en": "“Commemorated in Hematite”",
 "g": "4ff463f2d7"
 },
 "“神秘动物的口袋”": {
 "en": "\"The Pocket of Mysterious Animals\"",
 "g": "4ff463f2d7"
 },
-"“老朋友”": {
-"en": "\"Old Friend\"",
-"g": "4ff463f2d7"
-},
-"“自呼号生发”": {
-"en": "“Arising from the Call Itself”",
-"g": "4ff463f2d7"
-},
 "“致我们的老大”": {
 "en": "“To Our Boss”",
-"g": "4ff463f2d7"
-},
-"“触类旁通”": {
-"en": "\"Applying one principle to other situations\"",
 "g": "4ff463f2d7"
 },
 "“贵族血统”": {
@@ -215,10 +107,6 @@
 },
 "“还不走？”": {
 "en": "\"Aren't you leaving yet?\"",
-"g": "4ff463f2d7"
-},
-"“连轴转”": {
-"en": "\"Working nonstop\"",
 "g": "4ff463f2d7"
 },
 "一逢满月十连寻访凭证": {
@@ -255,10 +143,6 @@
 },
 "与海为敌": {
 "en": "Taking on the Sea",
-"g": "4ff463f2d7"
-},
-"中坚高级干员调用凭证": {
-"en": "Core Senior Operator Authorization Certificate",
 "g": "4ff463f2d7"
 },
 "临界瞬爆": {
@@ -353,10 +237,6 @@
 "en": "The Lyre of Orpheus",
 "g": "4ff463f2d7"
 },
-"保护性拒止": {
-"en": "Protective Denial",
-"g": "4ff463f2d7"
-},
 "倒吊人": {
 "en": "The Hanged Man",
 "g": "4ff463f2d7"
@@ -379,14 +259,6 @@
 },
 "兴之所至·β": {
 "en": "On a Whim · β",
-"g": "4ff463f2d7"
-},
-"其他友方干员进入自身攻击范围时立刻获得1层<$ba.shield>护盾</>并额外获得一次每秒回复50点生命值的增益治疗，持续30秒（不可叠加），增益治疗对【罗德岛】干员的效果翻倍": {
-"en": "When allied Operators enter the Operator’s attack range, they immediately gain 1 <$ba.shield>Shield</> layer and an additional healing buff that restores 50 HP per second for 30 seconds (non-stackable); the healing effect is doubled for [Rhodes Island] Operators.",
-"g": "4ff463f2d7"
-},
-"其他友方干员进入自身攻击范围时立刻获得1层<$ba.shield>护盾</>并额外获得一次每秒回复60<@ba.talpu>（+10）</>点生命值的增益治疗，持续30秒（不可叠加），增益治疗对【罗德岛】干员的效果翻倍": {
-"en": "When allied Operators enter the Operator’s attack range, they immediately gain 1 <$ba.shield>Shield</> layer and an additional healing buff that restores 60 <@ba.talpu>(+10)</> HP per second for 30 seconds (non-stackable); the healing effect is doubled for [Rhodes Island] Operators.",
 "g": "4ff463f2d7"
 },
 "再部署时间-10秒": {
@@ -421,16 +293,8 @@
 "en": "<@ba.kw>Reduced</> Redeployment Time",
 "g": "4ff463f2d7"
 },
-"军械库": {
-"en": "Armory",
-"g": "4ff463f2d7"
-},
 "冲蚀": {
 "en": "Erosion",
-"g": "4ff463f2d7"
-},
-"凯尔希·思衡托的信物": {
-"en": "Kal'tsit·Esperanta's Token",
 "g": "4ff463f2d7"
 },
 "凯瑟琳的私人信件": {
@@ -463,14 +327,6 @@
 },
 "办公室年度人物": {
 "en": "Office Person of the Year",
-"g": "4ff463f2d7"
-},
-"劣质溶剂耐受": {
-"en": "Tolerance to poor-quality solvents",
-"g": "4ff463f2d7"
-},
-"医者丰碑": {
-"en": "A Tribute to a Physician",
 "g": "4ff463f2d7"
 },
 "千尺俯瞰": {
@@ -589,22 +445,6 @@
 "en": "You can use a \"Relayer\" with a duration of 35 seconds, which changes the direction of your attack and increases the attack range by 2. While the \"Relayer\" is active, your ATK increases by 30%.",
 "g": "4ff463f2d7"
 },
-"可以在战术点召唤指挥中心协助作战，其被击败后会在15秒后自动刷新；战术点效果范围随携带技能变化，效果范围内的友方单位视为自身的援军": {
-"en": "You can summon a Command Center at a Tactical Point to assist in combat; once defeated, it will automatically respawn after 15 seconds. The range of the Tactical Point's effect varies depending on the equipped skill, and friendly units within the effect range are treated as your own reinforcements.",
-"g": "4ff463f2d7"
-},
-"可以在攻击范围内选择一次<@ba.kw>战术点</>来召唤援军，援军受到来自自身阻挡单位的伤害降低<@ba.kw>15%</>，自身攻击援军阻挡的敌人时攻击力提升至150%": {
-"en": "You may select one <@ba.kw>tactical point</> within your attack range to summon reinforcements. Reinforcements take <@ba.kw>15% less</> damage from units they block, <@ba.kw>and</> your ATK increases to 150% when you attack enemies blocked by the reinforcements.",
-"g": "4ff463f2d7"
-},
-"可露希尔的信物": {
-"en": "Closure's Token",
-"g": "4ff463f2d7"
-},
-"号角的中坚信物": {
-"en": "The Emblem at the Heart of the Horn",
-"g": "4ff463f2d7"
-},
 "合作原则": {
 "en": "Principles of Cooperation",
 "g": "4ff463f2d7"
@@ -629,16 +469,8 @@
 "en": "ATK <@ba.kw>+{atk:0%}</> when there are no allied Operators in the four adjacent squares",
 "g": "4ff463f2d7"
 },
-"周年庆典干员凭证": {
-"en": "Anniversary Celebration Operator Voucher",
-"g": "4ff463f2d7"
-},
 "命运的奖赏": {
 "en": "A Reward from Fate",
-"g": "4ff463f2d7"
-},
-"命途迭代/VI": {
-"en": "Iterations of Destiny/VI",
 "g": "4ff463f2d7"
 },
 "哪里都是兔子洞": {
@@ -655,14 +487,6 @@
 },
 "在<@ba.kw>生息演算</>中，首次开启技能后，生命上限、攻击力、防御力提升至150%": {
 "en": "In <@ba.kw>the Life Force calculation</>, after the skill is activated for the first time, Max HP, ATK, and DEF are increased to 150%.",
-"g": "4ff463f2d7"
-},
-"在<@ba.kw>集成战略</>中，攻击重量较重（重量等级大于等于3）的敌人时无视其物理闪避且造成的物理伤害提升40%": {
-"en": "In <@ba.kw>the Synergy strategy</>, when attacking enemies with a high attack weight (Weight greater than or equal to 3), their Physical Dodge is ignored and the Physical damage dealt is increased by 40%.",
-"g": "4ff463f2d7"
-},
-"在<@ba.kw>集成战略</>中，自身和<替身>造成的物理和法术伤害提升40%，受到的物理和法术伤害减少40%": {
-"en": "In <@ba.kw>the Synergy strategy</>, physical and Arts damage dealt by you and your <DOPPELGANGER> is increased by 40%, and physical and Arts damage taken is reduced by 40%.",
 "g": "4ff463f2d7"
 },
 "在<@ba.kw>集成战略</>中，首次部署时降低50%部署费用，且在倒下时仅一次立即重新部署": {
@@ -749,18 +573,6 @@
 "en": "Xia Hui FA240",
 "g": "4ff463f2d7"
 },
-"夏栎的中坚信物": {
-"en": "Xia Li's Symbol of Strength",
-"g": "4ff463f2d7"
-},
-"多萝西的中坚信物": {
-"en": "Dorothy's Most Cherished Treasure",
-"g": "4ff463f2d7"
-},
-"夜半的中坚信物": {
-"en": "A Token of Faith in the Dead of Night",
-"g": "4ff463f2d7"
-},
 "天穹肇始": {
 "en": "The Beginning of the Sky",
 "g": "4ff463f2d7"
@@ -837,16 +649,8 @@
 "en": "Damage dealt to blocked enemies is increased to<@ba.kw>{damage_scale:0%}</>",
 "g": "4ff463f2d7"
 },
-"寻翼之歌": {
-"en": "Song of the Search for Wings",
-"g": "4ff463f2d7"
-},
 "寻访数据契约": {
 "en": "Exploring Data Contracts",
-"g": "4ff463f2d7"
-},
-"封缄诺言寻访凭证": {
-"en": "Sealed Promises: Searching for Evidence",
 "g": "4ff463f2d7"
 },
 "小马宝莉": {
@@ -865,20 +669,8 @@
 "en": "Engineering Doji",
 "g": "4ff463f2d7"
 },
-"常世之幻": {
-"en": "The Illusion of the Mundane World",
-"g": "4ff463f2d7"
-},
 "幽然灵竹": {
 "en": "Serene Spiritual Bamboo",
-"g": "4ff463f2d7"
-},
-"幽蓝渡灵师": {
-"en": "The Deep Blue Spirit Guide",
-"g": "4ff463f2d7"
-},
-"应急肃正防线": {
-"en": "Strengthening the Emergency Response Front",
 "g": "4ff463f2d7"
 },
 "底绒舞会": {
@@ -903,10 +695,6 @@
 },
 "强击瓶专家": {
 "en": "Smash Bottle Expert",
-"g": "4ff463f2d7"
-},
-"归溟幽灵鲨特限证章": {
-"en": "Specter the Unchained Limited Edition Badge",
 "g": "4ff463f2d7"
 },
 "彼此的声音": {
@@ -973,10 +761,6 @@
 "en": "Monster Clue 9",
 "g": "4ff463f2d7"
 },
-"总工程师": {
-"en": "Chief Engineer",
-"g": "4ff463f2d7"
-},
 "悠然假日 HD59": {
 "en": "Leisurely Holiday HD59",
 "g": "4ff463f2d7"
@@ -1009,24 +793,8 @@
 "en": "My Own Wish",
 "g": "4ff463f2d7"
 },
-"战争技艺": {
-"en": "The Art of War",
-"g": "4ff463f2d7"
-},
 "战车": {
 "en": "Battle Tank",
-"g": "4ff463f2d7"
-},
-"手艺人": {
-"en": "Artisan",
-"g": "4ff463f2d7"
-},
-"承曦格雷伊的中坚信物": {
-"en": "Greyy the Lightningbearer's Most Cherished Treasure",
-"g": "4ff463f2d7"
-},
-"技术阐明": {
-"en": "Technical Explanation",
 "g": "4ff463f2d7"
 },
 "技能发动期间阻挡数变为0，但使身前一名干员阻挡数<@ba.kw>+1</>": {
@@ -1035,26 +803,6 @@
 },
 "技能开启后停止攻击3秒，撤回已部署的“中继器”并重置再部署；攻击间隔<@ba.vup>较大幅度缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击造成<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，并使目标<$ba.sluggish>停顿</><@ba.vup>{attack@origin_sluggish}</>秒；攻击经过“中继器”后，额外造成一次攻击力<@ba.vup>{attack@extra_atk_scale:0%}</>的法术伤害，且<$ba.sluggish>停顿</>时间延长<@ba.vup>{attack@extra_sluggish}</>秒\\n<@ba.rem>技能期间可额外部署<@ba.vup>{token_recharge_cnt}</>个“中继器”，“中继器”不会撤退，技能结束时自动撤退</>\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>": {
 "en": "After the skill is activated, attacks pause for 3 seconds; deployed “Relays” are recalled and reset for redeployment; the Attack Interval <@ba.vup>is significantly reduced</>; ATK is increased<@ba.vup>{atk:0%}</>; attacks <@ba.vup>{attack@atk_scale:0%}</>deal Arts damage and cause the target <$ba.sluggish>to be stunned for </><@ba.vup>{attack@origin_sluggish}</><$ba.sluggish>seconds</>;When an attack passes through <@ba.rem>a</> “Relay,” it deals additional Arts damage equal <@ba.vup>{attack@extra_atk_scale:0%}</>to the ATK, and <$ba.sluggish>the stun</> duration is extended by <@ba.vup>{attack@extra_sluggish}</>seconds\\n<@ba.rem>. During the skill’s duration, you can deploy<@ba.vup>{token_recharge_cnt}</> additional “Relays”; these “Relays” will not retreat and will automatically retreat</>\\n<@ba.rem> when the skill ends</><@ba.rem>. The attack is equipped with {attack@trigger_time}rounds of ammunition; the skill ends once all rounds are fired (you can stop the skill at any time).</>",
-"g": "4ff463f2d7"
-},
-"技能持续时间内逐渐获得<@ba.vup>{cost_period}</>点部署费用，攻击间隔缩短，锁定自身和援军原本攻击范围内的敌人进行攻击，造成可露希尔<@ba.vup>{attack@atk_scale:0%}</>攻击力的物理伤害并施加持续<@ba.vup>{attack@slow_down_time}</>秒的<@ba.vup>{attack@slow_down:0%}</><$ba.slowdown>迟钝</>效果（可叠加，最高<@ba.vup>{attack@slow_down_max:0%}</>），每攻击<@ba.vup>{attack_trigger_cnt}</>次后攻击目标数+1（最多触发<@ba.vup>{max_trigger_cnt}</>次）": {
-"en": "During the skill's duration, gradually gain<@ba.vup>{cost_period}</> DP Cost points, reduce the Attack Interval, and target enemies within your own and your reinforcements' original attack ranges to deal Physical damage equal to Closure's <@ba.vup>{attack@atk_scale:0%}</>ATK and apply <$ba.slowdown>a </><@ba.vup>{attack@slow_down:0%}</><$ba.slowdown>Sluggishness</> effect lasting<@ba.vup>{attack@slow_down_time}</> seconds (stackable, up to a maximum of <@ba.vup>{attack@slow_down_max:0%}</>). <@ba.vup>{attack_trigger_cnt}</>After every attack, the number of targets increases by 1 (triggered<@ba.vup>{max_trigger_cnt}</> up to times).",
-"g": "4ff463f2d7"
-},
-"技能期间对每个敌人首次造成伤害时，攻击力提升至160%并使目标<$ba.sluggish>停顿</>3秒；\\n在<@ba.kw>集成战略</>中，在场时始终标记1名全场最重的敌人，被标记的敌人受到<$ba.sluggish>停顿</>或<$ba.stun>晕眩</>时向其发射箭雨（每8秒至多触发1次），箭雨随机攻击目标周围的敌人造成8次相当于攻击力110%的物理伤害和0.1秒<$ba.stun>晕眩</>": {
-"en": "During the skill’s duration, the first time damage is dealt to each enemy, ATK increases to 160% and the target is <$ba.sluggish>paused</> for 3 seconds; \\nin <@ba.kw>Integrated Strategy</>, while on the field, the skill always marks the enemy with the highest health on the field; when the marked enemy is <$ba.sluggish>paused</> or <$ba.stun>Stunned</>, a hail of arrows is fired at them (triggered at most once every 8 seconds),the arrow shower randomly attacks enemies around the target, dealing 8 instances of Physical damage equal to 110% of ATK and causing <$ba.stun>a</> 0.1-second <$ba.stun>Stun.</>",
-"g": "4ff463f2d7"
-},
-"技能期间对每个敌人首次造成伤害时，攻击力提升至160%并使目标<$ba.sluggish>停顿</>3秒；\\n在<@ba.kw>集成战略</>中，在场时始终标记1名全场最重的敌人，被标记的敌人受到<$ba.sluggish>停顿</>或<$ba.stun>晕眩</>时向其发射箭雨（每8秒至多触发1次），箭雨随机攻击目标周围的敌人造成8次相当于攻击力90%的物理伤害和0.1秒<$ba.stun>晕眩</>": {
-"en": "During the skill’s duration, the first time damage is dealt to each enemy, ATK increases to 160% and the target is <$ba.sluggish>paused</> for 3 seconds; \\nin <@ba.kw>Integrated Strategy</>, while on the field, the skill always marks the enemy with the highest health on the field; when the marked enemy is <$ba.sluggish>paused</> or <$ba.stun>Stunned</>, a hail of arrows is fired at them (triggered at most once every 8 seconds),the arrow shower randomly attacks enemies around the target, dealing 8 instances of Physical damage equal to 90% of ATK and causing <$ba.stun>a</> 0.1-second <$ba.stun>Stun.</>",
-"g": "4ff463f2d7"
-},
-"技能期间对每个敌人首次造成伤害时，攻击力提升至170%<@ba.talpu>（+10%）</>并使目标<$ba.sluggish>停顿</>3秒；\\n在<@ba.kw>集成战略</>中，在场时始终标记1名全场最重的敌人，被标记的敌人受到<$ba.sluggish>停顿</>或<$ba.stun>晕眩</>时向其发射箭雨（每8秒至多触发1次），箭雨随机攻击目标周围的敌人造成8次相当于攻击力110%的物理伤害和0.1秒<$ba.stun>晕眩</>": {
-"en": "During the skill’s duration, the first time you deal damage to each enemy, your ATK increases to 170% <@ba.talpu>(+10%)</> and the target is <$ba.sluggish>stunned</> for 3 seconds;\\nIn <@ba.kw>Integrated Strategy</>, while on the field, always marks the heaviest enemy on the field; when the marked enemy is <$ba.stun>stunned</> or <$ba.sluggish>stun</>, fires a hail of arrows at them (triggers up to once every 8 seconds);The arrow storm randomly attacks enemies around the target, dealing 8 instances of Physical damage equal to 110% of ATK and causing <$ba.stun>a</> 0.1-second <$ba.stun>Stun.</>",
-"g": "4ff463f2d7"
-},
-"技能期间对每个敌人首次造成伤害时，攻击力提升至170%<@ba.talpu>（+10%）</>并使目标<$ba.sluggish>停顿</>3秒；\\n在<@ba.kw>集成战略</>中，在场时始终标记1名全场最重的敌人，被标记的敌人受到<$ba.sluggish>停顿</>或<$ba.stun>晕眩</>时向其发射箭雨（每8秒至多触发1次），箭雨随机攻击目标周围的敌人造成8次相当于攻击力90%的物理伤害和0.1秒<$ba.stun>晕眩</>": {
-"en": "During the skill’s duration, the first time you deal damage to each enemy, your ATK increases to 170% <@ba.talpu>(+10%)</> and the target is <$ba.sluggish>stunned</> for 3 seconds;\\nIn <@ba.kw>Integrated Strategy</>, while on the field, always marks the heaviest enemy on the battlefield; when the marked enemy is <$ba.stun>stunned</> or <$ba.sluggish>stun</>, a hail of arrows is fired at them (triggered at most once every 8 seconds);The arrow storm randomly attacks enemies around the target, dealing 8 instances of Physical damage equal to 90% of ATK and causing <$ba.stun>a</> 0.1-second <$ba.stun>Stun.</>",
 "g": "4ff463f2d7"
 },
 "技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加20%": {
@@ -1129,10 +877,6 @@
 "en": "Win Over the Audience",
 "g": "4ff463f2d7"
 },
-"拥有已储存的攻击能量时，攻击速度+30": {
-"en": "When you have stored attack energy, your ASPD increases by 30.",
-"g": "4ff463f2d7"
-},
 "拾荒者": {
 "en": "Scavenger",
 "g": "4ff463f2d7"
@@ -1149,10 +893,6 @@
 "en": "Beachcomber",
 "g": "4ff463f2d7"
 },
-"掠风的中坚信物": {
-"en": "The Emblem of the Wind-Riders",
-"g": "4ff463f2d7"
-},
 "探险理论": {
 "en": "Theory of Exploration",
 "g": "4ff463f2d7"
@@ -1161,40 +901,8 @@
 "en": "Cover Tactics",
 "g": "4ff463f2d7"
 },
-"提丰特限证章": {
-"en": "Tifont Limited Edition Badge",
-"g": "4ff463f2d7"
-},
 "搭车漫游寻访凭证": {
 "en": "Hitchhiking Adventure Pass",
-"g": "4ff463f2d7"
-},
-"携带可露希尔时，<$ba.costlowerbound>部署费用下限</>降低3，【罗德岛】干员攻击力+4%": {
-"en": "When carrying Closure, <$ba.costlowerbound>the minimum DP Cost</> is reduced by 3, and [Rhodes Island] Operators' ATK is increased by 4%.",
-"g": "4ff463f2d7"
-},
-"携带可露希尔时，<$ba.costlowerbound>部署费用下限</>降低4<@ba.talpu>（+1）</>，【罗德岛】干员攻击力+4%": {
-"en": "When carrying Closure, <$ba.costlowerbound>the minimum DP Cost</> is reduced by 4 <@ba.talpu>(+1)</>, and [Rhodes Island] Operators' ATK is increased by 4%.",
-"g": "4ff463f2d7"
-},
-"携带可露希尔时，<$ba.costlowerbound>部署费用下限</>降低4，【罗德岛】干员攻击力+6%": {
-"en": "When carrying Closure, <$ba.costlowerbound>the minimum DP Cost</> is reduced by 4, and [Rhodes Island] Operators' ATK is increased by 6%.",
-"g": "4ff463f2d7"
-},
-"携带可露希尔时，<$ba.costlowerbound>部署费用下限</>降低5<@ba.talpu>（+1）</>，【罗德岛】干员攻击力+6%": {
-"en": "When carrying Closure, <$ba.costlowerbound>the minimum DP Cost</> is reduced by 5 <@ba.talpu>(+1)</>, and [Rhodes Island] Operators' ATK is increased by 6%.",
-"g": "4ff463f2d7"
-},
-"携带可露希尔时，<$ba.costlowerbound>部署费用下限</>降低5，【罗德岛】干员攻击力+8%": {
-"en": "When carrying Closure, <$ba.costlowerbound>the minimum DP Cost</> is reduced by 5, and [Rhodes Island] Operators' ATK is increased by 8%.",
-"g": "4ff463f2d7"
-},
-"携带可露希尔时，<$ba.costlowerbound>部署费用下限</>降低6<@ba.talpu>（+1）</>，【罗德岛】干员攻击力+8%": {
-"en": "When carrying Closure, <$ba.costlowerbound>the minimum DP Cost</> is reduced by 6 <@ba.talpu>(+1)</>, and [Rhodes Island] Operators' ATK is increased by 8%.",
-"g": "4ff463f2d7"
-},
-"撤退时返还<@ba.kw>大量</>该次部署费用": {
-"en": "<@ba.kw>A significant portion of</> the DP Costs associated with that deployment will be reimbursed upon withdrawal.",
 "g": "4ff463f2d7"
 },
 "撷香霭": {
@@ -1225,10 +933,6 @@
 "en": "ATK +16% <@ba.talpu>(+3%)</>; when a swarm unit attacks, there is a 15% chance to <$ba.sluggish>stun</> the target for 1.5 seconds",
 "g": "4ff463f2d7"
 },
-"攻击力+25": {
-"en": "ATK +25",
-"g": "4ff463f2d7"
-},
 "攻击力+30": {
 "en": "ATK +30",
 "g": "4ff463f2d7"
@@ -1249,24 +953,8 @@
 "en": "ATK +4%; when a drone attacks, there is a 15% chance to <$ba.sluggish>stun</> the target for 1.5 seconds",
 "g": "4ff463f2d7"
 },
-"攻击力+5%，攻击被<$ba.tremble>战栗</>的目标时，无视目标30%的防御力，地面敌人首次进入自身攻击范围时，使其<$ba.tremble>战栗</>6秒": {
-"en": "ATK +5%. When attacking a target that <$ba.tremble>is trembling</>, ignores 30% of the target's DEF. When a ground enemy enters your attack range for the first time, causes it <$ba.tremble>to tremble</> for 6 seconds.",
-"g": "4ff463f2d7"
-},
-"攻击力+5%，攻击被<$ba.tremble>战栗</>的目标时，无视目标35%<@ba.talpu>（+5%）</>的防御力，地面敌人首次进入自身攻击范围时，使其<$ba.tremble>战栗</>6秒": {
-"en": "ATK +5%. When attacking a target that <$ba.tremble>is trembling</>, ignores 35% <@ba.talpu>(+5%)</> of the target's DEF. When a ground enemy enters your attack range for the first time, causes it to tremble for 6 seconds.",
-"g": "4ff463f2d7"
-},
 "攻击力+7%<@ba.talpu>（+3%）</>，浮游单元攻击时有15%概率使目标<$ba.sluggish>停顿</>1.5秒": {
 "en": "ATK +7% <@ba.talpu>(+3%)</>; when a swarm unit attacks, there is a 15% chance to <$ba.sluggish>stun</> the target for 1.5 seconds",
-"g": "4ff463f2d7"
-},
-"攻击力+8%，攻击被<$ba.tremble>战栗</>的目标时，无视目标33%的防御力，地面敌人首次进入自身攻击范围时，使其<$ba.tremble>战栗</>6秒": {
-"en": "ATK +8%; when attacking a target that is <$ba.tremble>trembling</>, ignores 33% of the target's DEF; when a ground enemy first enters your attack range, causes it <$ba.tremble>to tremble</> for 6 seconds",
-"g": "4ff463f2d7"
-},
-"攻击力+8%，攻击被<$ba.tremble>战栗</>的目标时，无视目标38%<@ba.talpu>（+5%）</>的防御力，地面敌人首次进入自身攻击范围时，使其<$ba.tremble>战栗</>6秒": {
-"en": "ATK +8%; when attacking a target that is <$ba.tremble>trembling</>, ignores 38% <@ba.talpu>(+5%)</> of the target's DEF; when a ground enemy first enters your attack range, causes it <$ba.tremble>to tremble</> for 6 seconds",
 "g": "4ff463f2d7"
 },
 "攻击力+8%，浮游单元攻击时有15%概率使目标<$ba.sluggish>停顿</>1.5秒": {
@@ -1279,10 +967,6 @@
 },
 "攻击力<@ba.vup>+{atk:0%}</>，攻击范围内被阻挡的敌人获得<@ba.vup>{-attack@atk:0%}</><$ba.weaken>虚弱</>效果": {
 "en": "ATK <@ba.vup>+{atk:0%}</>; enemies blocked within the attack range are afflicted with the <@ba.vup>{-attack@atk:0%}</><$ba.weaken>Weakness</> effect",
-"g": "4ff463f2d7"
-},
-"攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>，所有其他<$ba.liftoff>起飞</>的友方干员阻挡范围扩大": {
-"en": "ATK <@ba.vup>+{atk:0%}</>, ASPD <@ba.vup>+{attack_speed}</>, and the block range of all allied Operators <$ba.liftoff>taking off</> is expanded",
 "g": "4ff463f2d7"
 },
 "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果": {
@@ -1321,22 +1005,6 @@
 "en": "ATK and DEF are increased by 12% <@ba.talpu>(+2%)</>; for each additional enemy blocked, they are increased by 5% <@ba.talpu>(+1%)</>;\nDuring <@ba.kw>the Vitality Calculation</>, while the skill is active, every 5 seconds, deal area-of-effect Physical damage equal to 100% of ATK at the operator’s center and moderately knock back unblocked enemies. When an enemy is knocked down, restore 5% HP and gain 2% of that enemy’s ATK and DEF(lasts until Gavial the Invincible leaves the battlefield, up to a maximum of 300% of the initial attributes), and all ground Operators block an additional 2 enemies",
 "g": "4ff463f2d7"
 },
-"攻击和储存的能量使目标在5秒内每秒受到100点法术伤害（至多叠加4次，发射转置能量可以叠加3次），维伊不以该效果影响的敌人为攻击目标": {
-"en": "The energy from the attack and the stored energy cause the target to take 100 points of Arts damage per second for 5 seconds (up to 4 stacks; firing Transposed Energy can apply up to 3 stacks). Vey does not target enemies affected by this effect.",
-"g": "4ff463f2d7"
-},
-"攻击和储存的能量使目标在5秒内每秒受到120点法术伤害（至多叠加4次，发射转置能量可以叠加3次），维伊不以该效果影响的敌人为攻击目标": {
-"en": "The energy from the attack and the stored energy cause the target to take 120 points of Arts damage per second for 5 seconds (up to 4 stacks; firing Transposed Energy grants 3 stacks). Vey does not target enemies affected by this effect.",
-"g": "4ff463f2d7"
-},
-"攻击和储存的能量使目标在5秒内每秒受到90点法术伤害（至多叠加3次，发射转置能量可以叠加3次），维伊不以该效果影响的敌人为攻击目标": {
-"en": "The energy from the attack and the stored energy cause the target to take 90 points of Arts damage per second for 5 seconds (up to 3 stacks; firing Transposed Energy can apply up to 3 stacks). Vey does not target enemies affected by this effect.",
-"g": "4ff463f2d7"
-},
-"攻击时无视敌人<@ba.vup>{def_penetrate_fixed}</>点的防御力": {
-"en": "Ignores <@ba.vup>{def_penetrate_fixed}</>the enemy's DEF when attacking",
-"g": "4ff463f2d7"
-},
 "攻击时有23%的几率使目标<$ba.root>束缚</>1.5秒，首次命中敌人时提升至100%且<$ba.root>束缚</>时间提升至3秒": {
 "en": "There is a 23% chance to <$ba.root>bind</> the target for 1.5 seconds when attacking; this chance increases to 100% upon the first hit, and the <$ba.root>bind</> duration increases to 3 seconds.",
 "g": "4ff463f2d7"
@@ -1359,10 +1027,6 @@
 },
 "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>较大幅缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标": {
 "en": "The attack range <@ba.vup>expands</>, and the character glides forward <$ba.liftoff>to take off</>, causing ground enemies within the attack range to <$ba.levitate>be Levitated</> for X <@ba.vup>{buff_duration_levitate}</><$ba.levitate>seconds</> and flying enemies <$ba.groundbind>to be grounded</><@ba.vup>{buff_duration_ground_bound}</> for X seconds. Afterward, the Attack Interval <@ba.vup>is significantly reduced</>, ATK is increased by X<@ba.vup>{atk:0%}</>, and the attack deals Arts damage while hitting<@ba.vup>{attack@max_target}</> X targets simultaneously.",
-"g": "4ff463f2d7"
-},
-"攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为射出医疗单元（优先选择敌人），击中时对目标周围所有敌人造成相当于攻击力<@ba.vup>{attack@atk_scale:0%}</>的真实伤害，使其<$ba.sluggish>停顿</><@ba.vup>{attack@sluggish}</>秒并回复目标周围所有友方干员相当于攻击力<@ba.vup>{attack@heal_scale:0%}</>的生命\\n<@ba.rem>攻击装有10发弹药，可以随时停止技能</>": {
-"en": "Attack range <@ba.vup>is</> increased, ATK is boosted<@ba.vup>{atk:0%}</>, and the attack becomes a projectile that launches Medic units (prioritizing enemies). Upon hitting a target, it deals True damage equal to <@ba.vup>{attack@atk_scale:0%}</>the ATK to all enemies around the target, stuns them <$ba.sluggish>for </><@ba.vup>{attack@sluggish}</><$ba.sluggish>seconds</>, and restores health\\n equal to the ATK<@ba.vup>{attack@heal_scale:0%}</> to all allied Operators around the target<@ba.rem>. The attack has 10 rounds of ammunition, and the skill can be canceled at any time.</>",
 "g": "4ff463f2d7"
 },
 "攻击范围<@ba.vup>扩大</>，攻击目标数<@ba.vup>+2</>，每次攻击对目标造成相当于攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害并额外造成相当于物理伤害<@ba.vup>{attack@ep_damage_ratio:0%}</>的<$ba.dt.erosion2>侵蚀损伤</>；当全场有敌人<$ba.dt.erosion2>侵蚀损伤</>爆发时，消耗1发弹药对目标所在位置及其周围四格内所有地面敌人造成<@ba.vup>3</>次相当于攻击力<@ba.vup>{s3_atk_scale:0%}</>的物理伤害与相当于攻击力<@ba.vup>{ep_damage_scale:0%}</>的元素伤害\\n<@ba.rem>技能装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>": {
@@ -1449,28 +1113,8 @@
 "en": "Enemies blocked within the attack range gain a 8% <$ba.fragile>Fragile</> effect.",
 "g": "4ff463f2d7"
 },
-"攻击距离+1（不受技能攻击范围变化影响）": {
-"en": "Attack Range +1 (not affected by changes to skill attack range)",
-"g": "4ff463f2d7"
-},
-"攻击速度+8": {
-"en": "ASPD +8",
-"g": "4ff463f2d7"
-},
-"攻击速度<@ba.vup>+{attack_speed}</>": {
-"en": "ASPD <@ba.vup>+{attack_speed}</>",
-"g": "4ff463f2d7"
-},
-"攻击速度<@ba.vup>+{attack_speed}</>，储存的能量发射后会在敌人间（优先不同目标）跳跃一次，并造成相当于<@ba.vup>{attack@bounce_atk_scale:0%}</>攻击力的法术伤害，<@ba.vup>转置能量</>改为跳跃<@ba.vup>{merge_hit_cnt}</>次\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，仅在发射每个储存能量时消耗1发弹药，发射转置能量消耗3发弹药，弹药打完后结束（可随时停止技能）</>": {
-"en": "ASPD +<@ba.vup>{attack_speed}</>. After being fired, stored energy will bounce once between enemies (prioritizing different targets) and deal Arts damage equal<@ba.vup>{attack@bounce_atk_scale:0%}</> to ATK. <@ba.rem>Firing</> <@ba.vup>\"Transposed Energy</>\" changes <@ba.rem>the </>\\n<@ba.rem>attack</> to a bouncing<@ba.vup>{merge_hit_cnt}</> attack<@ba.rem>. The skill is equipped with {attack@trigger_time}ammunition; firing each stored energy consumes 1 round of ammunition, while firing \"Transposed Energy\" consumes 3 rounds of ammunition. The skill ends when ammunition runs out.(The skill can be stopped at any time.)</>",
-"g": "4ff463f2d7"
-},
 "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>": {
 "en": "The Attack Interval increases, and the attack becomes a <@ba.vup>five-hit</> area-of-effect attack that deals Physical damage\\n equal to a certain percentage of the attacker's ATK<@ba.vup>{attack@atk_scale:0%}</>. <@ba.rem>The skill uses{attack@trigger_time} a set number of rounds and ends once all rounds are fired (the skill can be stopped at any time).</>",
-"g": "4ff463f2d7"
-},
-"攻击间隔<@ba.vup>小幅缩短</>，每次攻击或发射储存能量后，使自身后续攻击力<@ba.vup>+{attack@veen_s_2_buff[stack].atk:0%}</>，攻击速度<@ba.vup>+{attack@veen_s_2_buff[stack].attack_speed}</>（至多叠加<@ba.vup>{attack@veen_s_2_buff[stack].max_stack_cnt}</>层，发射转置能量可叠加<@ba.vup>3</>层），持续至技能结束": {
-"en": "The Attack Interval <@ba.vup>is slightly reduced</>. After each attack or release of stored energy, the character gains +<@ba.vup>{attack@veen_s_2_buff[stack].atk:0%}</> to ATK and + to ASPD <@ba.vup>{attack@veen_s_2_buff[stack].attack_speed}</>(up to [number<@ba.vup>{attack@veen_s_2_buff[stack].max_stack_cnt}</>] stacks; releasing transposed energy grants 3 stacks), which lasts until the skill ends.",
 "g": "4ff463f2d7"
 },
 "攻击额外造成攻击力23%的法术伤害，根据造成的法术伤害次数获得不断提高的<$ba.magicarcane>术法充盈</>（最高在造成7次法术伤害后获得35%的<$ba.magicarcane>术法充盈</>），首次撤退再部署时间为0": {
@@ -1485,10 +1129,6 @@
 "en": "Pope",
 "g": "4ff463f2d7"
 },
-"斗争血脉/XI": {
-"en": "The Spirit of Struggle/XI",
-"g": "4ff463f2d7"
-},
 "斗争血脉/XII": {
 "en": "The Spirit of Struggle/XII",
 "g": "4ff463f2d7"
@@ -1501,10 +1141,6 @@
 "en": "New Product Review",
 "g": "4ff463f2d7"
 },
-"新合同": {
-"en": "New Contract",
-"g": "4ff463f2d7"
-},
 "新地形": {
 "en": "New Terrain",
 "g": "4ff463f2d7"
@@ -1515,10 +1151,6 @@
 },
 "旧磁带": {
 "en": "Old Cassette Tapes",
-"g": "4ff463f2d7"
-},
-"时代/LIV": {
-"en": "Times/LIV",
 "g": "4ff463f2d7"
 },
 "时代/LV": {
@@ -1589,10 +1221,6 @@
 "en": "Express Delivery",
 "g": "4ff463f2d7"
 },
-"极限调度": {
-"en": "Extreme Scheduling",
-"g": "4ff463f2d7"
-},
 "标记射击": {
 "en": "Target Shooting",
 "g": "4ff463f2d7"
@@ -1601,32 +1229,12 @@
 "en": "Zilan Custom-Made Archery Target",
 "g": "4ff463f2d7"
 },
-"模型扩展": {
-"en": "Model Extension",
-"g": "4ff463f2d7"
-},
 "欲雪时": {
 "en": "On the Eve of Snow",
 "g": "4ff463f2d7"
 },
 "每回收5次<@ba.kw>回旋投射物</>时获得1点技力": {
 "en": "Gain 1 SP for every 5 <@ba.kw>Spinning Projectiles</> you recover.",
-"g": "4ff463f2d7"
-},
-"每次部署后击倒一名敌人之前，攻击速度+12，受到的所有伤害降低30%，击倒一名敌人之后使当次再部署时间-10%": {
-"en": "After each deployment, until you knock down an enemy, your ASPD increases by 12, and all damage taken is reduced by 30%; after knocking down an enemy, the Redeployment Time for your next deployment is reduced by 10%.",
-"g": "4ff463f2d7"
-},
-"每次部署后击倒一名敌人之前，攻击速度+14<@ba.talpu>（+2）</>，受到的所有伤害降低35%<@ba.talpu>（+5%）</>，击倒一名敌人之后使当次再部署时间-10%": {
-"en": "Before knocking down an enemy after each deployment, ASPD +14 <@ba.talpu>(+2)</>, and all damage taken is reduced by 35% <@ba.talpu>(+5%)</>; after knocking down an enemy, the Redeployment Time for the next deployment is reduced by 10%.",
-"g": "4ff463f2d7"
-},
-"每次部署后击倒一名敌人之前，攻击速度+15，受到的所有伤害降低30%，击倒一名敌人之后使当次再部署时间-20%": {
-"en": "After each deployment, until an enemy is knocked down, ASPD increases by 15, and all damage taken is reduced by 30%; after knocking down an enemy, the Redeployment Time for the next deployment is reduced by 20%.",
-"g": "4ff463f2d7"
-},
-"每次部署后击倒一名敌人之前，攻击速度+17<@ba.talpu>（+2）</>，受到的所有伤害降低35%<@ba.talpu>（+5%）</>，击倒一名敌人之后使当次再部署时间-20%": {
-"en": "Before knocking down an enemy after each deployment, ASPD +17 <@ba.talpu>(+2)</>, and all damage taken is reduced by 35% <@ba.talpu>(+5%)</>; after knocking down an enemy, the Redeployment Time for the next deployment is reduced by 20%.",
 "g": "4ff463f2d7"
 },
 "毛茸茸的抚慰": {
@@ -1657,10 +1265,6 @@
 "en": "RES +8",
 "g": "4ff463f2d7"
 },
-"洛洛的中坚信物": {
-"en": "Lolo's Talisman of Strength",
-"g": "4ff463f2d7"
-},
 "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载；可随时主动关闭技能</>": {
 "en": "Drone+<@ba.vup>{attack@cnt}</>: Deploys a drone to lock onto an enemy. Attack \\nOverload: Stops the Operator’s own attacks; increases ATK and ASPD<@ba.vup>{atk:0%}</><@ba.vup>{attack_speed}</>\\n<@ba.rem>. The drone remains locked onto the target until the enemy is defeated or the skill ends, at which point it returns to the Operator. If the target the drone is locked onto moves out of the Operator’s attack range, Overload is triggered immediately. The skill can be manually deactivated at any time.</>",
 "g": "4ff463f2d7"
@@ -1683,18 +1287,6 @@
 },
 "消耗<@ba.vdown>5</>点部署费用，攻击力和防御力<@ba.vup>+{atk:0%}</>；技能期间可消耗<@ba.vdown>10</>点部署费用使用<$ba.alter>装备应变</>，对前方造成一次相当于攻击力<@ba.vup>{attack@extra_physic_atk_scale:0%}</>的物理伤害，且开启技能时每消耗一层充能附加一次相当于攻击力<@ba.vup>{attack@extra_magic_atk_scale:0%}</>的法术伤害，之后技能立即结束\\n<@ba.rem>可充能5次</>": {
 "en": "Consumes 5 DP Costs; increases ATK and DEF<@ba.vup>{atk:0%}</>. During the skill’s duration, you may spend <@ba.vdown>10</> DP Costs to use <$ba.alter>“Equip Adaptation</>,” dealing Physical damage equal to <@ba.vup>{attack@extra_physic_atk_scale:0%}</>your ATK to enemies in front of you. Additionally, each level of charge consumed when activating the skill adds Arts damage equal to your <@ba.vup>{attack@extra_magic_atk_scale:0%}</>ATK. The skill ends\\n immediately afterward and <@ba.rem>can be charged up to 5 times.</>",
-"g": "4ff463f2d7"
-},
-"涤净": {
-"en": "Wash and Rinse",
-"g": "4ff463f2d7"
-},
-"液化醚吸聚体": {
-"en": "Liquefied Ether Absorbent Polymer",
-"g": "4ff463f2d7"
-},
-"液化高能气体": {
-"en": "Liquefied High-Energy Gas",
 "g": "4ff463f2d7"
 },
 "淑女风范": {
@@ -1725,10 +1317,6 @@
 "en": "Hot Spring Resort Experience Voucher",
 "g": "4ff463f2d7"
 },
-"溃决": {
-"en": "Breach",
-"g": "4ff463f2d7"
-},
 "源岩解析": {
 "en": "Rock-Source Analysis",
 "g": "4ff463f2d7"
@@ -1747,14 +1335,6 @@
 },
 "潜水作业": {
 "en": "Diving Operations",
-"g": "4ff463f2d7"
-},
-"澄闪的中坚信物": {
-"en": "The Crystal-Shimmering Talisman",
-"g": "4ff463f2d7"
-},
-"濯尘芙蓉的中坚信物": {
-"en": "The Symbol of \"Hibiscus the Purifier\"",
 "g": "4ff463f2d7"
 },
 "火竹炭": {
@@ -1783,26 +1363,6 @@
 },
 "熔火冰晶": {
 "en": "Molten Fire, Icy Crystal",
-"g": "4ff463f2d7"
-},
-"特别订单": {
-"en": "Special Orders",
-"g": "4ff463f2d7"
-},
-"特性储存的能量达到3个时，合成为1个转置能量（至多储存等同于9倍的能量），拥有转置能量时攻击力+10%，未拥有转置能量时攻击速度+15": {
-"en": "When the stored energy reaches 3, it is synthesized into 1 Transposition Energy (up to a maximum of 9 times the stored energy). While possessing Transposition Energy, ATK is increased by 10%; when not possessing Transposition Energy, ASPD is increased by 15.",
-"g": "4ff463f2d7"
-},
-"特性储存的能量达到3个时，合成为1个转置能量（至多储存等同于9倍的能量），拥有转置能量时攻击力+12%<@ba.talpu>（+2%）</>，未拥有转置能量时攻击速度+15": {
-"en": "When the Trait stored energy reaches 3, it is synthesized into 1 Transposition Energy (up to a maximum of 9 times the stored energy). While possessing Transposition Energy, ATK is increased by 12% <@ba.talpu>(+2%)</>; when not possessing Transposition Energy, ASPD is increased by 15%.",
-"g": "4ff463f2d7"
-},
-"特性储存的能量达到3个时，合成为1个转置能量（至多储存等同于9倍的能量），拥有转置能量时攻击力+2%，未拥有转置能量时攻击速度+5": {
-"en": "When the stored energy reaches 3, it is synthesized into 1 Transposition Energy (up to a maximum of 9 times the stored energy). While possessing Transposition Energy, ATK increases by 2%; when not possessing Transposition Energy, ASPD increases by 5.",
-"g": "4ff463f2d7"
-},
-"特性储存的能量达到3个时，合成为1个转置能量（至多储存等同于9倍的能量），拥有转置能量时攻击力+4%<@ba.talpu>（+2%）</>，未拥有转置能量时攻击速度+5": {
-"en": "When the stored energy reaches 3, it is synthesized into 1 Transposition Energy (up to a maximum of 9 times the stored energy). While possessing Transposition Energy, ATK is increased by 4% <@ba.talpu>(+2%)</>; when not possessing Transposition Energy, ASPD is increased by 5.",
 "g": "4ff463f2d7"
 },
 "特性消耗费用时，每消耗1点费用使本次技能期间攻击力<@ba.kw>+2%</>（上限10层）": {
@@ -1893,40 +1453,8 @@
 "en": "Coral Coast/XXIII",
 "g": "4ff463f2d7"
 },
-"理论革新": {
-"en": "Theoretical Innovation",
-"g": "4ff463f2d7"
-},
 "生命上限+270": {
 "en": "Max HP +270",
-"g": "4ff463f2d7"
-},
-"生命上限<@ba.vup>+{max_hp:0%}</>，自身每秒回复<@ba.vup>{ep_heal}</>点<$ba.dt.element>元素损伤</>": {
-"en": "Max HP +<@ba.vup>{max_hp:0%}</>; Restores<@ba.vup>{ep_heal}</> a certain amount of <$ba.dt.element>Elemental Damage</> per second",
-"g": "4ff463f2d7"
-},
-"生命上限和防御力+10%<@ba.talpu>（+5%）</>，阻挡数+1，阻挡范围扩大，部署后生命修复单元升空，自身<$ba.liftoff>起飞</>": {
-"en": "Max HP and DEF +10% <@ba.talpu>(+5%)</>, Block +1, Block Range expanded; upon deployment, HP-regeneration units take flight, and the unit itself <$ba.liftoff>takes off</>",
-"g": "4ff463f2d7"
-},
-"生命上限和防御力+10%，阻挡数+1，阻挡范围扩大，部署后生命修复单元升空，自身<$ba.liftoff>起飞</>": {
-"en": "Max HP and DEF +10%, Block +1, Block Range expanded; upon deployment, HP Recovery Units take off, and the unit itself <$ba.liftoff>takes off</>",
-"g": "4ff463f2d7"
-},
-"生命上限和防御力+15%<@ba.talpu>（+5%）</>，阻挡数+1，阻挡范围扩大，部署后生命修复单元升空，自身<$ba.liftoff>起飞</>": {
-"en": "Max HP and DEF +15% <@ba.talpu>(+5%)</>, Block +1, Block Range expanded; upon deployment, HP-restoring units take off, and the unit itself <$ba.liftoff>takes off</>",
-"g": "4ff463f2d7"
-},
-"生命上限和防御力+25%，阻挡数+1，阻挡范围扩大，部署后生命修复单元升空，自身<$ba.liftoff>起飞</>": {
-"en": "Max HP and DEF +25%, Block +1, Block Range expanded; upon deployment, HP-regeneration units take off, and the unit itself <$ba.liftoff>takes off</>",
-"g": "4ff463f2d7"
-},
-"生命上限和防御力+30%<@ba.talpu>（+5%）</>，阻挡数+1，阻挡范围扩大，部署后生命修复单元升空，自身<$ba.liftoff>起飞</>": {
-"en": "Max HP and DEF +30% <@ba.talpu>(+5%)</>, Block +1, Block Range Increased; upon deployment, HP-regeneration units take off, and the unit itself <$ba.liftoff>takes off</>",
-"g": "4ff463f2d7"
-},
-"生命上限和防御力+5%，阻挡数+1，阻挡范围扩大，部署后生命修复单元升空，自身<$ba.liftoff>起飞</>": {
-"en": "Max HP and DEF +5%, Block +1, Block Range expanded; upon deployment, HP-restoring units take off, and the unit itself <$ba.liftoff>takes off</>",
 "g": "4ff463f2d7"
 },
 "生命之地/XI": {
@@ -1941,20 +1469,12 @@
 "en": "The Equation of Life",
 "g": "4ff463f2d7"
 },
-"生命标本": {
-"en": "Specimens of Life",
-"g": "4ff463f2d7"
-},
 "生死定夺": {
 "en": "A Matter of Life and Death",
 "g": "4ff463f2d7"
 },
 "生路家具收藏包": {
 "en": "Shenglu Furniture Collection Set",
-"g": "4ff463f2d7"
-},
-"电极单元": {
-"en": "Electrode Unit",
 "g": "4ff463f2d7"
 },
 "百炼嘉维尔特限证章": {
@@ -1967,10 +1487,6 @@
 },
 "真我自扼": {
 "en": "The True Self Strangles Itself",
-"g": "4ff463f2d7"
-},
-"破梏重生": {
-"en": "Breaking Free and Rebirth",
 "g": "4ff463f2d7"
 },
 "破碎的骨片": {
@@ -2021,20 +1537,8 @@
 "en": "<$ba.liftoff>Take off</> immediately<$ba.liftoff>;</> ATK increases<@ba.vup>{atk:0%}</>; gains<@ba.vup>{damage_resistance:0%}</> <$ba.airprotect>Anti-Air Shelter;</> attack range <@ba.vup>expands</>; the 8 surrounding squares are treated as an additional attack range for Angelina the Mellow Wish; deals Physical damage <@ba.vup>{attack@atk_scale:0%}</>equal to ATK to the<@ba.vup>{attack@max_walk_target}</> target enemy and additionally attacks 1 flying enemy;Reduces the movement speed of flying enemies within range<@ba.vup>{move_speed:0%}</>. If there is an unblocked, blockable flying enemy <@ba.vup>within the original skill’s</> range and the caster is not blocked, <$ba.addash>the caster moves</> to the enemy’s square\\n <@ba.rem>and attacks with{attack@trigger_time} one round of ammunition; the skill ends once the ammunition is exhausted (the skill can be stopped at any time during this period).</>",
 "g": "4ff463f2d7"
 },
-"立刻获得战术锚点，攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vup>大幅缩小</>，额外治疗<@ba.vup>1</>个目标，部署战术锚点后，自身<$ba.addash>移动</>至该位置，并使攻击范围内最多<@ba.vup>2</>名友方干员可以部署至自身攻击范围的另一位置": {
-"en": "Instantly gain a Tactical Anchor, increasing ATK <@ba.vup>{atk:0%}</>and <@ba.vup>significantly reducing</> Attack Intervals, while providing additional healing to one target. After deploying the Tactical Anchor, the operator <$ba.addash>moves</> to that location and allows up to two allied Operators within their attack range to deploy to another location within that range.",
-"g": "4ff463f2d7"
-},
-"立即使自身的援军获得<@ba.vup>{shield_cnt}</>层<$ba.shield>护盾</>（不叠加），技能持续时间内逐渐获得<@ba.vup>{cost}</>点部署费用；部署后每使用过一次技能，获得的部署费用<@ba.vup>+{cost_per_add}</>（最多提升至<@ba.vup>{cost_add_max}</>点）": {
-"en": "Immediately grants your own reinforcements <@ba.vup>{shield_cnt}</>a Shield (non-stackable); during the skill's duration, it gradually regains DP Cost <@ba.vup>{cost}</>points; after deployment, each time the skill is used, the DP Cost regained is increased by <@ba.vup>{cost_per_add}</>(up to a maximum of points<@ba.vup>{cost_add_max}</>).",
-"g": "4ff463f2d7"
-},
 "立即发射三发箭矢，每发对目标造成相当于<@ba.vup>{multi_atk_scale:0%}</>攻击力的法术伤害，随后追加一次相当于攻击力<@ba.vup>{final_atk_scale:0%}</>的范围法术伤害并<$ba.levitate>浮空</>所有目标<@ba.vup>{levitate}</>秒": {
 "en": "Immediately fires three arrows, each dealing Arts damage equal<@ba.vup>{multi_atk_scale:0%}</> to your ATK to the target, followed by an additional area-of-effect Arts damage equal to your ATK<@ba.vup>{final_atk_scale:0%}</> that <$ba.levitate>Levitates</> all targets<@ba.vup>{levitate}</> for 1 second.",
-"g": "4ff463f2d7"
-},
-"立即获得<@ba.vup>{cost}</>点部署费用，持续时间内逐渐获得<@ba.vup>{cost_period}</>点部署费用，自身的援军防御力<@ba.vup>+{def:0%}</>，阻挡数<@ba.vup>+{block_cnt}</>，自身攻击力<@ba.vup>+{atk:0%}</>，同时攻击<@ba.vup>{attack@max_target}</>个目标且能攻击到自身援军阻挡的敌人；在战术点效果范围内部署干员时，立即返还部署费用的<@ba.vup>{cost_return:0%}</>": {
-"en": "Instantly gain<@ba.vup>{cost}</> DP Cost; gradually gain<@ba.vup>{cost_period}</> DP Cost over the Duration; increases your own reinforcement DEF<@ba.vup>{def:0%}</>, Block<@ba.vup>{block_cnt}</>, and ATK<@ba.vup>{atk:0%}</>; simultaneously attacks <@ba.vup>{attack@max_target}</>multiple targets, including enemies within range of your reinforcements' blocks; when deploying Operators within the tactical point's effect range, instantly refunds the<@ba.vup>{cost_return:0%}</> DP Cost.",
 "g": "4ff463f2d7"
 },
 "第一天赋效果增强": {
@@ -2047,10 +1551,6 @@
 },
 "第二天赋效果增强": {
 "en": "Enhanced Second Talent Effect",
-"g": "4ff463f2d7"
-},
-"精准投放": {
-"en": "Targeted Advertising",
 "g": "4ff463f2d7"
 },
 "约定的证明": {
@@ -2125,28 +1625,12 @@
 "en": "Structural Principles",
 "g": "4ff463f2d7"
 },
-"给自己的小奖杯": {
-"en": "A Little Trophy for Myself",
-"g": "4ff463f2d7"
-},
 "绝对主角": {
 "en": "The Undisputed Star",
 "g": "4ff463f2d7"
 },
-"维伊的信物": {
-"en": "Vei's Token",
-"g": "4ff463f2d7"
-},
 "罗德岛制式双刀": {
 "en": "Rhode Island-Style Dual Blades",
-"g": "4ff463f2d7"
-},
-"罗德岛物资补给X": {
-"en": "Rhode Island Supply Drop X",
-"g": "4ff463f2d7"
-},
-"罗德岛补给箱": {
-"en": "Rhode Island Supply Crate",
 "g": "4ff463f2d7"
 },
 "罗德岛隐秘队的信物": {
@@ -2161,52 +1645,12 @@
 "en": "Flying Insect Maneuver",
 "g": "4ff463f2d7"
 },
-"老鲤的中坚信物": {
-"en": "The Old Carp's Beloved Talisman",
-"g": "4ff463f2d7"
-},
 "聚众宣讲": {
 "en": "Public Lecture",
 "g": "4ff463f2d7"
 },
 "聚类分析": {
 "en": "Cluster Analysis",
-"g": "4ff463f2d7"
-},
-"聚能动力单元": {
-"en": "Energy-Concentrating Power Unit",
-"g": "4ff463f2d7"
-},
-"自身受到的<$ba.dt.element>元素损伤</>-10%，受到的<$ba.dt.erosion>侵蚀损伤</>额外-10%": {
-"en": "-10% to <$ba.dt.element>Elemental Damage</> taken; an additional -10% to <$ba.dt.erosion>Corrosion Damage</> taken",
-"g": "4ff463f2d7"
-},
-"自身受到的<$ba.dt.element>元素损伤</>-12%<@ba.talpu>（+2%）</>，受到的<$ba.dt.erosion>侵蚀损伤</>额外-12%<@ba.talpu>（+2%）</>": {
-"en": "<$ba.dt.element>Elemental Damage</> taken: -12% <@ba.talpu>(+2%)</>; additional -12% <@ba.talpu>(+2%)</> to <$ba.dt.erosion>Corrosion Damage</> taken",
-"g": "4ff463f2d7"
-},
-"自身受到的<$ba.dt.element>元素损伤</>-13%，受到的<$ba.dt.erosion>侵蚀损伤</>额外-15%": {
-"en": "-13% to <$ba.dt.element>Elemental Damage</> taken; an additional -15% to <$ba.dt.erosion>Corrosion Damage</> taken",
-"g": "4ff463f2d7"
-},
-"自身受到的<$ba.dt.element>元素损伤</>-13%，受到的<$ba.dt.erosion>侵蚀损伤</>额外-18%": {
-"en": "-13% to <$ba.dt.element>Elemental Damage</> taken; an additional -18% to <$ba.dt.erosion>Corrosion Damage</> taken",
-"g": "4ff463f2d7"
-},
-"自身受到的<$ba.dt.element>元素损伤</>-15%<@ba.talpu>（+2%）</>，受到的<$ba.dt.erosion>侵蚀损伤</>额外-17%<@ba.talpu>（+2%）</>": {
-"en": "<$ba.dt.element>Elemental Damage</> taken: -15% <@ba.talpu>(+2%)</>; additional -17% to <$ba.dt.erosion>Corrosion Damage</> taken <@ba.talpu>(+2%)</>",
-"g": "4ff463f2d7"
-},
-"自身受到的<$ba.dt.element>元素损伤</>-15%<@ba.talpu>（+2%）</>，受到的<$ba.dt.erosion>侵蚀损伤</>额外-20%<@ba.talpu>（+2%）</>": {
-"en": "<$ba.dt.element>Elemental Damage</> taken: -15% <@ba.talpu>(+2%)</>; additional -20% to <$ba.dt.erosion>Corrosion Damage</> taken <@ba.talpu>(+2%)</>",
-"g": "4ff463f2d7"
-},
-"自身受到的<$ba.dt.element>元素损伤</>-5%，受到的<$ba.dt.erosion>侵蚀损伤</>额外-5%": {
-"en": "-5% to <$ba.dt.element>Elemental Damage</> taken; an additional -5% to <$ba.dt.erosion>Corrosion Damage</> taken",
-"g": "4ff463f2d7"
-},
-"自身受到的<$ba.dt.element>元素损伤</>-7%<@ba.talpu>（+2%）</>，受到的<$ba.dt.erosion>侵蚀损伤</>额外-7%<@ba.talpu>（+2%）</>": {
-"en": "<$ba.dt.element>Elemental Damage</> taken: -7% <@ba.talpu>(+2%)</>; additional -7% <@ba.talpu>(+2%)</> to <$ba.dt.erosion>Corrosion Damage</> taken",
 "g": "4ff463f2d7"
 },
 "自身和结构性原理部署时获得最大生命30%的<$ba.barrier>屏障</>；来自自身的<$ba.barrier>屏障</>可以抵挡超额的伤害": {
@@ -2225,36 +1669,12 @@
 "en": "HP is continuously drained (this effect will not reduce HP to 0); when HP is above 50%, you gain <$ba.strong>the “Full of Energy” effect</>, which grants +25% ATK; this effect doubles when HP is above 80%;\nIn <@ba.kw>Integrated Strategy</> mode, the rate of HP loss is slowed. When Fiammetta <$ba.strong>is in \"Full of Energy</>\" <$ba.strong>mode</>, the ATK bonus from this Talent increases by 100%. Attacks made with skills or during skill activation will be re-cast using the attack range of the last deployed Operator, and both Fiammetta and that Operator gain an additional 30 attack speed.",
 "g": "4ff463f2d7"
 },
-"舒心野趣": {
-"en": "Relaxing Outdoor Fun",
-"g": "4ff463f2d7"
-},
 "艺人见面抽选券": {
 "en": "Artist Meet-and-Greet Raffle Tickets",
 "g": "4ff463f2d7"
 },
-"艾丽妮的中坚信物": {
-"en": "Irene's Most Cherished Treasure",
-"g": "4ff463f2d7"
-},
 "节制": {
 "en": "Moderation",
-"g": "4ff463f2d7"
-},
-"若5秒内未主动攻击，获得相当于生命上限15%的<$ba.barrier>屏障</>，失去屏障后重新计时；拥有来自自身的屏障时攻击力+8%": {
-"en": "If the character does not actively attack within 5 seconds, they gain a Barrier equal to 15% of their Max HP; the timer resets when the Barrier is lost; while under the effect of their own Barrier, their ATK is increased by 8%.",
-"g": "4ff463f2d7"
-},
-"若5秒内未主动攻击，获得相当于生命上限18%<@ba.talpu>（+3%）</>的<$ba.barrier>屏障</>，失去屏障后重新计时；拥有来自自身的屏障时攻击力+8%": {
-"en": "If no active attack is made within 5 seconds, the character gains <$ba.barrier>a</> Barrier equal to 18% <@ba.talpu>(+3%)</> of their Max HP; the timer resets when the Barrier is lost; ATK is increased by 8% while the character has a Barrier from themselves.",
-"g": "4ff463f2d7"
-},
-"若5秒内未主动攻击，获得相当于生命上限20%的<$ba.barrier>屏障</>，失去屏障后重新计时；拥有来自自身的屏障时攻击力+15%": {
-"en": "If the character does not actively attack within 5 seconds, they gain a Barrier equal to 20% of their Max HP; the timer resets when the Barrier is lost; while under the effect of their own Barrier, their ATK is increased by 15%.",
-"g": "4ff463f2d7"
-},
-"若5秒内未主动攻击，获得相当于生命上限23%<@ba.talpu>（+3%）</>的<$ba.barrier>屏障</>，失去屏障后重新计时；拥有来自自身的屏障时攻击力+15%": {
-"en": "If the character does not actively attack within 5 seconds, they gain a Barrier equal to 23% <@ba.talpu>(+3%)</> of their Max HP; the timer resets when the Barrier is lost; while under the effect of a self-generated Barrier, ATK is increased by 15%.",
 "g": "4ff463f2d7"
 },
 "莎草的私人信件": {
@@ -2277,16 +1697,8 @@
 "en": "Gain 38% <@ba.talpu>(+3%)</> Physical Dodge and Arts Dodge; reduces the physical and spell hit rate of enemies within 8 squares by 30%; if no damage is taken for 6 seconds, ATK increases by 15%.",
 "g": "4ff463f2d7"
 },
-"获得<@ba.vup>{cnt}</>层可叠加的防御力<@ba.vup>+{def:0%}</>的增益，受到攻击后消耗1层，并对周围所有地面敌人造成相当于攻击力<@ba.vup>{ep_damage_ratio:0%}</>的<$ba.dt.erosion2>侵蚀损伤</>\\n<@ba.rem>增益最多叠加{max_stack_cnt}层</>": {
-"en": "Gain<@ba.vup>{cnt}</> a stackable DEF +<@ba.vup>{def:0%}</> buff. When attacked, 1 stack is consumed, and all nearby ground enemies take <$ba.dt.erosion2>Corrosion</> <@ba.rem>Damage</>\\n equal to <@ba.vup>{ep_damage_ratio:0%}</>your ATK. <@ba.rem>This buff can stack{max_stack_cnt} up to [maximum] stacks.</>",
-"g": "4ff463f2d7"
-},
 "菲亚梅塔特限证章": {
 "en": "Fiammetta Limited Edition Badge",
-"g": "4ff463f2d7"
-},
-"菲亚梅塔的中坚信物": {
-"en": "Fiammetta's Most Cherished Treasure",
 "g": "4ff463f2d7"
 },
 "萤虫": {
@@ -2369,10 +1781,6 @@
 "en": "Overlooked Talent",
 "g": "4ff463f2d7"
 },
-"裂响的信物": {
-"en": "The Token of Crackborne Sound",
-"g": "4ff463f2d7"
-},
 "见证荣光": {
 "en": "Witness the Glory",
 "g": "4ff463f2d7"
@@ -2405,10 +1813,6 @@
 "en": "Senior Messenger",
 "g": "4ff463f2d7"
 },
-"资深干员调用凭证": {
-"en": "Senior Operator Access Credentials",
-"g": "4ff463f2d7"
-},
 "超高输出属性解放斩": {
 "en": "Ultra-High-Output Attribute Unleash Slash",
 "g": "4ff463f2d7"
@@ -2431,10 +1835,6 @@
 },
 "进驻人力办公室时，人脉资源的联络速度<@cc.vup>+20%</>，心情每小时消耗<@cc.vup>-0.25</>": {
 "en": "When you enter the Human Resources Office, your contact speed for networking <@cc.vup>increases by 20%</>, <@cc.vup>and</> your morale decreases <@cc.vup>by 0.25</> per hour<@cc.vup>.</>",
-"g": "4ff463f2d7"
-},
-"进驻人力办公室时，人脉资源的联络速度<@cc.vup>+30%</>，基建内（不包含副手及活动室）每有一间进驻<$cc.g.elite><@cc.kw>精英干员</></>的设施，联络速度额外<@cc.vup>+4%</>（最多<@cc.kw>5</>间）": {
-"en": "When you station personnel in the Personnel Office, your networking speed increases <@cc.vup>by 30%</>. For each facility in your infrastructure (excluding the Deputy’s Office and Activity Room) where <$cc.g.elite><@cc.kw>an Elite Operator</></> is stationed, your networking speed increases by an additional <@cc.vup>4</>% (up to a maximum of 5 facilities).",
 "g": "4ff463f2d7"
 },
 "进驻人力办公室时，人脉资源的联络速度<@cc.vup>+30%</>，心情每小时消耗<@cc.vup>-0.25</>": {
@@ -2477,10 +1877,6 @@
 "en": "When entering a Factory, productivity for <@cc.kw>Battle Record</> recipes <@cc.vup>increases by 30%.</>",
 "g": "4ff463f2d7"
 },
-"进驻制造站时，<@cc.kw>作战记录</>类配方的生产力<@cc.vup>+35%</>，心情每小时消耗<@cc.vdown>+0.25</>": {
-"en": "When stationed at a Factory, productivity for <@cc.kw>Battle Record-</>type recipes <@cc.vup>increases by 35%, and</> Morale consumption <@cc.vdown>increases by 0.25</> per hour.",
-"g": "4ff463f2d7"
-},
 "进驻制造站时，<@cc.kw>源石</>类配方的生产力<@cc.vup>+35%</>": {
 "en": "When entering a Factory, productivity for <@cc.kw>Source Stone</> recipes increases <@cc.vup>by 35%.</>",
 "g": "4ff463f2d7"
@@ -2493,32 +1889,12 @@
 "en": "When working at a Factory, if a single shift lasts <@cc.vup>12</> hours, productivity <@cc.vup>increases by 10%.</>",
 "g": "4ff463f2d7"
 },
-"进驻制造站时，训练室每级为当前制造站<@cc.vup>+10%</>生产力，最多<@cc.vup>30%</>": {
-"en": "When occupying a Factory, each level of the Training Room increases the current Factory's productivity by <@cc.vup>10%</>, up to <@cc.vup>a maximum of 30%.</>",
-"g": "4ff463f2d7"
-},
-"进驻加工站加工<@cc.kw>任意类材料</>时，副产品的产出概率提升<@cc.vup>70%</>": {
-"en": "When you enter a Workshop to process <@cc.kw>any type of material</>, the probability of producing byproducts <@cc.vup>increases by 70%.</>",
-"g": "4ff463f2d7"
-},
-"进驻加工站加工<@cc.kw>任意类材料</>时，副产品的产出概率提升<@cc.vup>80%</>": {
-"en": "When you enter a Workshop to process <@cc.kw>any type of material</>, the probability of producing byproducts <@cc.vup>increases by 80%.</>",
-"g": "4ff463f2d7"
-},
 "进驻加工站加工<@cc.kw>手性屈光体</>或<@cc.kw>重相位对映体</>时，副产物的产出概率提升<@cc.vup>90%</>": {
 "en": "When processing <@cc.kw>chiral refractors or</> <@cc.kw>heavy-phase enantiomers</> at a Workshop, the probability of byproduct generation <@cc.vup>increases by 90%.</>",
 "g": "4ff463f2d7"
 },
 "进驻加工站加工<@cc.kw>芯片</>时，副产品的产出概率提升<@cc.vup>70%</>": {
 "en": "When you enter a Workshop to process <@cc.kw>chips</>, the probability of producing byproducts <@cc.vup>increases by 70%.</>",
-"g": "4ff463f2d7"
-},
-"进驻发电站时，如果其他<$cc.tag.op><@cc.kw>作业平台</></>进驻在发电站，则无人机充能速度<@cc.vup>+5%</>": {
-"en": "When entering a Power Plant, if another <$cc.tag.op><@cc.kw>work platform</></> is already present there, the Drone's charging speed increases <@cc.vup>by 5%.</>",
-"g": "4ff463f2d7"
-},
-"进驻发电站时，无人机充能速度<@cc.vup>+10%</>": {
-"en": "When entering a Power Plant, the Drone's charging speed <@cc.vup>increases by 10%.</>",
 "g": "4ff463f2d7"
 },
 "进驻发电站时，无人机充能速度<@cc.vup>+15%</>，如果<@cc.kw>结城理</>进驻在制造站，则无人机充能速度额外<@cc.vup>+5%</>": {
@@ -2541,10 +1917,6 @@
 "en": "When stationed in a dormitory, any Operator in that dormitory other than yourself who has low morale will regain <@cc.vup>+0.55 HP</> per hour (the highest value among similar effects applies). If the target is a member of <$cc.tag.mh><@cc.kw>the Monster Hunter Squad</></> or <$cc.tag.mh2><@cc.kw>the Bubble Kingdom Hunting Squad</></>, the HP recovery effect is increased by <@cc.vup>an additional +0.45.</>",
 "g": "4ff463f2d7"
 },
-"进驻宿舍时，自身心情每小时恢复<@cc.vup>+0.55</>": {
-"en": "When you move into the Dormitory, your morale recovers <@cc.vup>by +0.55</> every hour.",
-"g": "4ff463f2d7"
-},
 "进驻宿舍时，自身心情每小时恢复<@cc.vup>+0.7</>": {
 "en": "When you move into the Dormitory, your morale recovers <@cc.vup>by +0.7</> every hour.",
 "g": "4ff463f2d7"
@@ -2563,18 +1935,6 @@
 },
 "进驻控制中枢时，所有制造站生产力<@cc.vup>+2%</>（同种效果取最高）": {
 "en": "When entering the Control Center, all factories gain <@cc.vup>a +2%</> productivity <@cc.vup>bonus</> (the highest value among similar effects applies).",
-"g": "4ff463f2d7"
-},
-"进驻控制中枢时，控制中枢内所有干员的心情每小时恢复<@cc.vup>+0.05</>": {
-"en": "When entering the Control Center, the morale of all Operators inside the Control Center recovers <@cc.vup>by +0.05</> per hour.",
-"g": "4ff463f2d7"
-},
-"进驻训练室协助位时，<@cc.kw>术师</>与<@cc.kw>近卫</>干员的专精技能训练速度<@cc.vup>+30%</>": {
-"en": "When stationed in the Training Room to assist in a specific role, the training speed for <@cc.kw>the</> Caster and the <@cc.kw>Guard</> Operator's specialized skills <@cc.vup>increases by 30%.</>",
-"g": "4ff463f2d7"
-},
-"进驻训练室协助位时，<@cc.kw>术师</>与<@cc.kw>近卫</>干员的专精技能训练速度<@cc.vup>+45%</>": {
-"en": "When stationed in the Training Room to assist in a specific role, the training speed for <@cc.kw>the</> Caster and the <@cc.kw>Guard</> Operator's specialized skills <@cc.vup>increases by 45%.</>",
 "g": "4ff463f2d7"
 },
 "进驻训练室协助位时，<@cc.kw>狙击</>与<@cc.kw>医疗</>干员的专精技能训练速度<@cc.vup>+45%</>": {
@@ -2605,10 +1965,6 @@
 "en": "When stationing at a Trading Post, the order limit <@cc.vup>increases by 3</>, and for each <$cc.tag.mh2><@cc.kw>Bubble Kingdom hunting squad</></> Operator stationed at the Trading Post, order efficiency <@cc.vup>increases by 20%.</>",
 "g": "4ff463f2d7"
 },
-"进驻贸易站时，订单获取效率<@cc.vup>+10%</>，固定获取<$cc.tra.closure><@cc.kw>可露希尔特别订单</></>（不视作违约订单）": {
-"en": "When entering a Trading Post, order efficiency increases <@cc.vup>by 10%,</> and you are guaranteed to receive <$cc.tra.closure><@cc.kw>a special order from Closure</></> (which is not considered a breach-of-contract order).",
-"g": "4ff463f2d7"
-},
 "进驻贸易站时，订单获取效率<@cc.vup>+35%</>": {
 "en": "When you set up shop at a Trading Post, your order efficiency increases by <@cc.vup>35%.</>",
 "g": "4ff463f2d7"
@@ -2621,16 +1977,8 @@
 "en": "Six minutes before being late",
 "g": "4ff463f2d7"
 },
-"追想涤尘": {
-"en": "Reflections to Wash Away the Dust",
-"g": "4ff463f2d7"
-},
 "追迹日落以西家具收藏包": {
 "en": "\"Tracing the Sunset\" West-Style Furniture Collection Bag",
-"g": "4ff463f2d7"
-},
-"递归策略": {
-"en": "Recursive Strategy",
 "g": "4ff463f2d7"
 },
 "造成伤害时有30%概率对敌人施加灼痕效果：攻击力-20%、34%的<$ba.magicfragile>【法术脆弱】</>，不可叠加持续7秒": {
@@ -2695,34 +2043,6 @@
 },
 "造成的物理伤害+7%<@ba.talpu>（+2%）</>，受到的物理伤害-7%<@ba.talpu>（+2%）</>": {
 "en": "Physical damage dealt +7% <@ba.talpu>(+2%)</>, physical damage taken -7% <@ba.talpu>(+2%)</>",
-"g": "4ff463f2d7"
-},
-"遗尘守望": {
-"en": "Watching Over the Remnants",
-"g": "4ff463f2d7"
-},
-"部署后20秒内，攻击使敌人法术抗性-15%（持续10秒），且优先攻击未获得此效果的敌人": {
-"en": "Within 20 seconds of deployment, attacks reduce enemies' RES by 15% (lasts 10 seconds) and prioritize enemies who have not yet been affected by this effect.",
-"g": "4ff463f2d7"
-},
-"部署后20秒内，攻击使敌人法术抗性-17%（持续10秒），且优先攻击未获得此效果的敌人": {
-"en": "Within 20 seconds of deployment, attacks reduce enemies' RES by 17% (lasts 10 seconds) and prioritize enemies who have not yet been affected by this effect.",
-"g": "4ff463f2d7"
-},
-"部署后20秒内，攻击使敌人法术抗性-19%（持续10秒），且优先攻击未获得此效果的敌人": {
-"en": "Within 20 seconds of deployment, attacks reduce enemies' RES by 19% (lasts 10 seconds) and prioritize enemies who have not yet been affected by this effect.",
-"g": "4ff463f2d7"
-},
-"部署后20秒内，攻击使敌人法术抗性-21%（持续10秒），且优先攻击未获得此效果的敌人": {
-"en": "Within 20 seconds of deployment, attacks reduce enemies' RES by 21% (lasts 10 seconds) and prioritize enemies who have not yet been affected by this effect.",
-"g": "4ff463f2d7"
-},
-"部署后20秒内，攻击使敌人法术抗性-23%（持续10秒），且优先攻击未获得此效果的敌人": {
-"en": "Within 20 seconds of deployment, attacks reduce enemies' RES by 23% (lasts 10 seconds) and prioritize enemies who have not yet been affected by this effect.",
-"g": "4ff463f2d7"
-},
-"部署后20秒内，攻击使敌人法术抗性-25%（持续10秒），且优先攻击未获得此效果的敌人": {
-"en": "Within 20 seconds of deployment, attacks reduce enemies' RES by 25% (lasts 10 seconds) and prioritize enemies who have not yet been affected by this effect.",
 "g": "4ff463f2d7"
 },
 "部署后<$ba.liftoff>起飞</>，<$ba.liftoff>起飞</>后只攻击空中敌人；技能开启时降落，攻击造成<@ba.kw>群体物理伤害</>且攻击地面敌人时攻击力提升至<@ba.kw>110％</>": {
@@ -2837,10 +2157,6 @@
 "en": "Lock onto a target within range, fire 6 missiles at it—each missile dealing Physical damage equal <@ba.vup>{atk_scale:0%}</>to your ATK—and then perform a flying kick toward the target, dealing Physical damage equal to your ATK<@ba.vup>{kick_atk_scale:0%}</> to the target and surrounding enemies.",
 "g": "4ff463f2d7"
 },
-"锋锐": {
-"en": "Fengrui",
-"g": "4ff463f2d7"
-},
 "错位巡礼/IV": {
 "en": "A Tour of Misalignments/IV",
 "g": "4ff463f2d7"
@@ -2885,20 +2201,12 @@
 "en": "The Hermit",
 "g": "4ff463f2d7"
 },
-"难得休憩": {
-"en": "A Rare Moment of Rest",
-"g": "4ff463f2d7"
-},
 "雷狼龙S空爆的信物": {
 "en": "Thunderwolf Dragon S: Token of the Sky Explosion",
 "g": "4ff463f2d7"
 },
 "雷狼龙的碧玉": {
 "en": "The Jade of the Thunderwolf Dragon",
-"g": "4ff463f2d7"
-},
-"露托的中坚信物": {
-"en": "Luto's Core Talisman",
 "g": "4ff463f2d7"
 },
 "露营时间喵！": {
@@ -2915,10 +2223,6 @@
 },
 "领袖魅力": {
 "en": "Charisma",
-"g": "4ff463f2d7"
-},
-"风丸的中坚信物": {
-"en": "Kazemaru's Talisman of Strength",
 "g": "4ff463f2d7"
 },
 "风暴潮": {
@@ -2957,14 +2261,6 @@
 "en": "The Caster",
 "g": "4ff463f2d7"
 },
-"鸡励机制": {
-"en": "Incentive Mechanism",
-"g": "4ff463f2d7"
-},
-"鸡电工程": {
-"en": "Ji Electric Engineering",
-"g": "4ff463f2d7"
-},
 "黑流印象家具收藏包一": {
 "en": "Black Flow Impressions Furniture Collection Set 1",
 "g": "4ff463f2d7"
@@ -2991,10 +2287,6 @@
 },
 "黑色猎犬·VI": {
 "en": "Black Hound · VI",
-"g": "4ff463f2d7"
-},
-"黑键的中坚信物": {
-"en": "The Emblem of the Black Keys",
 "g": "4ff463f2d7"
 },
 "默认服装": {
