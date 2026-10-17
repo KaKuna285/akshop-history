@@ -326,7 +326,8 @@
 "file": "Cliffheart_icon.webp"
 },
 "Closure icon.png": {
-"file": "Closure_icon.webp"
+"file": "Closure_icon.webp",
+"sha1": "e39ed30ad8f9a878b02b5050c485ff52ea957e8f"
 },
 "Coldshot icon.png": {
 "file": "Coldshot_icon.webp",
@@ -375,6 +376,10 @@
 "Dagda icon.png": {
 "file": "Dagda_icon.webp",
 "sha1": "a4df9be27ee97a1118f09e94f300a8ed8798f689"
+},
+"De Toledo icon.png": {
+"file": "De_Toledo_icon.webp",
+"sha1": "9e6837e704bd4a1b0f640b2bb7322304b16746d3"
 },
 "Deepcolor icon.png": {
 "file": "Deepcolor_icon.webp",

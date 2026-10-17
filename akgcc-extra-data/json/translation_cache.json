@@ -485,6 +485,10 @@
 "en": "Jacinta's Token",
 "g": "4ff463f2d7"
 },
+"国家图书馆": {
+"en": "National Library",
+"g": "4ff463f2d7"
+},
 "在<@ba.kw>生息演算</>中，首次开启技能后，生命上限、攻击力、防御力提升至150%": {
 "en": "In <@ba.kw>the Life Force calculation</>, after the skill is activated for the first time, Max HP, ATK, and DEF are increased to 150%.",
 "g": "4ff463f2d7"
@@ -571,6 +575,10 @@
 },
 "夏卉 FA240": {
 "en": "Xia Hui FA240",
+"g": "4ff463f2d7"
+},
+"夜行烛火": {
+"en": "Candlelight at Night",
 "g": "4ff463f2d7"
 },
 "天穹肇始": {
@@ -1329,6 +1337,10 @@
 "en": "The Hard Shell of the Source Stone Insect",
 "g": "4ff463f2d7"
 },
+"源远流长": {
+"en": "A Long and Rich History",
+"g": "4ff463f2d7"
+},
 "演化算子": {
 "en": "Evolutionary Operators",
 "g": "4ff463f2d7"
@@ -1479,6 +1491,10 @@
 },
 "百炼嘉维尔特限证章": {
 "en": "\"Gavial the Invincible Limited Edition Badge\"",
+"g": "4ff463f2d7"
+},
+"盛世之象": {
+"en": "Signs of a Golden Age",
 "g": "4ff463f2d7"
 },
 "看不见的大海": {
@@ -1805,6 +1821,10 @@
 "en": "Sticker Pack / Restart Anchor",
 "g": "4ff463f2d7"
 },
+"贴纸包/黑流树海": {
+"en": "Sticker Pack / Black Flow Tree Sea",
+"g": "4ff463f2d7"
+},
 "贵族义务": {
 "en": "The Obligations of the Nobility",
 "g": "4ff463f2d7"
@@ -1889,8 +1909,8 @@
 "en": "When working at a Factory, if a single shift lasts <@cc.vup>12</> hours, productivity <@cc.vup>increases by 10%.</>",
 "g": "4ff463f2d7"
 },
-"进驻加工站加工<@cc.kw>手性屈光体</>或<@cc.kw>重相位对映体</>时，副产物的产出概率提升<@cc.vup>90%</>": {
-"en": "When processing <@cc.kw>chiral refractors or</> <@cc.kw>heavy-phase enantiomers</> at a Workshop, the probability of byproduct generation <@cc.vup>increases by 90%.</>",
+"进驻加工站加工<@cc.kw>手性屈光体</>或<@cc.kw>重相位对映体</>时，副产品的产出概率提升<@cc.vup>90%</>": {
+"en": "When processing <@cc.kw>chiral phosphors or</> <@cc.kw>diastereomers</> at a Workshop, the probability of byproduct formation increases <@cc.vup>by 90%.</>",
 "g": "4ff463f2d7"
 },
 "进驻加工站加工<@cc.kw>芯片</>时，副产品的产出概率提升<@cc.vup>70%</>": {
@@ -2263,6 +2283,10 @@
 },
 "黑流印象家具收藏包一": {
 "en": "Black Flow Impressions Furniture Collection Set 1",
+"g": "4ff463f2d7"
+},
+"黑流印象家具收藏包二": {
+"en": "Black Flow Impressions Furniture Collection, Set 2",
 "g": "4ff463f2d7"
 },
 "黑色猎犬·I": {
