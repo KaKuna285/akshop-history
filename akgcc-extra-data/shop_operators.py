@@ -9,7 +9,7 @@ import sys
 from datetime import datetime, timezone
 from html import unescape
 
-from common import http_get
+from common import http_get, response_json
 
 
 NA_OPS = {}
@@ -87,7 +87,7 @@ def get_operator_lists_wiki():
         "format": "json",
     }
     r = http_get(url, params=params)
-    pages = [p["title"] for p in r.json()["query"]["categorymembers"] if p['ns'] == 0 and 'Upcoming' not in p['title']]
+    pages = [p["title"] for p in response_json(r, "wiki banner list")["query"]["categorymembers"] if p['ns'] == 0 and 'Upcoming' not in p['title']]
     params = {
         "action": "query",
         "prop": "revisions",
@@ -98,7 +98,7 @@ def get_operator_lists_wiki():
         "format": "json",
     }
     r = http_get(url, params=params)
-    all_pages = r.json()["query"]["pages"]
+    all_pages = response_json(r, "wiki banner pages")["query"]["pages"]
     for page in all_pages:
         content = page['revisions'][0]['slots']['main']['content']
         banners = []
@@ -162,14 +162,14 @@ def get_operator_lists_prts():
     r = http_get(url, params=params, headers=headers)
     pages = []
     blue = 0
-    for page in r.json()['query']['pages']:
+    for page in response_json(r, "PRTS banner index")['query']['pages']:
         blue = page['title'] == "卡池一览/常驻中坚寻访&中坚甄选"
         pages.extend([(p,blue) for p in re.findall('pageName=([^|}]*)', page['revisions'][0]['slots']['main']['content'])])
     pages.append((banner_pages[2], False))
     blue_pages = dict(pages)
     params['titles'] = '|'.join(p[0] for p in pages)
     r = http_get(url, params=params, headers=headers)
-    for page in r.json()['query']['pages']:
+    for page in response_json(r, "PRTS banner pages")['query']['pages']:
         is_blue = blue_pages[page['title']]
         banners = []
         banners.extend(extract_prts_banners_cell_templates(page['revisions'][0]['slots']['main']['content']))

@@ -410,10 +410,10 @@ def write_mirrored_image(wiki_filename, data):
     return name
 
 
-# Waits before retrying a failed resolve batch. wiki.gg sometimes answers
-# with its bot-check page ("Just a second...", HTTP 403) for a while;
-# waiting usually gets a normal answer again.
-RESOLVE_RETRY_WAITS = [30, 90]
+# Waits before retrying a failed resolve batch (bot-check pages are already
+# retried by http_get(); this covers other non-JSON replies, such as the
+# empty bodies a burst of requests can get).
+RESOLVE_RETRY_WAITS = [30]
 
 
 def resolve_image_urls(filenames):
