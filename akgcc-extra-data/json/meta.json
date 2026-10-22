@@ -1,51 +1,38 @@
 {
- "generatedAt": "2026-10-21T07:26:36.029685+00:00",
- "ok": false,
- "problemRuns": 3,
+ "generatedAt": "2026-10-22T07:04:41.311552+00:00",
+ "ok": true,
+ "problemRuns": 0,
  "steps": {
   "shop": {
    "label": "Shop history",
-   "outcome": "failure",
-   "lastSuccess": "2026-10-20T07:04:08.629432+00:00"
+   "outcome": "success",
+   "lastSuccess": "2026-10-22T07:04:41.311552+00:00"
   },
   "operators": {
    "label": "Operator release dates",
-   "outcome": "failure",
-   "lastSuccess": "2026-10-20T07:04:08.629432+00:00"
+   "outcome": "success",
+   "lastSuccess": "2026-10-22T07:04:41.311552+00:00"
   },
   "events": {
    "label": "Event calendar",
-   "outcome": "failure",
-   "lastSuccess": "2026-10-20T07:04:08.629432+00:00"
+   "outcome": "success",
+   "lastSuccess": "2026-10-22T07:04:41.311552+00:00"
   },
   "gamedata": {
    "label": "Game data",
    "outcome": "success",
-   "lastSuccess": "2026-10-21T07:26:36.029685+00:00"
+   "lastSuccess": "2026-10-22T07:04:41.311552+00:00"
   }
  },
  "counts": {
   "shopOperatorsEN": 268,
   "shopOperatorsCN": 280,
   "operatorDates": 463,
-  "operatorENDates": 419,
+  "operatorENDates": 420,
   "events": 231,
   "eventsWithSkins": 197,
   "gameDataOperatorsEN": 415,
   "gameDataOperatorsCN": 432
  },
- "warnings": [
-  {
-   "step": "shop",
-   "message": "Shop history update failure -- showing data from 2026-10-20"
-  },
-  {
-   "step": "operators",
-   "message": "Operator release dates update failure -- showing data from 2026-10-20"
-  },
-  {
-   "step": "events",
-   "message": "Event calendar update failure -- showing data from 2026-10-20"
-  }
- ]
+ "warnings": []
 }
