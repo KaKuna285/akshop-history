@@ -320,7 +320,8 @@
 "file": "Civilight_Eterna_icon.webp"
 },
 "Click icon.png": {
-"file": "Click_icon.webp"
+"file": "Click_icon.webp",
+"sha1": "9315cc284b64b8611b64077a0e8fb2c9d131c3e2"
 },
 "Cliffheart icon.png": {
 "file": "Cliffheart_icon.webp",
@@ -2233,6 +2234,10 @@
 "Tachanka icon.png": {
 "file": "Tachanka_icon.webp",
 "sha1": "93f0cb6fc32c9889e4b8bf8915ca016eb677a572"
+},
+"Talulah icon.png": {
+"file": "Talulah_icon.webp",
+"sha1": "cfed7c90fb14acc3ee52276e0846a8670be0ee24"
 },
 "Taraxacum icon.png": {
 "file": "Taraxacum_icon.webp",

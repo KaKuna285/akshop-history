@@ -25,6 +25,10 @@
 "en": "1102 Birthday Cakes",
 "g": "4ff463f2d7"
 },
+"2026感谢庆典物资补给": {
+"en": "2026 Thank You Celebration Supplies",
+"g": "4ff463f2d7"
+},
 "<替身>状态下结城理召唤人格面具作战，攻击间隔增大，攻击力+40%，生命值+35%，作战能力随技能选择而改变": {
 "en": "In <STUNT Double> mode, Makoto Yuki summons a persona to fight; Attack Interval increases, ATK rises by 40%, and HP increases by 35%. Combat capabilities vary depending on the selected skill.",
 "g": "4ff463f2d7"
@@ -1531,6 +1535,10 @@
 },
 "科技与传统仪式": {
 "en": "Technology and Traditional Ceremonies",
+"g": "4ff463f2d7"
+},
+"积点卡券": {
+"en": "Loyalty Points and Coupons",
 "g": "4ff463f2d7"
 },
 "突发性创造思维": {
