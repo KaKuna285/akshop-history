@@ -1051,6 +1051,10 @@
 "file": "EN_The_Great_Chief_Returns_banner.webp",
 "sha1": "2086173a7dd25e82b49f544f2ed5790c179ad2a5"
 },
+"EN The Masses' Travels Rerun banner.png": {
+"file": "EN_The_Masses__Travels_Rerun_banner_4ef0d42f.webp",
+"sha1": "b266fcf9ac37a4e484494311d8983d1f74f5e43e"
+},
 "EN The Masses' Travels banner.png": {
 "file": "EN_The_Masses__Travels_banner_87172b6e.webp",
 "sha1": "58b9305741b05da3e62754ea6d205dbb946de1bd"
@@ -1410,6 +1414,10 @@
 "Hellagur icon.png": {
 "file": "Hellagur_icon.webp",
 "sha1": "7dbeb6922c36ffeab5aa76002222a81fba26538c"
+},
+"Herdbells icon.png": {
+"file": "Herdbells_icon.webp",
+"sha1": "f446e79736043a06ee2cd88606f9e81fd9c4da8c"
 },
 "Hibiscus icon.png": {
 "file": "Hibiscus_icon.webp",
@@ -1859,6 +1867,10 @@
 "file": "Odda_icon.webp",
 "sha1": "63ce0ab59e904b46444c4ce6fc155db8176778db"
 },
+"Olga icon.png": {
+"file": "Olga_icon.webp",
+"sha1": "34fd4f343f0e1c0d37770e8ee34aa936d72a1dbc"
+},
 "Orchid icon.png": {
 "file": "Orchid_icon.webp",
 "sha1": "58ec62c629d9f5b7c547ba2806ce0b453e59a2c6"
@@ -2306,6 +2318,10 @@
 "Tomimi icon.png": {
 "file": "Tomimi_icon.webp",
 "sha1": "0e92c9e4350b8679ea91f831b48fad418ac8c82d"
+},
+"Toska icon.png": {
+"file": "Toska_icon.webp",
+"sha1": "2ec89364e89f7cac4a432376e49604ebfc28d4a1"
 },
 "Totter icon.png": {
 "file": "Totter_icon.webp",
