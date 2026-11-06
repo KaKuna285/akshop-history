@@ -805,10 +805,6 @@
 "en": "Candlelight at Night",
 "g": "4ff463f2d7"
 },
-"天穹肇始": {
-"en": "The Beginning of the Sky",
-"g": "4ff463f2d7"
-},
 "天穹间的舞步": {
 "en": "Dancing Under the Sky",
 "g": "4ff463f2d7"
@@ -1491,10 +1487,6 @@
 },
 "教宗": {
 "en": "Pope",
-"g": "4ff463f2d7"
-},
-"斗争血脉/XII": {
-"en": "The Spirit of Struggle/XII",
 "g": "4ff463f2d7"
 },
 "斧模式变形": {
@@ -2283,10 +2275,6 @@
 },
 "萤虫": {
 "en": "Firefly",
-"g": "4ff463f2d7"
-},
-"蒙恩的奶嘴": {
-"en": "The Grace-Filled Pacifier",
 "g": "4ff463f2d7"
 },
 "蓄力<@ba.vup>3</>秒后射出直线飞行的贯穿箭矢，箭矢以<@ba.vup>中等力度</>推动每个经过的敌人，每飞行一段距离都会对周围所有敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和攻击力<@ba.vup>{atk_scale_magic:0%}</>的法术伤害，箭矢射程无限\\n<@ba.rem>可充能1次</>": {
