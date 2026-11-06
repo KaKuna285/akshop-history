@@ -51,7 +51,7 @@
       }
       return;
     }
-    setIconWithFallback(imgEl, uri_item(iconId), uri_item(iconId, ASSET_SOURCE.ACESHIP), isCnOnly);
+    setIconWithFallback(imgEl, iconSources(uri_item, iconId, isCnOnly), null, isCnOnly);
   }
 
   // LMD and EXP are real items in the game data, searchable/addable in the

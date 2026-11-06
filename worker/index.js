@@ -8,10 +8,10 @@
 //   myrtle -- myrtle.moe's asset API: EN skin art and animated chibis
 //   aa2    -- the ArknightsAssets2 dump on GitHub (CN client, updated
 //             daily): art for CN-only operators and skins myrtle.moe
-//             doesn't have
-// The operator page's skin previews load their full illustrations and
-// chibis through here, so each file is downloaded from its source once,
-// ever, instead of once per visitor:
+//             doesn't have, and icons the community icon mirrors lack
+// The skin previews (full illustrations, chibis) and those icons load
+// through here, so each file is downloaded from its source once instead of
+// once per visitor:
 //
 //   1. Cloudflare's edge cache, if this data centre has it.
 //   2. R2. Kept indefinitely. Sources with recheckDays (the CN dump, which
@@ -40,9 +40,17 @@ const SOURCES = {
     ],
   },
   aa2: {
-    // characters/<charId>/<portraitId>[b].png -- default and skin art alike
+    // characters/<charId>/<portraitId>[b].png -- default and skin art alike;
+    // the icon folders are the last fallback for operator, skill, item and
+    // base-skill icons the community mirrors don't have yet.
     upstream: "https://raw.githubusercontent.com/ArknightsAssets/ArknightsAssets2/cn/assets/dyn/arts/",
-    allowed: [{ prefix: "characters/", ext: ["png"] }],
+    allowed: [
+      { prefix: "characters/", ext: ["png"] },
+      { prefix: "charavatars/", ext: ["png"] },
+      { prefix: "skills/", ext: ["png"] },
+      { prefix: "items/icons/", ext: ["png"] },
+      { prefix: "building/skills/", ext: ["png"] },
+    ],
     // The dump's files can be corrected later, so stored copies are
     // re-checked weekly and cached for a day instead of a year.
     recheckDays: 7,

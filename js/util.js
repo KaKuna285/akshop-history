@@ -14,6 +14,8 @@ const ASSET_SOURCE = {
   // skin. Normally reached through this site's own mirror instead -- see
   // myrtleAssetUrl() below.
   MYRTLE: "https://api.myrtle.moe/api/assets/",
+  // The CN client's own files: see uri_cn_asset().
+  CN: "cn",
 };
 
 // Don't change SERVERS when switching data sources: these values are also
@@ -25,6 +27,19 @@ const SERVERS = {
   CN: "zh_CN",
 };
 // --- asset URLs ---
+// ASSET_SOURCE.CN: the CN client's own icons (the ArknightsAssets2 dump,
+// through this site's mirror -- CN_ART_MIRROR_BASE in config.js). The
+// other two icon sources are community mirrors that lag behind or stop
+// updating, so this is the last fallback for every icon, and the first
+// one for CN-only operators and items. It has base operator avatars, skill,
+// item and base-skill icons, but not E2 or skin avatars.
+function uri_cn_asset(path) {
+  const base =
+    (typeof CN_ART_MIRROR_BASE !== "undefined" && CN_ART_MIRROR_BASE) ||
+    "https://raw.githubusercontent.com/ArknightsAssets/ArknightsAssets2/cn/assets/dyn/arts/";
+  return base + path.split("/").map(encodeURIComponent).join("/");
+}
+
 function uri_avatar(charId, source = ASSET_SOURCE.LOCAL) {
   let skinSuffix = "";
   if (charId.includes("_amiya")) skinSuffix = "_2";
@@ -33,7 +48,19 @@ function uri_avatar(charId, source = ASSET_SOURCE.LOCAL) {
       return `${ASSET_SOURCE.LOCAL}torappu/dynamicassets/arts/charavatars/${charId}${skinSuffix}.png`.toLowerCase();
     case ASSET_SOURCE.ACESHIP:
       return `${ASSET_SOURCE.ACESHIP}avatars/${charId}${skinSuffix}.png`;
+    case ASSET_SOURCE.CN:
+      return uri_cn_asset(`charavatars/${charId}.png`);
   }
+}
+
+// Every source for an icon, in the order to try them: the CN client first
+// for CN-only things (the community mirrors won't have them), last
+// otherwise.
+function iconSources(uriFn, key, isCnOnly) {
+  const sources = isCnOnly
+    ? [ASSET_SOURCE.CN, ASSET_SOURCE.LOCAL, ASSET_SOURCE.ACESHIP]
+    : [ASSET_SOURCE.LOCAL, ASSET_SOURCE.ACESHIP, ASSET_SOURCE.CN];
+  return sources.map((source) => uriFn(key, source));
 }
 
 // Avatar icon for a skin, by its avatarId (e.g. "char_002_amiya_winter#1",
@@ -122,22 +149,23 @@ function uri_transformed(url, width) {
   return `${IMAGE_TRANSFORM_BASE}width=${width},fit=scale-down,format=auto/${url}`;
 }
 
-function setSkinAvatarIcon(imgEl, avatarId) {
-  setIconWithFallback(imgEl, uri_skin_avatar(avatarId), uri_skin_avatar(avatarId, ASSET_SOURCE.ACESHIP), false);
+// charId, when given, adds the operator's own avatar as a last fallback:
+// the CN client source has no E2 or skin avatars, so a CN-only operator's
+// outfits show its base avatar rather than nothing.
+function setSkinAvatarIcon(imgEl, avatarId, charId, isCnOnly) {
+  const urls = [uri_skin_avatar(avatarId), uri_skin_avatar(avatarId, ASSET_SOURCE.ACESHIP)];
+  if (charId) urls.push(...iconSources(uri_avatar, charId, isCnOnly));
+  setIconWithFallback(imgEl, urls, null, false);
 }
 
 // Operator/item icons with fallbacks, shared by every page that shows
 // roster cards, search results or the edit modal.
 //
-// The default LOCAL mirror (akgcc/arkdata on jsDelivr) is missing some
-// icons, so a failed load retries from Aceship; if that fails too, the
+// Each source is tried in turn (see iconSources()); if none loads, the
 // <img> gets the "iconMissing" class (hidden, so the icon's circular
-// background shows as an empty placeholder instead of a broken image).
-//
-// Both mirrors only carry released EN client art, so an operator or item
-// not yet out on EN has no icon in either. For a cnOnly entity, a small
-// generated "CN" placeholder is shown instead of the blank circle, so it
-// reads as expected rather than broken.
+// background shows as an empty placeholder instead of a broken image), or,
+// for a cnOnly entity, a small generated "CN" placeholder, so it reads as
+// expected rather than broken.
 const CN_ICON_PLACEHOLDER =
   "data:image/svg+xml," +
   encodeURIComponent(
@@ -147,28 +175,29 @@ const CN_ICON_PLACEHOLDER =
       'font-weight="bold" fill="#ff9f43" text-anchor="middle">CN</text>' +
       "</svg>",
   );
-function setIconWithFallback(imgEl, primarySrc, fallbackSrc, isCnOnly) {
-  const giveUp = () => {
-    if (isCnOnly) {
-      imgEl.onerror = null;
-      imgEl.src = CN_ICON_PLACEHOLDER;
-    } else {
-      imgEl.onerror = null;
-      imgEl.classList.add("iconMissing");
+// `sources` is a URL or a list of URLs to try in order (fallbackSrc, if
+// given, is tried after them).
+function setIconWithFallback(imgEl, sources, fallbackSrc, isCnOnly) {
+  const urls = [];
+  for (const url of [...(Array.isArray(sources) ? sources : [sources]), fallbackSrc]) {
+    if (url && !urls.includes(url)) urls.push(url);
+  }
+  let next = 0;
+  const tryNext = () => {
+    if (next < urls.length) {
+      imgEl.src = urls[next++];
+      return;
     }
+    imgEl.onerror = null;
+    if (isCnOnly) imgEl.src = CN_ICON_PLACEHOLDER;
+    else imgEl.classList.add("iconMissing");
   };
-  imgEl.src = primarySrc;
-  imgEl.onerror = () => {
-    if (fallbackSrc && fallbackSrc !== primarySrc) {
-      imgEl.onerror = giveUp;
-      imgEl.src = fallbackSrc;
-    } else {
-      giveUp();
-    }
-  };
+  imgEl.classList.remove("iconMissing");
+  imgEl.onerror = tryNext;
+  tryNext();
 }
 function setAvatarIcon(imgEl, charId, isCnOnly) {
-  setIconWithFallback(imgEl, uri_avatar(charId), uri_avatar(charId, ASSET_SOURCE.ACESHIP), isCnOnly);
+  setIconWithFallback(imgEl, iconSources(uri_avatar, charId, isCnOnly), null, isCnOnly);
 }
 
 // A small "CN" tag for any operator/material flagged cnOnly during an
@@ -192,6 +221,8 @@ function uri_item(imageName, source = ASSET_SOURCE.LOCAL) {
       return `${ASSET_SOURCE.LOCAL}torappu/dynamicassets/arts/items/icons/${imageName}.png`.toLowerCase();
     case ASSET_SOURCE.ACESHIP:
       return `${ASSET_SOURCE.ACESHIP}items/${imageName}.png`;
+    case ASSET_SOURCE.CN:
+      return uri_cn_asset(`items/icons/${imageName}.png`.toLowerCase());
   }
 }
 function uri_skill(skillId, source = ASSET_SOURCE.LOCAL) {
@@ -200,6 +231,8 @@ function uri_skill(skillId, source = ASSET_SOURCE.LOCAL) {
       return `${ASSET_SOURCE.LOCAL}torappu/dynamicassets/arts/skills/skill_icon_${skillId}.png`.toLowerCase();
     case ASSET_SOURCE.ACESHIP:
       return `${ASSET_SOURCE.ACESHIP}skills/skill_icon_${skillId}.png`;
+    case ASSET_SOURCE.CN:
+      return uri_cn_asset(`skills/skill_icon_${skillId}.png`.toLowerCase());
   }
 }
 // Base (RIIC) skill icons, by building_data's skillIcon ("bskill_man_spd1").
@@ -209,6 +242,8 @@ function uri_building_skill(skillIcon, source = ASSET_SOURCE.LOCAL) {
       return `${ASSET_SOURCE.LOCAL}torappu/dynamicassets/arts/building/skills/${skillIcon}.png`.toLowerCase();
     case ASSET_SOURCE.ACESHIP:
       return `${ASSET_SOURCE.ACESHIP}ui/infrastructure/skill/${skillIcon}.png`;
+    case ASSET_SOURCE.CN:
+      return uri_cn_asset(`building/skills/${skillIcon}.png`);
   }
 }
 // Medal (achievement) icons, for the account page's medal detail popup.
@@ -806,22 +841,20 @@ function normalizeShopHistory(servdata, charTableForServer) {
     }
     data.banner.sort((a, b) => timestampMs(a.date) - timestampMs(b.date));
     data.isKernel = charTableForServer[data.charId]?.classicPotentialItemId != null;
-    // The default avatar mirror is missing some icons, so a failed load
-    // retries once from Aceship (same as setIconWithFallback()). imgReady
-    // settles either way -- resolved once the image has loaded or has
-    // definitely failed -- so a page waiting on it never hangs on one
+    // Each avatar source is tried in turn (see iconSources()). imgReady
+    // settles either way -- resolved once the image has loaded or every
+    // source has failed -- so a page waiting on it never hangs on one
     // missing icon; check img.naturalWidth before drawing it.
     const img = new Image();
-    const charId = data.charId;
+    const urls = iconSources(uri_avatar, data.charId, false);
     data.imgReady = new Promise((resolve) => {
       img.addEventListener("load", resolve);
       img.addEventListener("error", () => {
-        if (img.dataset.fallback) return resolve();
-        img.dataset.fallback = "1";
-        img.src = uri_avatar(charId, ASSET_SOURCE.ACESHIP);
+        if (!urls.length) return resolve();
+        img.src = urls.shift();
       });
     });
-    img.src = uri_avatar(charId);
+    img.src = urls.shift();
     data.img = img;
     // Take the true minimum rather than banner[0]: one unparseable date
     // makes the sort's NaN comparisons unreliable, which can leave a later

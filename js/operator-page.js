@@ -884,7 +884,7 @@
       skinPreviewImgEl.style.display = "none";
     };
     skinPreviewImgEl.style.display = "none";
-    setSkinAvatarIcon(skinPreviewImgEl, avatarId);
+    setSkinAvatarIcon(skinPreviewImgEl, avatarId, skin.charId, skin.cnOnly);
 
     loadFullArt(skin).then((url) => {
       // Apply only if the preview still shows the skin this was requested
@@ -951,7 +951,7 @@
       const img = document.createElement("img");
       img.className = "opSkinCardImg";
       img.alt = "";
-      setSkinAvatarIcon(img, skin.avatarId || skin.skinId);
+      setSkinAvatarIcon(img, skin.avatarId || skin.skinId, skin.charId, skin.cnOnly);
       card.appendChild(img);
       const label = document.createElement("span");
       label.className = "opSkinCardName";
@@ -1443,7 +1443,7 @@
             const img = document.createElement("img");
             img.alt = "";
             img.loading = "lazy";
-            setIconWithFallback(img, uri_building_skill(buff.skillIcon), uri_building_skill(buff.skillIcon, ASSET_SOURCE.ACESHIP), false);
+            setIconWithFallback(img, iconSources(uri_building_skill, buff.skillIcon, false), null, false);
             iconWrap.appendChild(img);
           }
           row.appendChild(iconWrap);
@@ -1516,11 +1516,11 @@
   }
 
   // Uses skill_table.json's iconId when the skill has one (otherwise the
-  // skill id itself). Local mirror, then Aceship, then hidden -- like
-  // setAvatarIcon() in util.js, minus its cnOnly placeholder (a missing
-  // skill icon doesn't signal an unreleased operator).
-  function setSkillIcon(imgEl, iconKey) {
-    setIconWithFallback(imgEl, uri_skill(iconKey), uri_skill(iconKey, ASSET_SOURCE.ACESHIP), false);
+  // skill id itself). Same sources as setAvatarIcon() in util.js (the CN
+  // client's first for a CN-only operator), but hidden rather than the "CN"
+  // placeholder when none has it.
+  function setSkillIcon(imgEl, iconKey, isCnOnly) {
+    setIconWithFallback(imgEl, iconSources(uri_skill, iconKey, isCnOnly), null, false);
   }
 
   function skillLevelLabel(i) {
@@ -1563,7 +1563,7 @@
       const icon = document.createElement("img");
       icon.className = "opSkillIcon";
       icon.alt = "";
-      setSkillIcon(icon, (data && data.iconId) || ref.skillId);
+      setSkillIcon(icon, (data && data.iconId) || ref.skillId, op.cnOnly);
       heading.appendChild(icon);
       const nameEl = document.createElement("span");
       nameEl.textContent = (levels && levels[0] && tr(levels[0], "name")) || `Skill ${idx + 1}`;

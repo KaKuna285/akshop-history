@@ -482,7 +482,7 @@
             chip.href = `/operator/?id=${encodeURIComponent(skin.charId)}`;
             const icon = document.createElement("img");
             icon.className = "eventPreviewSkinIcon";
-            icon.src = uri_avatar(skin.charId);
+            setAvatarIcon(icon, skin.charId, false);
             icon.alt = "";
             chip.appendChild(icon);
           }
