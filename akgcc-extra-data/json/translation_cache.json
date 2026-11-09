@@ -253,6 +253,10 @@
 "en": "So Real It's Hard to Tell It's Fake",
 "g": "4ff463f2d7"
 },
+"任务点数": {
+"en": "Mission Points",
+"g": "4ff463f2d7"
+},
 "伞下乘荫": {
 "en": "Seeking Shade Under an Umbrella",
 "g": "4ff463f2d7"
@@ -427,6 +431,14 @@
 },
 "协防术式": {
 "en": "Cooperative Defense Spells",
+"g": "4ff463f2d7"
+},
+"卫戍时装回顾展": {
+"en": "Garrison Fashion Retrospective Exhibition",
+"g": "4ff463f2d7"
+},
+"卫戍认证": {
+"en": "Garrison Certification",
 "g": "4ff463f2d7"
 },
 "危言耸听": {
@@ -1283,6 +1295,10 @@
 },
 "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，随机攻击范围内的目标\\n<@ba.rem>技能结束后自身<$ba.stun>晕眩</>{stun}秒</>": {
 "en": "ATK +<@ba.vup>{atk:0%}</>, DEF +<@ba.vup>{def:0%}</>; <@ba.rem>after</> a random target\\n within range <@ba.rem>uses a skill, the caster <$ba.stun>is stunned</> for X {stun}seconds.</>",
+"g": "4ff463f2d7"
+},
+"攻击力<@ba.vup>+{atk:0%}</>；停止攻击以持续引导场地进入以下状态：每<@ba.vup>{normal_interval:0.00}</>秒在5行范围内，朝部署方向召唤“簇火”，“簇火”碰到敌人时爆炸造成攻击力<@ba.vup>{heatwave_atk_scale:0%}</>的范围法术伤害；若目标处于<$ba.dt.burning2>灼燃损伤</>爆发期间则改为造成元素伤害\\n<$ba.overdrive>过载</>：“簇火”生成间隔缩短至<@ba.vup>{overload_interval:0}</>秒，范围扩展最多13行\\n被同波次的多个“簇火”命中时，后续“簇火”造成的伤害降低至<@ba.vup>{same_wave_repeat_damage_scale:0%}</>\\n<@ba.rem>该技能可随时主动关闭</>": {
+"en": "ATK <@ba.vup>+{atk:0%}</>; Stop attacking to continuously channel, putting the area into the following state: <@ba.vup>{normal_interval:0.00}</>Every second, within a 5-row radius, summon “Flame Clusters” in the direction of deployment; when “Flame Clusters” hit enemies, they explode, dealing area-of-effect Arts damage equal to ATK<@ba.vup>{heatwave_atk_scale:0%}</>;If the target is currently experiencing <$ba.dt.burning2>a Burn Damage</> Burst, the effect is changed to deal Elemental <$ba.overdrive>Damage</>\\n: The spawn interval for “Fire Clusters” is reduced to [X] seconds<@ba.vup>{overload_interval:0}</>, and the range is expanded to a maximum of 13 rows\\n. If the target is hit by multiple “Fire Clusters” from the same wave, the damage dealt by subsequent “Fire Clusters” is reduced. <@ba.rem>This</><@ba.vup>{same_wave_repeat_damage_scale:0%}</>\\n<@ba.rem> skill can be deactivated at any time.</>",
 "g": "4ff463f2d7"
 },
 "攻击力<@ba.vup>+{atk:0%}</>；停止攻击以持续引导场地进入以下状态：每<@ba.vup>{normal_interval:0.00}</>秒在5行范围内，朝部署方向召唤“簇火”，“簇火”碰到敌人时爆炸造成攻击力<@ba.vup>{heatwave_atk_scale:0.0%}</>的范围法术伤害；若目标处于<$ba.dt.burning2>灼燃损伤</>爆发期间则改为造成元素伤害\\n<$ba.overdrive>过载</>：“簇火”生成间隔缩短至<@ba.vup>{overload_interval:0}</>秒，范围扩展最多13行\\n被同波次的多个“簇火”命中时，后续“簇火”造成的伤害降低至<@ba.vup>{same_wave_repeat_damage_scale:0%}</>\\n<@ba.rem>该技能可随时主动关闭</>": {
