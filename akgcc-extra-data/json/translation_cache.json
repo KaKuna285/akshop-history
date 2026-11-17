@@ -125,10 +125,6 @@
 "en": "“Muelsyse and Friends”",
 "g": "4ff463f2d7"
 },
-"“致我们的老大”": {
-"en": "“To Our Boss”",
-"g": "4ff463f2d7"
-},
 "“贵族血统”": {
 "en": "“Noble Lineage”",
 "g": "4ff463f2d7"
@@ -329,32 +325,8 @@
 "en": "Fire All Rounds",
 "g": "4ff463f2d7"
 },
-"兴之所至·α": {
-"en": "On a Whim · α",
-"g": "4ff463f2d7"
-},
-"兴之所至·β": {
-"en": "On a Whim · β",
-"g": "4ff463f2d7"
-},
 "再部署时间-10秒": {
 "en": "Redeployment Time: 10 seconds",
-"g": "4ff463f2d7"
-},
-"再部署时间-15秒且不提高部署费用；部署至上次部署位置周围时，30秒内攻击力+15%并且可以部署在近战位": {
-"en": "Redeployment Time: 15 seconds, with no increase in DP Cost; when deployed near the previous deployment location, ATK is increased by 15% for 30 seconds, and it can be deployed on a melee tile.",
-"g": "4ff463f2d7"
-},
-"再部署时间-15秒；部署至上次部署位置周围时，30秒内攻击力+10%并且可以部署在近战位": {
-"en": "Redeployment Time: 15 seconds; when redeployed near the previous deployment location, ATK increases by 10% for 30 seconds, and it can be deployed on a melee tile.",
-"g": "4ff463f2d7"
-},
-"再部署时间-17秒且不提高部署费用；部署至上次部署位置周围时，30秒内攻击力+20%并且可以部署在近战位": {
-"en": "Redeployment Time: 17 seconds, with no increase in DP Cost; when deployed near the previous deployment location, ATK is increased by 20% for 30 seconds, and it can be deployed on a melee tile.",
-"g": "4ff463f2d7"
-},
-"再部署时间-18秒且不提高部署费用；部署至上次部署位置周围更大范围时，30秒内攻击力+20%并且可以部署在近战位": {
-"en": "Redeployment Time is reduced to 18 seconds without increasing the DP Cost; when deployed within a larger area around the previous deployment location, ATK is increased by 20% for 30 seconds, and it can be deployed on a melee tile.",
 "g": "4ff463f2d7"
 },
 "再部署时间-4秒": {
@@ -363,10 +335,6 @@
 },
 "再部署时间-6秒": {
 "en": "Redeployment Time: 6 seconds",
-"g": "4ff463f2d7"
-},
-"再部署时间<@ba.kw>减少</>": {
-"en": "<@ba.kw>Reduced</> Redeployment Time",
 "g": "4ff463f2d7"
 },
 "冲蚀": {
@@ -389,10 +357,6 @@
 "en": "The Courage to Set Out",
 "g": "4ff463f2d7"
 },
-"刚射": {
-"en": "Just came",
-"g": "4ff463f2d7"
-},
 "制镜基本功·α": {
 "en": "Fundamentals of Lens Making · α",
 "g": "4ff463f2d7"
@@ -409,16 +373,8 @@
 "en": "Swords and Days Gone By",
 "g": "4ff463f2d7"
 },
-"剑舞": {
-"en": "Sword Dance",
-"g": "4ff463f2d7"
-},
 "力量": {
 "en": "Strength",
-"g": "4ff463f2d7"
-},
-"办公室年度人物": {
-"en": "Office Person of the Year",
 "g": "4ff463f2d7"
 },
 "千尺俯瞰": {
@@ -447,22 +403,6 @@
 },
 "反暗影特殊压制兵装": {
 "en": "Anti-Shadow Special Suppression Weaponry",
-"g": "4ff463f2d7"
-},
-"发射4支攻击力<@ba.vup>{atk_scale_1:0%}</>的箭矢\\n<@ba.rem>可充能1次，充能至最大层数时自动释放一次</>": {
-"en": "Firing 4 arrows\\n with ATK<@ba.vup>{atk_scale_1:0%}</> <@ba.rem>charges the ability once; when the charge reaches its maximum level, it automatically fires once.</>",
-"g": "4ff463f2d7"
-},
-"发射4支攻击力<@ba.vup>{atk_scale_1:0%}</>的箭矢，若还有充能则额外消耗1层施展<@ba.vup>刚连射</>：发射5支攻击力<@ba.vup>{atk_scale_2:0%}</>的箭矢，每支箭矢有<@ba.vup>{stun_prob:0%}</>概率使目标<$ba.stun>晕眩</><@ba.vup>{stun}</>秒\\n<@ba.rem>可充能2次，充能至最大层数时自动释放一次</>": {
-"en": "Fires 4 arrows <@ba.vup>{atk_scale_1:0%}</>with ATK. If there are remaining charges, an additional charge is consumed to cast <@ba.vup>\"Powered Rapid Fire\"</>: Fires 5 arrows <@ba.vup>{atk_scale_2:0%}</>with ATK; each arrow has<@ba.vup>{stun_prob:0%}</> a chance to <$ba.stun>Stun</><@ba.vup>{stun}</> the target<@ba.rem>. </>\\n<@ba.rem>Can be charged twice per</> second<@ba.rem>; when the charge reaches the maximum level, it automatically triggers once.</>",
-"g": "4ff463f2d7"
-},
-"发射4支攻击力<@ba.vup>{atk_scale_1:0%}</>的箭矢，若还有充能则额外消耗1层施展<@ba.vup>刚连射</>：发射5支攻击力<@ba.vup>{atk_scale_2:0%}</>的箭矢，每支箭矢有<@ba.vup>{stun_prob:0%}</>概率使目标<$ba.stun>晕眩</><@ba.vup>{stun}</>秒\\n<@ba.rem>可充能3次，充能至最大层数时自动释放一次</>": {
-"en": "Fire 4 arrows <@ba.vup>{atk_scale_1:0%}</>with ATK. If there is remaining charge, an additional charge is consumed to cast <@ba.vup>\"Steel Barrage\"</>: Fire 5 arrows <@ba.vup>{atk_scale_2:0%}</>with ATK. Each arrow has<@ba.vup>{stun_prob:0%}</> a chance to <$ba.stun>Stun</><@ba.vup>{stun}</> the target. \\n<@ba.rem>Can be charged 3 times</> per second<@ba.rem>; when the charge reaches the maximum level, it automatically triggers once.</>",
-"g": "4ff463f2d7"
-},
-"发射4支攻击力<@ba.vup>{atk_scale_1:0%}</>的箭矢，若还有充能则额外消耗1层施展<@ba.vup>刚连射</>：发射5支攻击力<@ba.vup>{atk_scale_2:0%}</>的箭矢，每支箭矢有<@ba.vup>{stun_prob:0%}</>概率使目标<$ba.stun>晕眩</><@ba.vup>{stun}</>秒\\n<@ba.rem>可充能4次，充能至最大层数时自动释放一次</>": {
-"en": "Fires 4 arrows <@ba.vup>{atk_scale_1:0%}</>with ATK. If there are remaining charges, an additional charge is consumed to cast <@ba.vup>\"Powered Rapid Fire\"</>: Fires 5 arrows <@ba.vup>{atk_scale_2:0%}</>with ATK, each of which has<@ba.vup>{stun_prob:0%}</> a chance to <$ba.stun>Stun</><@ba.vup>{stun}</> the target<@ba.rem>. </>\\n<@ba.rem>Can be charged up to 4 times; when the charge reaches the maximum level, it automatically triggers once.</>",
 "g": "4ff463f2d7"
 },
 "取样优化": {
@@ -629,10 +569,6 @@
 "en": "All Operators within 8 squares gain +5% ATK. When Elite and Leader enemies are within the \nOperator’s attack range, all nearby Operators gain an additional +8% ATK, and the Operator prioritizes attacking the Elite and Leader enemies with the highest ATK.",
 "g": "4ff463f2d7"
 },
-"周围四格没有友方干员时攻击力<@ba.kw>+{atk:0%}</>": {
-"en": "ATK <@ba.kw>+{atk:0%}</> when there are no allied Operators in the four adjacent squares",
-"g": "4ff463f2d7"
-},
 "命运的奖赏": {
 "en": "A Reward from Fate",
 "g": "4ff463f2d7"
@@ -733,22 +669,6 @@
 "en": "While on the field, all allied Operators in <$ba.liftoff>flight</> gain +18% <@ba.talpu>(+5%)</> ATK and restore 10% <@ba.talpu>(+2%)</> of their Max HP per second when blocking.",
 "g": "4ff463f2d7"
 },
-"在场时，部署费用的自然回复速度+13%，若4秒内自身未受到伤害，则每秒恢复4%的最大生命值，首次部署后获得<$ba.camou>迷彩</>直至开启技能": {
-"en": "While on the field, the natural regeneration rate of DP Costs is increased by 13%. If the unit takes no damage for 4 seconds, it regains 4% of its Max HP per second. Upon initial deployment, the unit gains <$ba.camou>Camouflage</> until the ability is activated.",
-"g": "4ff463f2d7"
-},
-"在场时，部署费用的自然回复速度+13%，若4秒内自身未受到伤害，则每秒恢复5%<@ba.talpu>（+1%）</>的最大生命值，首次部署后获得<$ba.camou>迷彩</>直至开启技能": {
-"en": "While on the field, the natural regeneration rate of DP Costs is increased by 13%. If the unit takes no damage for 4 seconds, it regains 5% <@ba.talpu>(+1%)</> of its Max HP per second. Upon initial deployment, the unit gains <$ba.camou>Camouflage until</> the ability is activated.",
-"g": "4ff463f2d7"
-},
-"在场时，部署费用的自然回复速度+15%，若4秒内自身未受到伤害，则每秒恢复4%的最大生命值，首次部署后获得<$ba.camou>迷彩</>直至开启技能": {
-"en": "While on the field, the natural regeneration rate of DP Costs is increased by 15%. If the unit takes no damage for 4 seconds, it regenerates 4% of its Max HP per second. Upon initial deployment, the unit gains <$ba.camou>Camouflage</> until the ability is activated.",
-"g": "4ff463f2d7"
-},
-"在场时，部署费用的自然回复速度+15%，若4秒内自身未受到伤害，则每秒恢复5%<@ba.talpu>（+1%）</>的最大生命值，首次部署后获得<$ba.camou>迷彩</>直至开启技能": {
-"en": "While on the field, the natural regeneration rate of DP Costs is increased by 15%. If the unit takes no damage for 4 seconds, it regains 5% <@ba.talpu>(+1%)</> of its Max HP per second. Upon initial deployment, the unit gains <$ba.camou>Camouflage until</> the ability is activated.",
-"g": "4ff463f2d7"
-},
 "在战场停留30秒后，仅一次使场上与待部署区的所有重装和辅助干员攻击力+10%，生命上限+10%": {
 "en": "After remaining on the battlefield for 30 seconds, grants a one-time bonus of +10% ATK and +10% Max HP to all Defenders and Supporter Operators on the field and in the Deployment Zone.",
 "g": "4ff463f2d7"
@@ -841,10 +761,6 @@
 "en": "Invalid Records",
 "g": "4ff463f2d7"
 },
-"失焦": {
-"en": "Out of Focus",
-"g": "4ff463f2d7"
-},
 "奇象时装回顾展": {
 "en": "\"奇象\" Fashion Retrospective Exhibition",
 "g": "4ff463f2d7"
@@ -871,30 +787,6 @@
 },
 "对<@ba.vup>全场</>{max_target}名干员施加<$ba.triggereffect>触发型效果</>（只选择未持有该效果的目标）：\\n技能可开启时，在<@ba.vup>{buff_duration}</>秒内攻击速度<@ba.vup>+{attack_speed}</>，期间技能变为自动开启": {
 "en": "Applies <$ba.triggereffect>a trigger-based effect</> to all Operators on the field{max_target} (selects only targets who do not already have this effect):\\n When the skill is ready to be activated, ASPD increases<@ba.vup>{attack_speed}</> by within <@ba.vup>{buff_duration}</>seconds; during this time, the skill is automatically activated.",
-"g": "4ff463f2d7"
-},
-"对前三个敌人首次进行攻击时改为使用“猫式起爆龙弹”。来自我方其他单位的伤害会将其引爆，造成罗德岛隐秘队150%攻击力的伤害和2秒晕眩，并回复1点部署费用。“猫式起爆龙弹”在被引爆后或30秒后消失": {
-"en": "When attacking the first three enemies for the first time, it will instead use the “Cat-Style Detonating Dragon Shell.”Damage dealt by other friendly units will detonate it, dealing damage equal to 150% of Rhodes Island Recon’s ATK and causing a 2-second Stun, while also restoring 1 DP Cost. The “Cat-Style Detonating Dragon Shell” disappears either upon detonation or after 30 seconds.",
-"g": "4ff463f2d7"
-},
-"对前三个敌人首次进行攻击时改为使用“猫式起爆龙弹”。来自我方其他单位的伤害会将其引爆，造成罗德岛隐秘队230%攻击力的伤害和2.2秒晕眩，并回复1点部署费用。“猫式起爆龙弹”在被引爆后或30秒后消失": {
-"en": "When attacking the first three enemies for the first time, it will instead use the “Cat-Style Detonating Dragon Shell.”Damage dealt by other friendly units will detonate it, dealing 230% of the Rhodes Island Recon’s ATK as damage, stunning the target for 2.2 seconds, and restoring 1 DP Cost. The “Cat-Style Exploding Dragon Shell” disappears upon detonation or after 30 seconds.",
-"g": "4ff463f2d7"
-},
-"对前三个敌人首次进行攻击时改为使用“猫式起爆龙弹”。来自我方其他单位的伤害会将其引爆，造成罗德岛隐秘队280%攻击力的伤害和2.4秒晕眩，并回复1点部署费用。“猫式起爆龙弹”在被引爆后或30秒后消失": {
-"en": "When attacking the first three enemies for the first time, it will instead use the “Cat-Style Detonating Dragon Shell.”Damage dealt by other friendly units will detonate it, dealing 280% of the Rhodes Island Recon’s ATK as damage, Stunning the target for 2.4 seconds, and restoring 1 DP Cost. The “Cat-Style Exploding Dragon Shell” disappears either upon detonation or after 30 seconds.",
-"g": "4ff463f2d7"
-},
-"对前三个敌人首次进行攻击时改为使用“猫式起爆龙弹”。来自我方其他单位的伤害会将其引爆，造成罗德岛隐秘队350%攻击力的伤害和2.6秒晕眩，并回复1点部署费用。“猫式起爆龙弹”在被引爆后或30秒后消失": {
-"en": "When attacking the first three enemies for the first time, it will instead use the “Cat-Style Detonating Dragon Shell.”Damage dealt by other friendly units will detonate it, dealing 350% of the Rhodes Island Recon’s ATK as damage, stunning the target for 2.6 seconds, and restoring 1 DP Cost. The “Cat-Style Exploding Dragon Shell” disappears upon detonation or after 30 seconds.",
-"g": "4ff463f2d7"
-},
-"对前三个敌人首次进行攻击时改为使用“猫式起爆龙弹”。来自我方其他单位的伤害会将其引爆，造成罗德岛隐秘队420%攻击力的伤害和2.8秒晕眩，并回复1点部署费用。“猫式起爆龙弹”在被引爆后或30秒后消失": {
-"en": "When attacking the first three enemies for the first time, it will instead use the “Cat-Style Detonating Dragon Shell.”Damage dealt by other friendly units will detonate it, dealing 420% of the Rhodes Island Recon’s ATK as damage, stunning the target for 2.8 seconds, and restoring 1 DP Cost. The “Cat-Style Exploding Dragon Shell” disappears either upon detonation or after 30 seconds.",
-"g": "4ff463f2d7"
-},
-"对前三个敌人首次进行攻击时改为使用“猫式起爆龙弹”。来自我方其他单位的伤害会将其引爆，造成罗德岛隐秘队500%攻击力的伤害和3秒晕眩，并回复1点部署费用。“猫式起爆龙弹”在被引爆后或30秒后消失": {
-"en": "When attacking the first three enemies for the first time, it will instead use the “Cat-Style Detonating Dragon Shell.”Damage dealt by other friendly units will detonate it, dealing damage equal to 500% of Rhodes Island Recon’s ATK and causing a 3-second Stun, while also restoring 1 DP Cost. The “Cat-Style Detonating Dragon Shell” disappears either upon detonation or after 30 seconds.",
 "g": "4ff463f2d7"
 },
 "对目标所在地块上的所有地面敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害，并造成<@ba.vup>{fear:0.0}</>秒<$ba.fear>恐惧</>": {
@@ -937,10 +829,6 @@
 "en": "Engineering Doji",
 "g": "4ff463f2d7"
 },
-"幽然灵竹": {
-"en": "Serene Spiritual Bamboo",
-"g": "4ff463f2d7"
-},
 "底绒舞会": {
 "en": "The Bottom-Fiber Ball",
 "g": "4ff463f2d7"
@@ -953,16 +841,12 @@
 "en": "The Blade That Forges Tomorrow",
 "g": "4ff463f2d7"
 },
-"弓吟空跃寻访凭证": {
-"en": "Bow Chant: Leaping Through the Void in Search of Proof",
+"弑君者的私人信件": {
+"en": "The Crownslayer's Private Letters",
 "g": "4ff463f2d7"
 },
 "弹射起步": {
 "en": "Flying Start",
-"g": "4ff463f2d7"
-},
-"强击瓶专家": {
-"en": "Smash Bottle Expert",
 "g": "4ff463f2d7"
 },
 "彼此的声音": {
@@ -977,10 +861,6 @@
 "en": "The Token of de Toledo",
 "g": "4ff463f2d7"
 },
-"忒斯特收藏/XX": {
-"en": "Test Collection/XX",
-"g": "4ff463f2d7"
-},
 "忒斯特收藏/XXI": {
 "en": "Test Collection/XXI",
 "g": "4ff463f2d7"
@@ -991,50 +871,6 @@
 },
 "忠实拥趸": {
 "en": "Loyal fans",
-"g": "4ff463f2d7"
-},
-"怪物猎人/II": {
-"en": "Monster Hunter/II",
-"g": "4ff463f2d7"
-},
-"怪物线索1": {
-"en": "Monster Clue 1",
-"g": "4ff463f2d7"
-},
-"怪物线索10": {
-"en": "Monster Clue 10",
-"g": "4ff463f2d7"
-},
-"怪物线索2": {
-"en": "Monster Clue 2",
-"g": "4ff463f2d7"
-},
-"怪物线索3": {
-"en": "Monster Clue 3",
-"g": "4ff463f2d7"
-},
-"怪物线索4": {
-"en": "Monster Clue 4",
-"g": "4ff463f2d7"
-},
-"怪物线索5": {
-"en": "Monster Clue 5",
-"g": "4ff463f2d7"
-},
-"怪物线索6": {
-"en": "Monster Clue 6",
-"g": "4ff463f2d7"
-},
-"怪物线索7": {
-"en": "Monster Clue 7",
-"g": "4ff463f2d7"
-},
-"怪物线索8": {
-"en": "Monster Clue 8",
-"g": "4ff463f2d7"
-},
-"怪物线索9": {
-"en": "Monster Clue 9",
 "g": "4ff463f2d7"
 },
 "悠然假日 HD59": {
@@ -1069,10 +905,6 @@
 "en": "Star of Achievement/IX",
 "g": "4ff463f2d7"
 },
-"成就之星/X": {
-"en": "Star of Achievement/X",
-"g": "4ff463f2d7"
-},
 "我即火焰": {
 "en": "I Am the Flame",
 "g": "4ff463f2d7"
@@ -1095,46 +927,6 @@
 },
 "技能开启时复制目标100%的生命值、攻击力、防御力、法抗，以及阻挡数、攻击间隔、攻击范围、初始伤害类型（不攻击、治疗类型则不继承）": {
 "en": "When this skill is activated, it copies 100% of the target’s HP, ATK, DEF, magic resistance, as well as Block, Attack Interval, attack range, and initial damage type (damage types such as “does not attack” or “heal” are not inherited).",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加20%": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, the \"Transformation Slash\" deals damage and consumes all charges; each charge increases the skill's Duration by 20%.",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加30%": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, the \"Transformation Slash\" deals damage and consumes all charges; each charge increases the skill's Duration by 30%.",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加30%<@ba.talpu>（+10%）</>": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, \"Transformation Slash\" deals damage and consumes all charges; each charge increases the skill's Duration by 30% <@ba.talpu>(+10%).</>",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加40%": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, \"Transformation Slash\" deals damage and consumes all charges; each charge increases the skill's Duration by 40%.",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加40%<@ba.talpu>（+10%）</>": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, the Transformation Slash deals damage and consumes all charges; each charge increases the skill's Duration by 40% <@ba.talpu>(+10%).</>",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加40%且攻击力增加2%": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, the \"Transformation Slash\" deals damage and consumes all charges; each charge increases the skill's Duration by 40% and ATK by 2%.",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加40%且攻击力增加3%": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, performing a Transformation Slash deals damage and consumes all charges; each charge increases the skill's Duration by 40% and ATK by 3%.",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加50%<@ba.talpu>（+10%）</>": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, \"Transformation Slash\" deals damage and consumes all charges; each charge increases the skill's Duration by 50% <@ba.talpu>(+10%).</>",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加50%<@ba.talpu>（+10%）</>且攻击力增加3%<@ba.talpu>（+1%）</>": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, \"Transformation Slash\" deals damage and consumes all charges; each charge increases the skill's Duration by 50% <@ba.talpu>(+10%)</> and ATK by 3% <@ba.talpu>(+1%).</>",
-"g": "4ff463f2d7"
-},
-"技能期间攻击距离延长。开启技能时施展变形斩造成伤害，同时消耗所有充能，每层使技能持续时间增加50%<@ba.talpu>（+10%）</>且攻击力增加4%<@ba.talpu>（+1%）</>": {
-"en": "Attack range is extended while the skill is active. When the skill is activated, the Transformation Slash deals damage and consumes all charges; each charge increases the skill's Duration by 50% <@ba.talpu>(+10%)</> and ATK by 4% <@ba.talpu>(+1%).</>",
 "g": "4ff463f2d7"
 },
 "技能结束后，治疗自身和攻击范围内最多2名干员相当于岳羽由加莉攻击力50%的生命值": {
@@ -1191,6 +983,10 @@
 },
 "掩护战术": {
 "en": "Cover Tactics",
+"g": "4ff463f2d7"
+},
+"揭幕者们家具收藏包": {
+"en": "The Unveillers' Furniture Collection Bundle",
 "g": "4ff463f2d7"
 },
 "搭车漫游寻访凭证": {
@@ -1489,24 +1285,12 @@
 "en": "Attack Interval <@ba.vup>is</> slightly <@ba.vup>reduced</>; ATK is increased<@ba.vup>{atk:0%}</>; the attack now involves riding a mount, and the damage dealt to enemies <@ba.vup>increases by an</> additional <@ba.vup>12%</> for every square the mount travels (up to a maximum additional <@ba.vup>increase of 48%</>).",
 "g": "4ff463f2d7"
 },
-"攻击额外造成攻击力23%的法术伤害，根据造成的法术伤害次数获得不断提高的<$ba.magicarcane>术法充盈</>（最高在造成7次法术伤害后获得35%的<$ba.magicarcane>术法充盈</>），首次撤退再部署时间为0": {
-"en": "The attack deals additional Arts damage equal to 23% of the attacker's ATK. The number of times Arts damage is dealt grants progressively increasing <$ba.magicarcane>Arcane Surge</> (up to a maximum of 35% <$ba.magicarcane>Arcane Surge</> after dealing Arts damage 7 times). The Redeployment Time for the first retreat is 0.",
-"g": "4ff463f2d7"
-},
-"攻击额外造成攻击力25%的法术伤害，根据造成的法术伤害次数获得不断提高的<$ba.magicarcane>术法充盈</>（最高在造成10次法术伤害后获得50%的<$ba.magicarcane>术法充盈</>），首次撤退再部署时间为0": {
-"en": "The attack deals additional Arts damage equal to 25% of the attacker's ATK. Each instance of Arts damage dealt grants an increasing amount of <$ba.magicarcane>Arcane Surge</> (up to a maximum of 50% <$ba.magicarcane>Arcane Surge</> after dealing 10 instances of Arts damage). The Redeployment Time for the first retreat is 0.",
-"g": "4ff463f2d7"
-},
 "故土新程寻访凭证": {
 "en": "\"Journey Through My Hometown\" Visit Pass",
 "g": "4ff463f2d7"
 },
 "教宗": {
 "en": "Pope",
-"g": "4ff463f2d7"
-},
-"斧模式变形": {
-"en": "Axe Mode Transformation",
 "g": "4ff463f2d7"
 },
 "新产品测评": {
@@ -1557,10 +1341,6 @@
 "en": "Times/LIX",
 "g": "4ff463f2d7"
 },
-"时代/LV": {
-"en": "Times/LV",
-"g": "4ff463f2d7"
-},
 "时代/LVI": {
 "en": "Times/LVI",
 "g": "4ff463f2d7"
@@ -1571,6 +1351,10 @@
 },
 "时代/LVIII": {
 "en": "The Times/LVIII",
+"g": "4ff463f2d7"
+},
+"时代/LX": {
+"en": "Times/LX",
 "g": "4ff463f2d7"
 },
 "时装回顾展·IV": {
@@ -1595,6 +1379,10 @@
 },
 "暖冬教室": {
 "en": "Warm Winter Classroom",
+"g": "4ff463f2d7"
+},
+"暗能质子": {
+"en": "Dark Proton",
 "g": "4ff463f2d7"
 },
 "暮时宝光": {
@@ -1657,10 +1445,6 @@
 "en": "Merita Premium Selection",
 "g": "4ff463f2d7"
 },
-"梓兰特制箭靶": {
-"en": "Zilan Custom-Made Archery Target",
-"g": "4ff463f2d7"
-},
 "欲雪时": {
 "en": "On the Eve of Snow",
 "g": "4ff463f2d7"
@@ -1669,16 +1453,8 @@
 "en": "This Body Is the Realm",
 "g": "4ff463f2d7"
 },
-"每回收5次<@ba.kw>回旋投射物</>时获得1点技力": {
-"en": "Gain 1 SP for every 5 <@ba.kw>Spinning Projectiles</> you recover.",
-"g": "4ff463f2d7"
-},
 "毛茸茸的抚慰": {
 "en": "Fuzzy Comfort",
-"g": "4ff463f2d7"
-},
-"气氛组": {
-"en": "Mood Team",
 "g": "4ff463f2d7"
 },
 "求知的魔法": {
@@ -1719,14 +1495,6 @@
 },
 "浸剂回收": {
 "en": "Recovery of Infusions",
-"g": "4ff463f2d7"
-},
-"消耗<@ba.vdown>20</>点部署费用，攻击间隔增大，交替使用五连击与十连击攻击阻挡的所有敌人，且每一击附带相当于攻击力<@ba.vup>{attack@atk_magic:0%}</>的法术伤害\\n<@ba.rem>可充能5次</>": {
-"en": "Consumes <@ba.vdown>20</> DP Cost, increases the Attack Interval, and alternates between 5-hit and 10-hit attacks against all blocked enemies, with each hit dealing Arts damage\\n equal to <@ba.vup>{attack@atk_magic:0%}</>the ATK. <@ba.rem>Can be charged 5 times.</>",
-"g": "4ff463f2d7"
-},
-"消耗<@ba.vdown>5</>点部署费用，攻击力和防御力<@ba.vup>+{atk:0%}</>；技能期间可消耗<@ba.vdown>10</>点部署费用使用<$ba.alter>装备应变</>，对前方造成一次相当于攻击力<@ba.vup>{attack@extra_physic_atk_scale:0%}</>的物理伤害，且开启技能时每消耗一层充能附加一次相当于攻击力<@ba.vup>{attack@extra_magic_atk_scale:0%}</>的法术伤害，之后技能立即结束\\n<@ba.rem>可充能5次</>": {
-"en": "Consumes 5 DP Costs; increases ATK and DEF<@ba.vup>{atk:0%}</>. During the skill’s duration, you may spend <@ba.vdown>10</> DP Costs to use <$ba.alter>“Equip Adaptation</>,” dealing Physical damage equal to <@ba.vup>{attack@extra_physic_atk_scale:0%}</>your ATK to enemies in front of you. Additionally, each level of charge consumed when activating the skill adds Arts damage equal to your <@ba.vup>{attack@extra_magic_atk_scale:0%}</>ATK. The skill ends\\n immediately afterward and <@ba.rem>can be charged up to 5 times.</>",
 "g": "4ff463f2d7"
 },
 "淑女风范": {
@@ -1801,24 +1569,12 @@
 "en": "New Stories by the Fire",
 "g": "4ff463f2d7"
 },
-"火竹炭": {
-"en": "Fire Bamboo Charcoal",
-"g": "4ff463f2d7"
-},
 "火龙的红玉": {
 "en": "The Fire Dragon's Red Jade",
 "g": "4ff463f2d7"
 },
-"烈竹": {
-"en": "Fiery Bamboo",
-"g": "4ff463f2d7"
-},
 "热腾腾大包": {
 "en": "Steaming Hot Baozi",
-"g": "4ff463f2d7"
-},
-"焰狐龙梓兰的信物": {
-"en": "The Token of the Violet Mizutsune Orchid",
 "g": "4ff463f2d7"
 },
 "照寰瀛": {
@@ -1829,24 +1585,8 @@
 "en": "A Glimpse of the White Night",
 "g": "4ff463f2d7"
 },
-"熔火冰晶": {
-"en": "Molten Fire, Icy Crystal",
-"g": "4ff463f2d7"
-},
-"特性消耗费用时，每消耗1点费用使本次技能期间攻击力<@ba.kw>+2%</>（上限10层）": {
-"en": "When this Trait consumes cost, each point of cost consumed increases ATK <@ba.kw>by 2%</> for the duration of this Trait (up to 10 stacks).",
-"g": "4ff463f2d7"
-},
 "特辑/夏日音轨": {
 "en": "Special Feature / Summer Tracks",
-"g": "4ff463f2d7"
-},
-"狩猎之路": {
-"en": "The Path of the Hunter",
-"g": "4ff463f2d7"
-},
-"狩猎好帮手": {
-"en": "A Great Hunting Companion",
 "g": "4ff463f2d7"
 },
 "独立调查": {
@@ -1855,30 +1595,6 @@
 },
 "猎犬食糜": {
 "en": "Hunting Dog Eats Porridge",
-"g": "4ff463f2d7"
-},
-"猫式起爆龙弹·I": {
-"en": "Cat-Style Exploding Dragon Bullet · I",
-"g": "4ff463f2d7"
-},
-"猫式起爆龙弹·II": {
-"en": "Cat-Style Exploding Dragon Bullet II",
-"g": "4ff463f2d7"
-},
-"猫式起爆龙弹·III": {
-"en": "Cat-Style Exploding Dragon Bullet·III",
-"g": "4ff463f2d7"
-},
-"猫式起爆龙弹·IV": {
-"en": "Cat-Style Exploding Dragon Bullet · IV",
-"g": "4ff463f2d7"
-},
-"猫式起爆龙弹·V": {
-"en": "Cat-Style Exploding Dragon Bullet·V",
-"g": "4ff463f2d7"
-},
-"猫式起爆龙弹·VI": {
-"en": "Cat-Style Exploding Dragon Bullet · VI",
 "g": "4ff463f2d7"
 },
 "率直诚实之人": {
@@ -2013,18 +1729,6 @@
 "en": "Spontaneous Creative Thinking",
 "g": "4ff463f2d7"
 },
-"立刻<$ba.liftoff>起飞</>并对前方范围的所有目标射击3次，分别射出3、4、5支攻击力提升至<@ba.vup>{attack@atk_scale_loop:0%}</>的箭矢；之后降落并对前方小范围内的所有敌人造成攻击力<@ba.vup>{attack@atk_scale_end:0%}</>的物理伤害\\n<@ba.rem>可充能1次，部署后立即释放一次</>": {
-"en": "Immediately <$ba.liftoff>takes off</> and fires 3 times at all targets in the area ahead, launching 3, 4, and 5 arrows respectively, each <@ba.vup>{attack@atk_scale_loop:0%}</>with increased ATK; then lands and deals Physical damage equal <@ba.vup>{attack@atk_scale_end:0%}</>to ATK to all enemies within a small area in front<@ba.rem>. </>\\n<@ba.rem>Can be charged once; releases once immediately upon deployment.</>",
-"g": "4ff463f2d7"
-},
-"立刻<$ba.liftoff>起飞</>并对前方范围的所有目标射击3次，分别射出3、4、5支攻击力提升至<@ba.vup>{attack@atk_scale_loop:0%}</>的箭矢；之后降落并对前方小范围内的所有敌人造成攻击力<@ba.vup>{attack@atk_scale_end:0%}</>的物理伤害\\n<@ba.rem>可充能2次，部署后立即释放一次</>": {
-"en": "Immediately <$ba.liftoff>takes off</> and fires 3 times at all targets in the area ahead, launching 3, 4, and 5 arrows <@ba.vup>{attack@atk_scale_loop:0%}</>with increased ATK, respectively; then lands and deals Physical damage equal <@ba.vup>{attack@atk_scale_end:0%}</>to ATK to all enemies within a small area ahead<@ba.rem>. </>\\n<@ba.rem>Can be charged 2 times; releases once immediately upon deployment.</>",
-"g": "4ff463f2d7"
-},
-"立刻<$ba.liftoff>起飞</>并对前方范围的所有目标射击3次，分别射出3、4、5支攻击力提升至<@ba.vup>{attack@atk_scale_loop:0%}</>的箭矢；之后降落并对前方小范围内的所有敌人造成攻击力<@ba.vup>{attack@atk_scale_end:0%}</>的物理伤害\\n<@ba.rem>可充能3次，部署后立即释放一次</>": {
-"en": "Immediately <$ba.liftoff>takes off</> and fires 3 times at all targets in the area ahead, launching 3, 4, and 5 arrows respectively, each <@ba.vup>{attack@atk_scale_loop:0%}</>with increased ATK; then lands and deals Physical damage equal <@ba.vup>{attack@atk_scale_end:0%}</>to ATK to all enemies within a small area in front<@ba.rem>. </>\\n<@ba.rem>Can be charged 3 times; releases once immediately upon deployment.</>",
-"g": "4ff463f2d7"
-},
 "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>": {
 "en": "<$ba.liftoff>Take off</> immediately<$ba.liftoff>;</> ATK increases<@ba.vup>{atk:0%}</>; gains<@ba.vup>{damage_resistance:0%}</> <$ba.airprotect>Anti-Air Shelter;</> attack range <@ba.vup>expands</>; the 8 surrounding squares are treated as an additional attack range for Angelina the Mellow Wish; deals Physical damage <@ba.vup>{attack@atk_scale:0%}</>equal to ATK to the<@ba.vup>{attack@max_walk_target}</> target enemy and additionally attacks 1 flying enemy;Reduces the movement speed of flying enemies within range<@ba.vup>{move_speed:0%}</>. If there is an unblocked, blockable flying enemy <@ba.vup>within the original skill’s</> range and the caster is not blocked, <$ba.addash>the caster moves</> to the enemy’s square\\n <@ba.rem>and attacks with{attack@trigger_time} one round of ammunition; the skill ends once the ammunition is exhausted (the skill can be stopped at any time during this period).</>",
 "g": "4ff463f2d7"
@@ -2125,12 +1829,12 @@
 "en": "The Undisputed Star",
 "g": "4ff463f2d7"
 },
-"罗德厨房/V": {
-"en": "Rode Kitchen/V",
+"绿影之下": {
+"en": "Under the Green Shade",
 "g": "4ff463f2d7"
 },
-"罗德岛制式双刀": {
-"en": "Rhode Island-Style Dual Blades",
+"罗德厨房/V": {
+"en": "Rode Kitchen/V",
 "g": "4ff463f2d7"
 },
 "罗德岛基础物资补给I": {
@@ -2141,20 +1845,8 @@
 "en": "Rhode Island Basic Supplies Resupply II",
 "g": "4ff463f2d7"
 },
-"罗德岛隐秘队的信物": {
-"en": "The Token of Rhodes Island Recon",
-"g": "4ff463f2d7"
-},
-"群兽入侵": {
-"en": "Invasion of the Beasts",
-"g": "4ff463f2d7"
-},
 "群策群力": {
 "en": "Pooling Our Wisdom and Efforts",
-"g": "4ff463f2d7"
-},
-"翔虫机动": {
-"en": "Flying Insect Maneuver",
 "g": "4ff463f2d7"
 },
 "聚众宣讲": {
@@ -2265,22 +1957,6 @@
 "en": "Sedge's Private Letters",
 "g": "4ff463f2d7"
 },
-"获得35%的物理与法术闪避，周围8格内敌人的物理与法术命中率-25%；6秒内未受到伤害时，攻击力+10%": {
-"en": "Gains 35% Physical Dodge and Arts Dodge; reduces the physical and spell hit rate of enemies within 8 squares by 25%; if no damage is taken for 6 seconds, ATK increases by 10%.",
-"g": "4ff463f2d7"
-},
-"获得35%的物理与法术闪避，周围8格内敌人的物理与法术命中率-30%；6秒内未受到伤害时，攻击力+15%": {
-"en": "Gains 35% Physical Dodge and Arts Dodge; reduces the physical and spell hit rate of enemies within 8 squares by 30%; if no damage is taken for 6 seconds, ATK increases by 15%.",
-"g": "4ff463f2d7"
-},
-"获得38%<@ba.talpu>（+3%）</>的物理与法术闪避，周围8格内敌人的物理与法术命中率-25%；6秒内未受到伤害时，攻击力+10%": {
-"en": "Gains 38% <@ba.talpu>(+3%)</> Physical Dodge and Arts Dodge; reduces the physical and spell hit rate of enemies within 8 squares by 25%; if no damage is taken for 6 seconds, ATK increases by 10%.",
-"g": "4ff463f2d7"
-},
-"获得38%<@ba.talpu>（+3%）</>的物理与法术闪避，周围8格内敌人的物理与法术命中率-30%；6秒内未受到伤害时，攻击力+15%": {
-"en": "Gain 38% <@ba.talpu>(+3%)</> Physical Dodge and Arts Dodge; reduces the physical and spell hit rate of enemies within 8 squares by 30%; if no damage is taken for 6 seconds, ATK increases by 15%.",
-"g": "4ff463f2d7"
-},
 "获得<@ba.vup>{damage_resistance:0%}</>的<$ba.protect>庇护</>（持续<@ba.vup>{shelter_hold_duration:0.0}</>秒后逐渐降低），对攻击来源造成塔露拉攻击力<@ba.vup>{retaliate_atk_scale:0%}</>的范围法术伤害，并治疗塔露拉相当于伤害量<@ba.vup>{heal_ratio:0%}</>的生命值；之后<@ba.vup>{stack_duration:0.0}</>秒内攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>和防御力<@ba.vup>+{def:0%}</>（可叠加<@ba.vup>5</>层）\\n<@ba.rem>受到攻击后触发，可充能{max_stack_cnt:0}次</>": {
 "en": "Grants<@ba.vup>{damage_resistance:0%}</> <$ba.protect>Shelter</> (which gradually decreases <@ba.vup>{shelter_hold_duration:0.0}</>after X seconds), dealing area-of-effect Arts damage equal to Talulah’s <@ba.vup>{retaliate_atk_scale:0%}</>ATK to the source of the attack and healing Talulah for an amount of HP equal to <@ba.vup>{heal_ratio:0%}</>the damage dealt; then<@ba.vup>{stack_duration:0.0}</>, for X seconds, attacks all enemies in the way. ATK + <@ba.vup>{atk:0%}</>and DEF <@ba.vup>{def:0%}</>(stackable up to 5 times)<@ba.rem>. Triggers upon </>\\n<@ba.rem>taking damage and can be charged X times{max_stack_cnt:0}.</>",
 "g": "4ff463f2d7"
@@ -2289,28 +1965,8 @@
 "en": "Fiammetta Limited Edition Badge",
 "g": "4ff463f2d7"
 },
-"萤虫": {
-"en": "Firefly",
-"g": "4ff463f2d7"
-},
-"蓄力<@ba.vup>3</>秒后射出直线飞行的贯穿箭矢，箭矢以<@ba.vup>中等力度</>推动每个经过的敌人，每飞行一段距离都会对周围所有敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和攻击力<@ba.vup>{atk_scale_magic:0%}</>的法术伤害，箭矢射程无限\\n<@ba.rem>可充能1次</>": {
-"en": "After charging for 3 seconds, fire a straight-flying piercing arrow that pushes every enemy it passes with <@ba.vup>moderate force</>. Every time the arrow travels a certain distance, it deals Physical damage equal to [ATK<@ba.vup>{atk_scale:0%}</>] and Arts damage equal to [ATK<@ba.vup>{atk_scale_magic:0%}</>] to all nearby enemies. The arrow has infinite\\n range <@ba.rem>and can be charged once.</>",
-"g": "4ff463f2d7"
-},
-"蓄力<@ba.vup>3</>秒后射出直线飞行的贯穿箭矢，箭矢以<@ba.vup>中等力度</>推动每个经过的敌人，每飞行一段距离都会对周围所有敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和攻击力<@ba.vup>{atk_scale_magic:0%}</>的法术伤害，箭矢射程无限\\n<@ba.rem>可充能2次</>": {
-"en": "After charging for 3 seconds, fire a straight-flying piercing arrow that pushes every enemy it passes with <@ba.vup>moderate force</>. Every time the arrow travels a certain distance, it deals Physical damage equal to [ATK<@ba.vup>{atk_scale:0%}</>] and Arts damage equal to [ATK<@ba.vup>{atk_scale_magic:0%}</>] to all nearby enemies. The arrow has infinite\\n range <@ba.rem>and can be charged up to 2 times.</>",
-"g": "4ff463f2d7"
-},
-"蓄力<@ba.vup>3</>秒后射出直线飞行的贯穿箭矢，箭矢以<@ba.vup>较大力度</>推动每个经过的敌人，每飞行一段距离都会对周围所有敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和攻击力<@ba.vup>{atk_scale_magic:0%}</>的法术伤害，箭矢射程无限\\n<@ba.rem>可充能2次</>": {
-"en": "After charging for 3 seconds, fire a straight-flying piercing arrow that pushes every enemy it passes with <@ba.vup>considerable force</>. Every time the arrow travels a certain distance, it deals Physical damage equal to [ATK<@ba.vup>{atk_scale:0%}</>] and Arts damage equal to [ATK<@ba.vup>{atk_scale_magic:0%}</>] to all nearby enemies. The arrow has infinite\\n range <@ba.rem>and can be charged up to 2 times.</>",
-"g": "4ff463f2d7"
-},
 "蔬菜大拼盘": {
 "en": "Mixed Vegetable Platter",
-"g": "4ff463f2d7"
-},
-"蔷薇之谜": {
-"en": "The Mystery of the Rose",
 "g": "4ff463f2d7"
 },
 "虎狼丸的信物": {
@@ -2413,10 +2069,6 @@
 "en": "Red Soil Tensile Strength",
 "g": "4ff463f2d7"
 },
-"超高输出属性解放斩": {
-"en": "Ultra-High-Output Attribute Unleash Slash",
-"g": "4ff463f2d7"
-},
 "跃动节拍": {
 "en": "Pulsing Rhythm",
 "g": "4ff463f2d7"
@@ -2463,10 +2115,6 @@
 },
 "进驻会客室时，更容易获得线索板上尚未拥有的线索": {
 "en": "When you enter the Reception Room, you're more likely to obtain Clues you don't yet have on the clue board.",
-"g": "4ff463f2d7"
-},
-"进驻会客室时，更容易获得线索板上尚未拥有的线索，若<@cc.kw>焰狐龙梓兰</>进驻控制中枢，则线索搜集速度提升<@cc.vup>10%</>": {
-"en": "When you enter the Reception Room, you’re more likely to obtain clues you don’t yet have on the clue board. If <@cc.kw>the Violet Mizutsune Orchid is stationed</> in the Control Center, the clue collection speed increases <@cc.vup>by 10%.</>",
 "g": "4ff463f2d7"
 },
 "进驻会客室时，线索搜集速度提升<@cc.vup>10%</>": {
@@ -2553,10 +2201,6 @@
 "en": "When entering the recycling center, material conversion efficiency <@cc.vup>increases by 30%, and</> Morale consumption <@cc.vup>decreases by 0.1</> per hour<@cc.vup>.</>",
 "g": "4ff463f2d7"
 },
-"进驻宿舍时，使该宿舍内除自身以外心情未满的某个干员每小时恢复<@cc.vup>+0.55</>（同种效果取最高），如果目标是<$cc.tag.mh><@cc.kw>怪物猎人小队</></>成员和<$cc.tag.mh2><@cc.kw>泡影国狩猎小队</></>，则恢复效果额外<@cc.vup>+0.45</>": {
-"en": "When stationed in a dormitory, any Operator in that dormitory other than yourself who has low morale will regain <@cc.vup>+0.55 HP</> per hour (the highest value among similar effects applies). If the target is a member of <$cc.tag.mh><@cc.kw>the Monster Hunter Squad</></> or <$cc.tag.mh2><@cc.kw>the Bubble Kingdom Hunting Squad</></>, the HP recovery effect is increased by <@cc.vup>an additional +0.45.</>",
-"g": "4ff463f2d7"
-},
 "进驻宿舍时，自身心情每小时恢复<@cc.vup>+0.7</>": {
 "en": "When you move into the Dormitory, your morale recovers <@cc.vup>by +0.7</> every hour.",
 "g": "4ff463f2d7"
@@ -2571,10 +2215,6 @@
 },
 "进驻宿舍时，该宿舍内所有干员的心情每小时恢复<@cc.vup>+0.1</>；同时该宿舍每有<@cc.kw>1</>名心情未满的干员，则恢复效果额外<@cc.vup>+0.01</>（同种效果取最高）": {
 "en": "When moving into a dormitory, the morale of all Operators in that dormitory recovers <@cc.vup>by +0.1</> per hour; additionally, for every Operator in that dormitory whose morale is not at full capacity, the recovery effect increases by <@cc.vup>an extra +0.01</> (the highest value among similar effects applies).",
-"g": "4ff463f2d7"
-},
-"进驻控制中枢时，人力办公室联络速度<@cc.vup>+10%</>（同种效果取最高）": {
-"en": "When entering the Control Center, the Personnel Office's communication speed <@cc.vup>increases by 10%</> (the highest value among similar effects applies).",
 "g": "4ff463f2d7"
 },
 "进驻控制中枢时，所有制造站生产力<@cc.vup>+2%</>（同种效果取最高）": {
@@ -2597,28 +2237,12 @@
 "en": "When stationed in the Training Room to assist in a specific role, the training speed for the Guard and Caster Operators' specialization skills <@cc.vup>increases by 30%.</>",
 "g": "4ff463f2d7"
 },
-"进驻训练室协助位时，<@cc.kw>近卫</>与<@cc.kw>狙击</>干员的专精技能训练速度<@cc.vup>+30%</>": {
-"en": "When stationed in the Training Room to assist in a specific role, the training speed for the Guard and <@cc.kw>Sniper</> Operators' specialization skills <@cc.vup>increases by 30%.</>",
-"g": "4ff463f2d7"
-},
-"进驻训练室协助位时，<@cc.kw>近卫</>与<@cc.kw>狙击</>干员的专精技能训练速度<@cc.vup>+50%</>，心情每小时消耗<@cc.vdown>+1</>": {
-"en": "When stationed in the Training Room to assist in a specific role, the training speed for the <@cc.kw>Guard</> and <@cc.kw>Sniper</> Operators' specialization skills <@cc.vup>increases by 50%, and</> their Morale depletes <@cc.vdown>by 1</> per hour<@cc.vup>.</>",
-"g": "4ff463f2d7"
-},
 "进驻训练室协助位时，如果训练位干员分支为<@cc.kw>本源近卫</>或<@cc.kw>本源术师</>，则专精技能训练速度额外<@cc.vup>+45%</>": {
 "en": "When entering a Training Room to assist a trainee, if the trainee's Operator branch is <@cc.kw>Origin Guard or</> <@cc.kw>Origin Caster,</> the training speed for their specialization skills is increased by <@cc.vup>an additional 45%.</>",
 "g": "4ff463f2d7"
 },
 "进驻贸易站时，<@cc.kw>小幅提升</>当前贸易站<@cc.kw>高品质贵金属订单</>的出现概率（工作时长影响概率），心情每小时消耗<@cc.vup>-0.25</>": {
 "en": "When arriving at a Trading Post, <@cc.kw>slightly increases</> the probability of receiving <@cc.kw>high-quality precious metal orders</> at that Trading Post (the duration of the job affects this probability); Morale decreases <@cc.vup>by -0.25</> per hour.",
-"g": "4ff463f2d7"
-},
-"进驻贸易站时，订单上限<@cc.vup>+3</>，且每有一个<$cc.tag.mh2><@cc.kw>泡影国狩猎小队</></>干员进驻贸易站，订单获取效率<@cc.vup>+20%</>": {
-"en": "When stationing at a Trading Post, the order limit <@cc.vup>increases by 3</>, and for each <$cc.tag.mh2><@cc.kw>Bubble Kingdom hunting squad</></> Operator stationed at the Trading Post, order efficiency <@cc.vup>increases by 20%.</>",
-"g": "4ff463f2d7"
-},
-"进驻贸易站时，订单获取效率<@cc.vup>+35%</>": {
-"en": "When you set up shop at a Trading Post, your order efficiency increases by <@cc.vup>35%.</>",
 "g": "4ff463f2d7"
 },
 "进驻贸易站时，贸易站内除自身以外每名处于工作状态的干员<@cc.vup>+15%</>订单获取效率": {
@@ -2745,30 +2369,6 @@
 "en": "<$ba.liftoff>Takes off</> immediately after deployment, with an <@ba.vup>expanded</> attack range, increased ATK<@ba.vup>{atk:0%}</>, and the ability to attack two targets simultaneously.",
 "g": "4ff463f2d7"
 },
-"部署后首次开启技能时，接下来50次攻击的攻击力提升至105%": {
-"en": "The first time you activate this skill after deploying it, your ATK for the next 50 attacks is increased to 105%.",
-"g": "4ff463f2d7"
-},
-"部署后首次开启技能时，接下来50次攻击的攻击力提升至110%": {
-"en": "The first time you activate this skill after deploying it, your ATK for the next 50 attacks is increased to 110%.",
-"g": "4ff463f2d7"
-},
-"部署后首次开启技能时，接下来50次攻击的攻击力提升至110%<@ba.talpu>（+5%）</>": {
-"en": "The first time you activate this skill after deployment, your ATK for the next 50 attacks is increased to 110% <@ba.talpu>(+5%).</>",
-"g": "4ff463f2d7"
-},
-"部署后首次开启技能时，接下来50次攻击的攻击力提升至115%": {
-"en": "The first time you activate this skill after deployment, your ATK for the next 50 attacks is increased to 115%.",
-"g": "4ff463f2d7"
-},
-"部署后首次开启技能时，接下来50次攻击的攻击力提升至115%<@ba.talpu>（+5%）</>": {
-"en": "The first time you activate this skill after deployment, your ATK for the next 50 attacks is increased to 115% <@ba.talpu>(+5%).</>",
-"g": "4ff463f2d7"
-},
-"部署后首次开启技能时，接下来50次攻击的攻击力提升至120%<@ba.talpu>（+5%）</>": {
-"en": "The first time you activate this skill after deploying it, your ATK for the next 50 attacks is increased to 120% <@ba.talpu>(+5%).</>",
-"g": "4ff463f2d7"
-},
 "部署后，嘉辛塔自身与周围八格的友方单位获得10%<@ba.talpu>（+2%）</>的<$ba.airprotect>对空庇护</>": {
 "en": "After deployment, Jacinta and friendly units within eight adjacent squares gain 10% <@ba.talpu>(+2%)</> <$ba.airprotect>anti-air Shelter.</>",
 "g": "4ff463f2d7"
@@ -2849,20 +2449,12 @@
 "en": "A Sudden Snowfall",
 "g": "4ff463f2d7"
 },
-"队长的自觉": {
-"en": "A Captain's Sense of Responsibility",
-"g": "4ff463f2d7"
-},
 "防御力+23": {
 "en": "DEF +23",
 "g": "4ff463f2d7"
 },
 "防御力+28": {
 "en": "DEF +28",
-"g": "4ff463f2d7"
-},
-"防御力+30": {
-"en": "DEF +30",
 "g": "4ff463f2d7"
 },
 "阻挡敌人时，自身造成的元素损伤提升<@ba.kw>15%</>": {
@@ -2873,12 +2465,12 @@
 "en": "Block +2; simultaneously attacks all blocked enemies; ATK <@ba.vup>+{atk:0%}</>; DEF +<@ba.vup>{def:0%}</>; Deploys a portable conveyor belt extending 4 squares forward, causing enemies weighing <@ba.vup>4</> or less that are not blocked to move toward Thumpy at a speed of <@ba.vup>0.8</> squares per second;Enemies on the conveyor belt take Physical damage equal to Thumpy’s <@ba.vup>{atk_scale:0%}</>ATK per second, and when <$ba.dt.erosion2>Corrosion Damage</> erupts, their DEF is additionally<@ba.vup>{thumpy[ep_break_water].def}</>",
 "g": "4ff463f2d7"
 },
-"隐秘专家": {
-"en": "The Secret Expert",
-"g": "4ff463f2d7"
-},
 "隐者": {
 "en": "The Hermit",
+"g": "4ff463f2d7"
+},
+"雪地用多功能探测器": {
+"en": "Multifunctional Detector for Snowy Conditions",
 "g": "4ff463f2d7"
 },
 "雪的印痕": {
@@ -2889,16 +2481,8 @@
 "en": "Snow Covers the City of Lun",
 "g": "4ff463f2d7"
 },
-"雷狼龙S空爆的信物": {
-"en": "Thunderwolf Dragon S: Token of the Sky Explosion",
-"g": "4ff463f2d7"
-},
-"雷狼龙的碧玉": {
-"en": "The Jade of the Thunderwolf Dragon",
-"g": "4ff463f2d7"
-},
-"露营时间喵！": {
-"en": "Time to go camping, Meow!",
+"雷神推进者/IV": {
+"en": "Thor's Propulsion System/IV",
 "g": "4ff463f2d7"
 },
 "静思真谛": {
@@ -2921,16 +2505,8 @@
 "en": "Hovering Above the Earth",
 "g": "4ff463f2d7"
 },
-"飞翔瞪射": {
-"en": "Flying Stare Shot",
-"g": "4ff463f2d7"
-},
 "飞越甜蜜之城": {
 "en": "Flying Over the City of Sweetness",
-"g": "4ff463f2d7"
-},
-"首次部署时部署费用-4": {
-"en": "DP Cost for Initial Deployment - 4",
 "g": "4ff463f2d7"
 },
 "首次部署时，待部署区<@ba.kw>最左侧</>的干员部署费用<@ba.kw>-4</>": {
@@ -2939,10 +2515,6 @@
 },
 "驮兽边界感": {
 "en": "A Sense of Boundaries in Mounted Beasts",
-"g": "4ff463f2d7"
-},
-"高压回填斩": {
-"en": "High-Pressure Backfill Cutter",
 "g": "4ff463f2d7"
 },
 "高级干员活动调用凭证": {
@@ -2991,10 +2563,6 @@
 },
 "默认服装": {
 "en": "Default Outfit",
-"g": "4ff463f2d7"
-},
-"龙之箭": {
-"en": "Dragon's Arrow",
 "g": "4ff463f2d7"
 },
 "龙卷箭": {
