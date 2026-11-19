@@ -182,13 +182,13 @@
         if (!charTable[charId]) {
           op.cnOnly = true;
           // CN's "name" is in Chinese, so it can't be searched in English.
-          // "appellation" is the operator's Latin-script codename (what
-          // other AK tools show for not-yet-localized operators), so use
-          // that as the name and keep the Chinese one (cnName) for the CN
+          // Use the Latin-script codename instead (see latinAppellation()
+          // in util.js) and keep the Chinese one (cnName) for the CN
           // badge's tooltip.
-          if (op.appellation && /[A-Za-z]/.test(op.appellation)) {
+          const latin = latinAppellation(op.appellation);
+          if (latin) {
             op.cnName = op.name;
-            op.name = op.appellation;
+            op.name = latin;
           }
           charTable[charId] = op;
         }

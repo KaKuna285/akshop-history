@@ -200,6 +200,28 @@ function setAvatarIcon(imgEl, charId, isCnOnly) {
   setIconWithFallback(imgEl, iconSources(uri_avatar, charId, isCnOnly), null, isCnOnly);
 }
 
+// The Latin-script name to show for a CN-only operator, from its
+// "appellation" (the codename the CN data gives besides the Chinese name),
+// or null if there's none. Ursus operators' appellations are Russian in
+// Cyrillic (Ольга); those are romanized the way the EN client spells the
+// released ones (Зима -> Zima, Позёмка -> Pozëmka, Лето -> Leto). The EN
+// release can still differ (Гум became "Gummy").
+const CYRILLIC_TO_LATIN = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "ë", ж: "zh", з: "z", и: "i", й: "y",
+  к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f",
+  х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+};
+function latinAppellation(appellation) {
+  if (!appellation) return null;
+  const latin = appellation.replace(/[\u0400-\u04FF]/g, (ch) => {
+    const lower = ch.toLowerCase();
+    const out = CYRILLIC_TO_LATIN[lower];
+    if (out === undefined) return ch;
+    return ch === lower ? out : out.charAt(0).toUpperCase() + out.slice(1);
+  });
+  return /[A-Za-z]/.test(latin) ? latin : null;
+}
+
 // A small "CN" tag for any operator/material flagged cnOnly during an
 // EN+CN data merge (see loadData() in planner.js, loadCharTable() in
 // operator-edit-modal.js): not yet released on the EN server, so it's

@@ -144,9 +144,10 @@ GLOSSARY = {
 }
 
 
-# Bumped when the way strings are protected/checked changes, so every
+# Bumped when the way strings are protected/checked or names are chosen
+# changes (3: romanized Cyrillic names), so every
 # string is translated again once.
-TRANSLATION_VERSION = 2
+TRANSLATION_VERSION = 3
 
 
 def glossary_hash():
@@ -369,10 +370,35 @@ def _fields(cn, en_char_ids):
             yield item, "name"
 
 
+# Same romanization as latinAppellation() in js/util.js, so a CN-only
+# operator's name reads the same on the page and inside translated text.
+CYRILLIC_TO_LATIN = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "ë", "ж": "zh", "з": "z",
+    "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r",
+    "с": "s", "т": "t", "у": "u", "ф": "f", "х": "kh", "ц": "ts", "ч": "ch", "ш": "sh",
+    "щ": "shch", "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+}
+
+
+def latin_appellation(appellation):
+    """The Latin-script name for a CN-only operator's appellation (Cyrillic
+    romanized), or None if it has none."""
+    out = []
+    for ch in appellation or "":
+        lower = ch.lower()
+        latin = CYRILLIC_TO_LATIN.get(lower)
+        if latin is None:
+            out.append(ch)
+        else:
+            out.append(latin if ch == lower else latin[:1].upper() + latin[1:])
+    text = "".join(out)
+    return text if re.search(r"[A-Za-z]", text) else None
+
+
 def operator_names(en_chars, cn_chars):
     """{CN name: EN name} for the glossary, so names inside descriptions
     come out as the operators' actual EN names: the EN name for released
-    operators, the romanized appellation for CN-only ones. Only names of
+    operators, the (romanized) appellation for CN-only ones. Only names of
     3+ characters (2+ for CN-only operators), since a short name is often
     also a common word (年 "year", 流星 "meteor")."""
     names = {}
@@ -383,8 +409,8 @@ def operator_names(en_chars, cn_chars):
         en = (en_chars.get(char_id) or {}).get("name")
         cn_only = not en
         if cn_only:
-            en = (cn or {}).get("appellation") or ""
-            if not re.search(r"[A-Za-z]", en):
+            en = latin_appellation((cn or {}).get("appellation"))
+            if not en:
                 continue
         if not en or len(zh) < (2 if cn_only else 3):
             continue

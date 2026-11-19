@@ -355,9 +355,10 @@ const OperatorEditModal = (function () {
         for (const [charId, op] of Object.entries(cnChars)) {
           if (!charTable[charId]) {
             op.cnOnly = true;
-            if (op.appellation && /[A-Za-z]/.test(op.appellation)) {
+            const latin = latinAppellation(op.appellation); // see util.js
+            if (latin) {
               op.cnName = op.name;
-              op.name = op.appellation;
+              op.name = latin;
             }
             charTable[charId] = op;
           }
