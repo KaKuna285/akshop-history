@@ -5,10 +5,6 @@
 "en": "\"Treasure Bag\"",
 "g": "cece0b6a2e"
 },
-"0011/韵系列/X": {
-"en": "0011/Yun Series/X",
-"g": "cece0b6a2e"
-},
 "0011/韵系列/XI": {
 "en": "0011/Yun Series/XI",
 "g": "cece0b6a2e"
@@ -993,10 +989,6 @@
 "en": "Hitchhiking Adventure Pass",
 "g": "cece0b6a2e"
 },
-"撷香霭": {
-"en": "Capturing the Fragrant Mist",
-"g": "cece0b6a2e"
-},
 "操作<@ba.kw>浮游单元</>造成<@ba.kw>法术伤害</>\\n单元攻击同一敌人伤害提升（单元初始伤害提高，最高造成干员110%攻击力的伤害）": {
 "en": "<@ba.kw>Using the Floating Unit</> ability increases the <@ba.kw>Arts</> damage dealt by the \\nunit when attacking the same enemy (the unit's base damage is increased, dealing up to 110% of the Operator's ATK).",
 "g": "cece0b6a2e"
@@ -1601,10 +1593,6 @@
 "en": "A frank and honest person",
 "g": "cece0b6a2e"
 },
-"玛尔特/XIV": {
-"en": "Marte/XIV",
-"g": "cece0b6a2e"
-},
 "珊比受到的<$ba.dt.element>元素损伤</>降低10%<@ba.talpu>（+5%）</>；珊比造成物理伤害时，附带攻击力10%<@ba.talpu>（+2%）</>的<$ba.dt.erosion2>侵蚀损伤</>，并使目标的<$ba.dt.erosion2>侵蚀损伤</>冷却减少1.2<@ba.talpu>（+0.2）</>秒": {
 "en": "Thumpy takes 10% <@ba.talpu>(+5%)</> less <$ba.dt.element>Elemental Damage</>; when Thumpy deals Physical damage, it also deals <$ba.dt.erosion2>Corrosion Damage</> equal to 10% <@ba.talpu>(+2%)</> of her ATK and reduces the target's <$ba.dt.erosion2>Corrosion Damage</> cooldown by 1.2 <@ba.talpu>(+0.2)</> seconds.",
 "g": "cece0b6a2e"
@@ -2069,10 +2057,6 @@
 "en": "Red Soil Tensile Strength",
 "g": "cece0b6a2e"
 },
-"跃动节拍": {
-"en": "Pulsing Rhythm",
-"g": "cece0b6a2e"
-},
 "跨领域交流": {
 "en": "Interdisciplinary Exchange",
 "g": "cece0b6a2e"
@@ -2431,10 +2415,6 @@
 },
 "错位巡礼/IV": {
 "en": "A Tour of Misalignments/IV",
-"g": "cece0b6a2e"
-},
-"锦标积分券": {
-"en": "Tournament Points Voucher",
 "g": "cece0b6a2e"
 },
 "镜匠的信物": {
